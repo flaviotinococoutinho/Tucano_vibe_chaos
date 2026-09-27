@@ -7,4 +7,5 @@ return [
     Commerce\Shared\Adapter\SharedServiceProvider::class,
     Commerce\Inventory\Adapter\InventoryServiceProvider::class,
     Commerce\Ordering\Adapter\OrderingServiceProvider::class,
+    Commerce\Payments\Adapter\PaymentsServiceProvider::class,
 ];

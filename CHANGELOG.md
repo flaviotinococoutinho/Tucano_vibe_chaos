@@ -12,6 +12,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Expiração de pedidos não pagos (UC-ORD-03): worker `commerce-order-expiry` com `FOR UPDATE SKIP LOCKED`, liberação do estoque (UC-INV-03), histórico de transições gravado a partir do agregado e `OrderCancelled` na outbox com contrato em JSON Schema.
 - Produtos no catálogo (UC-CAT-01 a 04): API `/v1/products`, cache-aside com jitter, cache negativo e lock contra stampede, concorrência otimista com `If-Match`, snapshot no tópico compactado depois do commit (dual write consciente) e `catalog:republish`, que o job de migração roda a cada subida.
 - PayFake no `partners-sim`: cobranças com `Idempotency-Key`, ciclo de vida como união discriminada, webhooks assinados (`PayFake-Signature`, HMAC-SHA256 com timestamp) com retry e backoff, estornos, API de caos em tempo real e contrato OpenAPI 3.1 com os webhooks.
+- Pagamento de pedidos (UC-PAY-01): `POST /v1/orders/{id}/payments` com idempotência, um pagamento pendente por pedido garantido pelo banco, chamada ao PayFake fora de transação com a camada anticorrupção, e circuit breaker com estado no Redis (`503` com `Retry-After` quando aberto).
+- Laboratório de circuit breaker, com o experimento de latência no PSP e os números.
 - Job `contracts` no CI: os JSON Schemas de eventos são validados contra o metaschema e os contratos HTTP passam pelo lint do Redocly.
 
 ### Fixed

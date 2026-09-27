@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Adapter\Driving\Http;
 
-use Commerce\Ordering\Application\Outcome;
 use Commerce\Ordering\Application\Port\Driving\ForPlacingOrders;
+use Commerce\Shared\Application\Idempotency\Outcome;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 

@@ -59,9 +59,14 @@ final readonly class ProblemDetails
         };
     }
 
+    /**
+     * Only the unexpected is hidden. A 503 raised on purpose, or a domain error of
+     * the Unavailable category, says something the client can act on.
+     */
     private static function detailOf(Throwable $error, int $status): string
     {
-        if ($status >= Response::HTTP_INTERNAL_SERVER_ERROR && !config('app.debug')) {
+        $deliberate = $error instanceof HttpExceptionInterface || $error instanceof DomainError;
+        if ($status >= Response::HTTP_INTERNAL_SERVER_ERROR && !$deliberate && !config('app.debug')) {
             return 'Something went wrong on our side. Quote the correlation id when reporting it.';
         }
 

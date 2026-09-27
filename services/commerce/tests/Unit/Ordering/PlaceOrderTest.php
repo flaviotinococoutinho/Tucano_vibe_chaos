@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Ordering;
 
 use Commerce\Inventory\Domain\InsufficientStock;
-use Commerce\Ordering\Application\Outcome;
 use Commerce\Ordering\Application\PlaceOrderCommand;
 use Commerce\Ordering\Application\RequestedItem;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
@@ -24,6 +23,7 @@ use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
 use Commerce\Shared\Application\Idempotency\IdempotencyKey;
 use Commerce\Shared\Application\Idempotency\IdempotencyKeyReused;
+use Commerce\Shared\Application\Idempotency\Outcome;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Doubles\Ordering\FakeStockReservations;
@@ -77,7 +77,7 @@ final class PlaceOrderTest extends TestCase
         $placed = $this->placeOrder->placeOrder(self::command('key-1', ['BOOK-DDD-001' => 2, 'HOME-MUG-001' => 1]));
         $order = $placed->order->toArray();
 
-        self::assertSame(Outcome::Placed, $placed->outcome);
+        self::assertSame(Outcome::Fresh, $placed->outcome);
         self::assertSame('pending_payment', $order['status']);
         self::assertSame('BHZ1', $order['fulfillmentCenter']);
         self::assertSame(['amount' => 42970, 'currency' => 'BRL'], $order['total']);

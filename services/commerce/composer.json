@@ -25,6 +25,7 @@
     ],
     "require": {
         "php": "^8.4",
+        "guzzlehttp/guzzle": "^7.10",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "tucano/feature-flags": "*@dev",

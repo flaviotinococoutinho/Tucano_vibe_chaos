@@ -77,6 +77,7 @@ x-commerce: &commerce
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: commerce_read
     KAFKA_BROKERS: toxiproxy:19092
+    PAYFAKE_URL: http://toxiproxy:14001
   depends_on:
     postgres:
       condition: service_healthy
