@@ -144,6 +144,32 @@ erDiagram
 
 Também existem `product_snapshots` (peso e dimensões), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
 
+## Read models (MongoDB)
+
+O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_read` e `logistics_read`). Os documentos são desnormalizados para a tela que os consome: uma leitura por id, sem join. As migrations ficam em `services/<nome>/database/mongo` e criam cada coleção com validador `$jsonSchema` em modo `strict`, porque um banco sem schema obrigatório não significa dado sem contrato.
+
+| Coleção | Chave | Índices | Alimentada por |
+|---|---|---|---|
+| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v1` e `logistics.shipments.v1` |
+| `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário) | `trackingCode` único, `orderId` único | `logistics.shipments.v1` |
+
+```json
+{
+  "_id": "UUID('01926f39-1d2c-7a8b-8c9d-0e1f2a3b4c5d')",
+  "orderNumber": "NumberLong(97663530295234560)",
+  "customerId": "UUID('01926f38-...')",
+  "status": "shipped",
+  "total": { "amount": "NumberLong(18990)", "currency": "BRL" },
+  "lines": [{ "sku": "BOOK-DDD-001", "name": "Domain-Driven Design", "quantity": 1, "unitPrice": "NumberLong(18990)" }],
+  "shipment": { "trackingCode": "TX02PQRFBTW5G03", "status": "in_transit", "carrier": "ligeirinho" },
+  "placedAt": "ISODate('2026-09-27T12:00:00Z')",
+  "updatedAt": "ISODate('2026-09-27T15:42:10Z')",
+  "version": "NumberLong(4)"
+}
+```
+
+O campo `version` guarda a última mudança aplicada. A projeção só escreve se a mudança for mais nova (`VersionedDocuments`), e assim evento repetido ou fora de ordem não volta o documento para trás.
+
 ## Regras que moram no banco
 
 O código também garante tudo isso, mas o banco é a última linha de defesa contra bug, concorrência e `UPDATE` feito na mão. Cada regra tem um teste de integração em `tests/Integration/SchemaConstraintsTest.php`.
@@ -162,7 +188,7 @@ Os índices parciais também servem à performance: o job que expira pedidos lê
 
 ## Migrations e seeds na stack
 
-Cada serviço tem um job `<serviço>-migrate` no compose, que roda `php artisan migrate --force --seed` uma vez antes da API subir (o mesmo papel de um Job no Kubernetes). Com várias réplicas da API, isso evita duas migrations concorrentes.
+Cada serviço tem um job `<serviço>-migrate` no compose, que roda `php artisan migrate --force --seed` e depois `php artisan mongo:migrate` uma vez antes da API subir (o mesmo papel de um Job no Kubernetes). Com várias réplicas da API, isso evita duas migrations concorrentes.
 
 Os seeders são idempotentes: dados de referência (CDs, transportadoras) usam `upsert`, e o estoque usa `insertOrIgnore`, para que um novo `make up` nunca zere estoque ou reservas que os pedidos já movimentaram.
 
