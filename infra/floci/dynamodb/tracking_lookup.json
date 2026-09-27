@@ -1,0 +1,13 @@
+{
+  "table": {
+    "TableName": "tracking_lookup",
+    "AttributeDefinitions": [
+      { "AttributeName": "trackingCode", "AttributeType": "S" }
+    ],
+    "KeySchema": [
+      { "AttributeName": "trackingCode", "KeyType": "HASH" }
+    ],
+    "BillingMode": "PAY_PER_REQUEST"
+  },
+  "timeToLive": { "AttributeName": "expiresAt" }
+}

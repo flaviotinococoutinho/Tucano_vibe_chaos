@@ -1,0 +1,9 @@
+_format_version: "3.0"
+
+# Routes are added as each service comes online. Global plugins apply to all of them.
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Correlation-Id
+      generator: uuid#counter
+      echo_downstream: true

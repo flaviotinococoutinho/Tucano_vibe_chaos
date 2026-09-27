@@ -1,11 +1,11 @@
 # Arquitetura
 
-A **Tucano** é um e-commerce fictício que entrega o que vende com uma malha logística própria (a *Tucano Express*) e com transportadoras parceiras. O sistema é pequeno o bastante para rodar num notebook e grande o bastante para exercitar os problemas que aparecem em entrevistas de system design: concorrência no estoque, pagamento com saga, eventos entre contextos, leitura eventualmente consistente, tempo real e falhas de rede.
+A **Tucano** é um e-commerce fictício que entrega o que vende com uma malha logística própria (a Tucano Express) e com transportadoras parceiras. O sistema roda num notebook e cobre os problemas que aparecem em entrevistas de system design: concorrência no estoque, pagamento com saga, eventos entre contextos, leitura com consistência eventual, tempo real e falhas de rede.
 
 ## O que este projeto quer ensinar
 
-- **PHP em três runtimes**: PHP-FPM (Laravel e Lumen, modelo *shared-nothing*) e Swoole (processo de longa duração com corrotinas).
-- **Node.js** onde ele brilha: I/O concorrente, WebSocket e agregação (BFF).
+- **PHP em três runtimes**: PHP-FPM (Laravel e Lumen, modelo shared-nothing) e Swoole (processo de longa duração com corrotinas).
+- **Node.js** para I/O concorrente, WebSocket e agregação (BFF).
 - **DDD** estratégico (context map, linguagem ubíqua) e tático (agregados, value objects, eventos).
 - **Arquitetura hexagonal** e casos de uso no estilo de Alistair Cockburn, com package-by-feature.
 - **ACID vs BASE** lado a lado: PostgreSQL e MySQL na escrita; MongoDB, DynamoDB e Redis na leitura e no lookup.
@@ -71,6 +71,7 @@ C4Container
     ContainerDb(redis, "Redis 8", "memória", "cache, GEO, locks")
     ContainerQueue(kafka, "Kafka 3.9 + ZooKeeper", "log de eventos", "eventos de domínio")
     Container(aws, "AWS local", "Floci", "S3, SQS, SNS, DynamoDB, SES")
+    Container(flags, "Feature flags", "flagd", "Flags privadas por ambiente")
   }
 
   Rel(customer, kong, "HTTPS, WSS")
@@ -97,23 +98,24 @@ C4Container
 
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
-| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e *circuit breaking* por health check | planejado |
+| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, ainda sem rotas |
 | `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
 | `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | planejado |
-| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside; mostra um serviço legado | planejado |
+| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | planejado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | planejado |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | planejado |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | planejado |
-| `partners-sim` | Node 24 + Fastify | o "mundo externo": PSP, transportadoras e app da frota, com controles de caos | planejado |
+| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | planejado |
 | `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | planejado |
-| `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | planejado |
-| `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | planejado |
-| `mongo` | MongoDB 8 | read models eventualmente consistentes (CQRS) | planejado |
-| `redis` | Redis 8 | cache, GEO da frota, locks, rate limit e estado de circuit breaker | planejado |
-| `kafka` + `zookeeper` | Apache Kafka 3.9.2 | backbone de eventos entre contextos | planejado |
-| `floci` | Floci 2.1 | S3, SQS, SNS, DynamoDB e SES locais | planejado |
-| `toxiproxy` | Toxiproxy 2.12 | injeção de latência, cortes e timeouts entre serviços e dependências | planejado |
-| `mailpit` | Mailpit | caixa de entrada dos e-mails enviados pelo SES local | planejado |
+| `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |
+| `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |
+| `mongo` | MongoDB 8 | read models com consistência eventual (CQRS) | rodando |
+| `redis` | Redis 8 | cache, GEO da frota, locks, rate limit e estado de circuit breaker | rodando |
+| `kafka` + `zookeeper` | Apache Kafka 3.9.2 | backbone de eventos entre contextos | rodando |
+| `floci` | Floci 2.1 | S3, SQS, SNS, DynamoDB e SES locais | rodando |
+| `toxiproxy` | Toxiproxy 2.12 | injeção de latência, cortes e timeouts entre serviços e dependências | rodando |
+| `mailpit` | Mailpit | caixa de entrada dos e-mails enviados pelo SES local | rodando |
+| `flagd` | flagd 0.17 (OpenFeature) | flags privadas por ambiente, avaliadas no servidor | rodando |
 
 ## Fluxo principal: comprar e receber
 
@@ -156,5 +158,7 @@ sequenceDiagram
 - [Casos de uso](../use-cases/README.md): lista ator-objetivo e fichas no formato de Cockburn.
 - [Eventos](events.md): tópicos, envelope CloudEvents e garantias de entrega.
 - [Identificadores](identifiers.md): UUIDv7 e Snowflake.
-- [Máquinas de estado](state-machines.md): pedido, pagamento e remessa, sem flags booleanas.
+- [Máquinas de estados](state-machines.md): pedido, pagamento e remessa, sem flags booleanas.
+- [Topologia local](deployment.md): redes, proxies de caos e memória.
+- [Feature flags](feature-flags.md): flags privadas por ambiente.
 - [Decisões de arquitetura (ADRs)](../adr/README.md).

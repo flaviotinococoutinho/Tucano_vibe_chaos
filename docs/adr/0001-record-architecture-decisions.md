@@ -14,4 +14,4 @@ Registrar decisões relevantes como ADRs numerados em `docs/adr/`, no formato de
 ## Consequências
 
 - A história das decisões fica versionada junto com o código.
-- Mudar de ideia é permitido, mas deixa rastro: um ADR novo substitui o antigo.
+- Uma decisão pode mudar, mas sempre por um ADR novo que substitui o antigo.

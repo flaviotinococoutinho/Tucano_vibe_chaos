@@ -1,4 +1,4 @@
-# UC-TRK-03 · Acompanhar a entrega ao vivo
+# UC-TRK-03: Acompanhar a entrega ao vivo
 
 | | |
 |---|---|
@@ -30,13 +30,13 @@
 1. O cliente abre uma conexão WebSocket informando o código de rastreio.
 2. O sistema identifica o entregador designado para aquela remessa.
 3. O sistema envia a última posição conhecida.
-4. A cada nova posição do entregador, o sistema empurra a atualização para quem está assistindo.
+4. A cada nova posição do entregador, o sistema envia a atualização para quem está acompanhando.
 5. Quando a remessa é entregue, o sistema avisa e encerra a conexão.
 
 ## Extensões
 
-- 2a. Remessa ainda não despachada: o sistema informa o estado e mantém a conexão esperando o despacho.
-- 4a. Entregador sem sinal há mais de 30 s: o sistema marca a posição como desatualizada.
+- 2a. Remessa ainda não despachada: o sistema informa o estado e mantém a conexão aberta até o despacho.
+- 4a. Entregador sem sinal há mais de 30 segundos: o sistema marca a posição como desatualizada.
 - *a. O cliente perde a conexão: ao reconectar, recebe a última posição (volta ao passo 3).
 
 ## No código

@@ -1,6 +1,6 @@
 # Linguagem ubíqua
 
-Os termos abaixo são usados igualmente na conversa, na documentação e no código. Se um nome muda aqui, muda no código também.
+Os termos abaixo valem igualmente na conversa, na documentação e no código. Se um nome muda aqui, muda no código também.
 
 ## Glossário
 
@@ -35,17 +35,17 @@ Os termos abaixo são usados igualmente na conversa, na documentação e no cód
 
 ## Mesmo nome, modelos diferentes
 
-Cada contexto tem seu próprio modelo, mesmo quando o nome coincide. É isso que torna os limites **delimitados**.
+Cada contexto tem seu próprio modelo, mesmo quando o nome coincide.
 
-- **Centro de distribuição**: no *Inventory* é onde o estoque mora (SKU e quantidades); na *Logistics* é um ponto no mapa com horário de coleta.
-- **Cliente**: no *Ordering* tem nome, e-mail e endereço de entrega congelados no pedido; no *Tracking* nem existe, só há quem acompanha um código de rastreio.
+- **Centro de distribuição**: no Inventory é onde fica o estoque (SKU e quantidades); na Logistics é um ponto no mapa com horário de coleta.
+- **Cliente**: no Ordering tem nome, e-mail e endereço de entrega congelados no pedido; no Tracking nem existe, só há quem acompanha um código de rastreio.
 - **Pedido e remessa**: a logística não conhece o pedido; guarda só o `orderId` como referência e trabalha com a remessa.
 
-## Palavras que evitamos
+## Palavras a evitar
 
 | Evite | Prefira | Por quê |
 |---|---|---|
-| `item` sozinho | `OrderLine`, `Parcel`, `StockItem` | "item" significa coisas diferentes em cada contexto |
+| `item` sozinho | `OrderLine`, `Parcel`, `StockItem` | `item` significa coisas diferentes em cada contexto |
 | `status` booleano (`isPaid`, `delivered`) | um estado da máquina (`OrderStatus::Paid`) | flags combinadas criam estados impossíveis |
 | `data`, `info`, `manager`, `helper` | o nome do conceito | nomes genéricos escondem responsabilidade |
-| "evento" para show ou promoção | — | aqui "evento" é sempre **evento de domínio** |
+| evento no sentido de show ou promoção | - | aqui, evento é sempre **evento de domínio** |

@@ -1,17 +1,17 @@
-# 0011. Máquinas de estado com enum e guards em cadeia
+# 0011. Máquinas de estados com enum e guards em cadeia
 
 - Status: aceito
 - Data: 2026-09-27
 
 ## Contexto
 
-Pedidos, pagamentos e remessas têm ciclo de vida. Modelá-los com booleanos (`is_paid`, `delivered`) cria combinações impossíveis e espalha validações pelo código.
+Pedidos, pagamentos e remessas têm ciclo de vida. Modelar isso com booleanos (`is_paid`, `delivered`) cria combinações impossíveis e espalha validações pelo código.
 
 ## Decisão
 
-- O estado é um único campo: `enum` *backed* no PHP, coluna com `CHECK` no banco e *discriminated union* no TypeScript.
+- O estado é um único campo: backed `enum` no PHP, coluna com `CHECK` no banco e discriminated union no TypeScript.
 - As transições permitidas ficam numa tabela explícita (`match` exaustivo sobre o enum).
-- As regras que dependem de dados (comprovante, número de tentativas, etiqueta anexada) são **guards** encadeados com *Chain of Responsibility*.
+- As regras que dependem de dados (comprovante, número de tentativas, etiqueta anexada) são guards encadeados em Chain of Responsibility.
 - Toda transição aplicada gera uma linha de histórico e um evento de domínio.
 
 Os diagramas e as regras estão em [state-machines.md](../architecture/state-machines.md).
@@ -19,8 +19,8 @@ Os diagramas e as regras estão em [state-machines.md](../architecture/state-mac
 ## Consequências
 
 - Estados inválidos deixam de ser representáveis, e a máquina inteira cabe numa tela.
-- Cada guard é uma classe pequena e testável isoladamente, o que conversa com as regras de Object Calisthenics.
-- Não usamos bibliotecas de workflow. Se as regras crescerem muito, `symfony/workflow` é o próximo passo natural.
+- Cada guard é uma classe pequena e testável isoladamente, o que segue as regras de Object Calisthenics.
+- Não uso biblioteca de workflow. Se as regras crescerem muito, `symfony/workflow` é o próximo passo natural.
 
 ## Alternativas consideradas
 
