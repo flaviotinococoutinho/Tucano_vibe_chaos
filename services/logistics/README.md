@@ -2,7 +2,7 @@
 
 Serviço de remessas da Tucano, em Laravel 13 sobre PHP 8.4 (FPM). Aqui fica o núcleo logístico: criar a remessa quando o pedido é pago, escolher a transportadora, gerar a etiqueta e conduzir a entrega pela máquina de estados até o cliente (ou de volta ao CD).
 
-A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois núcleos, um jeito só de organizar. Nesta fatia a remessa nasce do `order.paid` e pode ser cancelada pelo `order.cancelled`; a etiqueta e a entrega entram nas próximas.
+A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois núcleos, um jeito só de organizar. Hoje a remessa nasce do `order.paid`, pode ser cancelada pelo `order.cancelled` e ganha a etiqueta pela fila SQS; a coleta e a entrega entram nas próximas fatias.
 
 ## Como está organizado
 
@@ -57,7 +57,7 @@ flowchart LR
 
 - Falta de evidência (etiqueta, hub, comprovante ou motivo da falha) é `InvalidInput`; estourar as tentativas ou voltar sem justificativa é `Conflict`. Transição fora da tabela é `TransitionNotAllowed`, também `Conflict`.
 - Cada transição aplicada muda o estado, sobe a versão, acrescenta uma linha ao histórico (`shipment_transitions`, com o motivo e o hub) e registra um evento de domínio. O tipo do evento é o nome do estado alcançado (`tucano.logistics.shipment.picked_up`), exatamente a lista de `docs/architecture/events.md`.
-- A máquina inteira já mora no domínio e cada transição e cada guard têm teste de unidade, mas nesta fatia só `created` e `cancelled` são movidos por casos de uso.
+- A máquina inteira já mora no domínio e cada transição e cada guard têm teste de unidade, mas por enquanto só `created`, `ready_for_pickup` e `cancelled` são movidos por casos de uso.
 
 ## Criar e cancelar a remessa
 
@@ -124,6 +124,32 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v1` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
 | `logistics-catalog-sync` | `php artisan logistics:sync-catalog` | mantém peso e dimensões em `product_snapshots` a partir de `catalog.products.v1` ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)); snapshot ilegível vai para `dlq.logistics.catalog-sync` |
 | `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v1`; roda com `SNOWFLAKE_WORKER_ID=12` |
+| `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v1` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
+| `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
+
+## A etiqueta
+
+A etiqueta sai em ZPL, a linguagem das impressoras térmicas: é texto, e a impressora desenha o código de barras Code 128 do código de rastreio. Ela vai para o bucket `tucano-labels`, em `labels/<código de rastreio>.zpl`, e só então a remessa passa para `ready_for_pickup`, com o `ShipmentReadyForPickup` na outbox.
+
+```mermaid
+sequenceDiagram
+  participant K as Kafka (logistics.shipments.v1)
+  participant R as logistics-label-requests
+  participant Q as SQS (label-jobs)
+  participant W as logistics-label-worker
+  participant S as S3 (tucano-labels)
+  participant P as PostgreSQL
+  K->>R: ShipmentCreated
+  R->>Q: job com o id da remessa
+  Q->>W: job (invisível por 60 s)
+  W->>S: labels/TX....zpl
+  W->>P: ready_for_pickup + ShipmentReadyForPickup na outbox
+  W->>Q: apaga a mensagem
+```
+
+- O Kafka é o log e o SQS a fila de trabalho: o pedido de etiqueta parte do evento que a outbox já garantiu, sem dual write.
+- O job tenta três vezes (espera 5 s e depois 20 s), com timeout de 30 s, abaixo da visibilidade de 60 s da fila. Esgotadas as tentativas, ele fica em `failed_jobs`, e o `php artisan queue:retry all` o devolve à fila. Um worker que morre no meio não registra nada; depois de três entregas, o SQS move a mensagem para `label-jobs-dlq`.
+- A flag `chaos.logistics.label-failure-rate` faz parte das gravações falhar. O experimento está no [laboratório da fila de etiquetas](../../docs/labs/label-queue.md).
 
 ## Eventos publicados
 
@@ -131,6 +157,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 |---|---|
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
+| `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |
 
 O `ShipmentCreated` leva o destino só com cidade, estado e CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa da rua nem do nome de quem recebe, então esses dados ficam no banco da logística. Os outros eventos da máquina já existem no domínio e ganham contrato quando os casos de uso deles entrarem.
 

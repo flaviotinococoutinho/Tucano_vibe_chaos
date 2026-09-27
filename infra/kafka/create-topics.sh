@@ -29,6 +29,7 @@ consumer_groups=(
   commerce.catalog-sync
   logistics.catalog-sync
   logistics.order-intake
+  logistics.label-requests
   commerce.shipment-sync
   commerce.order-projector
   logistics.timeline-projector

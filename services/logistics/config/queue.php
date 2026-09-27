@@ -55,14 +55,18 @@ return [
             'after_commit' => false,
         ],
 
+        // Floci through Toxiproxy locally; the label worker reads the label-jobs queue.
         'sqs' => [
             'driver' => 'sqs',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'prefix' => env('SQS_PREFIX', 'https://sqs.us-east-1.amazonaws.com/your-account-id'),
-            'queue' => env('SQS_QUEUE', 'default'),
+            'key' => env('AWS_ACCESS_KEY_ID', 'test'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY', 'test'),
+            'prefix' => env('SQS_PREFIX', 'http://toxiproxy:14566/000000000000'),
+            'queue' => env('SQS_QUEUE', 'label-jobs'),
             'suffix' => env('SQS_SUFFIX'),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'endpoint' => env('AWS_ENDPOINT', 'http://toxiproxy:14566'),
+            // Laravel's default waits 60 s for SQS; a queue that slow is a queue that is down.
+            'http' => ['timeout' => 5, 'connect_timeout' => 2],
             'after_commit' => false,
         ],
 
@@ -105,7 +109,7 @@ return [
     */
 
     'batching' => [
-        'database' => env('DB_CONNECTION', 'sqlite'),
+        'database' => env('DB_CONNECTION', 'pgsql'),
         'table' => 'job_batches',
     ],
 
@@ -124,7 +128,7 @@ return [
 
     'failed' => [
         'driver' => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
-        'database' => env('DB_CONNECTION', 'sqlite'),
+        'database' => env('DB_CONNECTION', 'pgsql'),
         'table' => 'failed_jobs',
     ],
 

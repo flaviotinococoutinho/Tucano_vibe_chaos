@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check kong-reload check lint-workflows
+.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies php packages-check kong-reload check lint-workflows
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -67,6 +67,17 @@ flags: ## Evaluate every feature flag (key=<targeting key>)
 	@curl -s -X POST localhost:8016/ofrep/v1/evaluate/flags -H 'Content-Type: application/json' \
 		-d '{"context": {"targetingKey": "$(or $(key),anonymous)"}}' | jq '.flags | map({(.key): .value}) | add'
 
+# flagd watches a runtime copy of the environment file (flag-runtime volume); these edit that copy.
+flag-runtime := docker run --rm -e APP_ENV=$(or $(APP_ENV),local) -v chaos-playground_flag-runtime:/runtime \
+	-v "$(CURDIR)/infra/flags/environments":/environments:ro -v "$(CURDIR)/scripts/flags":/scripts:ro \
+	chaos-playground/php-base:$(PHP) php /scripts/runtime.php
+
+flag: ## Serve another variant of a flag, no restart (key=<flag> variant=<variant>)
+	@$(flag-runtime) set $(key) $(variant)
+
+flag-reset: ## Put a flag back as it is in the repository (key=<flag>)
+	@$(flag-runtime) reset $(key)
+
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
 
@@ -108,7 +119,8 @@ check-image-tracking := chaos-playground/tracking
 check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
 	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test
 check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
-	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=logistics_read_test
+	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=logistics_read_test \
+	-e FLOCI_ENDPOINT=http://floci:4566
 
 check: ## Lint, analyse and test one service (s=commerce); PHP runs against the stack
 ifneq ($(wildcard services/$(s)/package.json),)

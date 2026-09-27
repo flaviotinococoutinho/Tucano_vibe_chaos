@@ -25,6 +25,7 @@
     ],
     "require": {
         "php": "^8.4",
+        "aws/aws-sdk-php": "^3.398",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "tucano/feature-flags": "*@dev",
@@ -55,6 +56,7 @@
         }
     },
     "scripts": {
+        "pre-autoload-dump": "Aws\\Script\\Composer\\Composer::removeUnusedServices",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
@@ -73,7 +75,11 @@
     "extra": {
         "laravel": {
             "dont-discover": []
-        }
+        },
+        "aws/aws-sdk-php": [
+            "S3",
+            "Sqs"
+        ]
     },
     "config": {
         "optimize-autoloader": true,

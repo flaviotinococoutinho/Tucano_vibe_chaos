@@ -43,6 +43,7 @@ O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../
 | `tucano.commerce.order.cancelled` | [`commerce.order.cancelled.schema.json`](../../contracts/events/commerce.order.cancelled.schema.json) |
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
+| `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |
 
 ## Tópicos
 
@@ -66,6 +67,7 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 | `commerce.catalog-sync` | `catalog.products.v1` | atualiza os snapshots de produto usados no checkout |
 | `logistics.catalog-sync` | `catalog.products.v1` | atualiza peso e dimensões usados na escolha da transportadora |
 | `logistics.order-intake` | `commerce.orders.v1` | cria a remessa em `order.paid` e a cancela em `order.cancelled` |
+| `logistics.label-requests` | `logistics.shipments.v1` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
 | `commerce.shipment-sync` | `logistics.shipments.v1` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
 | `commerce.order-projector` | `commerce.orders.v1` | mantém o read model de pedidos no MongoDB |
 | `logistics.timeline-projector` | `logistics.shipments.v1` | mantém a linha do tempo no MongoDB e o lookup público no DynamoDB |

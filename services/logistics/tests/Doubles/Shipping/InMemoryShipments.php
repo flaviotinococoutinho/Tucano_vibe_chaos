@@ -7,6 +7,7 @@ namespace Tests\Doubles\Shipping;
 use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Shipment;
+use Logistics\Shipping\Domain\Shipment\ShipmentId;
 
 final class InMemoryShipments implements ForStoringShipments
 {
@@ -22,6 +23,17 @@ final class InMemoryShipments implements ForStoringShipments
     public function forOrder(OrderId $order): ?Shipment
     {
         return $this->shipments[$order->toString()] ?? null;
+    }
+
+    public function withId(ShipmentId $shipment): ?Shipment
+    {
+        foreach ($this->shipments as $stored) {
+            if ($stored->toSnapshot()->reference->id->equals($shipment)) {
+                return $stored;
+            }
+        }
+
+        return null;
     }
 
     public function save(Shipment $shipment): void
