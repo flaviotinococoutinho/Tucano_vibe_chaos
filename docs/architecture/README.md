@@ -158,6 +158,7 @@ sequenceDiagram
 - [Casos de uso](../use-cases/README.md): lista ator-objetivo e fichas no formato de Cockburn.
 - [Eventos](events.md): tópicos, envelope CloudEvents e garantias de entrega.
 - [Identificadores](identifiers.md): UUIDv7 e Snowflake.
+- [Modelo de dados](data-model.md): DDL, tipos e constraints de cada banco.
 - [Máquinas de estados](state-machines.md): pedido, pagamento e remessa, sem flags booleanas.
 - [Topologia local](deployment.md): redes, proxies de caos e memória.
 - [Feature flags](feature-flags.md): flags privadas por ambiente.

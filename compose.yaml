@@ -355,15 +355,43 @@ services:
 
   # ------------------------------------------------------------------- services
 
+  commerce-migrate:
+    <<: [*job, *commerce]
+    # Runs once before the API starts, like a Kubernetes Job; seeding only inserts what is missing.
+    command: ["php", "artisan", "migrate", "--force", "--seed"]
+
   commerce:
     <<: [*service, *commerce]
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
 
+  logistics-migrate:
+    <<: [*job, *logistics]
+    # Runs once before the API starts, like a Kubernetes Job; seeding only inserts what is missing.
+    command: ["php", "artisan", "migrate", "--force", "--seed"]
+
   logistics:
     <<: [*service, *logistics]
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
