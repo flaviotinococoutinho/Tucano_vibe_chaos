@@ -18,6 +18,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - `DomainError` com `ErrorCategory` no shared kernel, para o domínio dizer o tipo do problema sem conhecer HTTP.
 - Pacote `tucano/feature-flags`: porta `FeatureFlags` com OpenFeature e flagd, cache de avaliação (APCu ou memória) e guard que desliga flags de caos e laboratório em produção.
 
+### Fixed
+
+- Dependência muda não prende mais o PHP-FPM: timeouts de conexão e leitura em PostgreSQL, MySQL, Redis e MongoDB, `request_terminate_timeout` no FPM e health check sem o retry da query. Com um banco em blackhole, o readiness responde 503 em 2 a 4 s, e não mais 504 depois de 30 s.
+
 ## [0.2.0] - 2026-09-27
 
 ### Added

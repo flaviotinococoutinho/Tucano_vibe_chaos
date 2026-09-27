@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use Illuminate\Support\Facades\Artisan;
-use MongoDB\Client;
 use MongoDB\Database;
 use MongoDB\Driver\Exception\BulkWriteException;
 use PHPUnit\Framework\Attributes\Group;
@@ -21,7 +20,7 @@ final class ReadModelSchemaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->database = (new Client((string) config('read_models.uri')))->selectDatabase((string) config('read_models.database'));
+        $this->database = $this->app->make(Database::class);
         $this->database->drop();
         self::assertSame(0, Artisan::call('mongo:migrate'));
     }
