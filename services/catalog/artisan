@@ -1,0 +1,14 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Contracts\Console\Kernel;
+use Laravel\Lumen\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+
+/** @var Application $app */
+$app = require __DIR__ . '/bootstrap/app.php';
+
+exit($app->make(Kernel::class)->handle(new ArgvInput(), new ConsoleOutput()));

@@ -5,6 +5,8 @@ declare(strict_types=1);
 return [
     'default' => env('DB_CONNECTION', 'mysql'),
 
+    'migrations' => ['table' => 'migrations', 'update_date_on_publish' => true],
+
     'connections' => [
         'mysql' => [
             'driver' => 'mysql',

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Console\Kernel;
 use App\Exceptions\Handler;
 use App\Http\Middleware\CorrelationId;
 use App\Providers\PlatformServiceProvider;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Redis\RedisServiceProvider;
 use Laravel\Lumen\Application;
@@ -19,6 +21,7 @@ date_default_timezone_set('UTC');
 $app = new Application(dirname(__DIR__));
 
 $app->singleton(ExceptionHandler::class, Handler::class);
+$app->singleton(ConsoleKernel::class, Kernel::class);
 
 // Lumen loads a config file only when a component first asks for it. Loading
 // all of them here means Redis finds its connections and tests can override any value.
