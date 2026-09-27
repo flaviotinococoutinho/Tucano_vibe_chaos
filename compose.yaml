@@ -18,6 +18,36 @@ x-job: &job
       max-size: "1m"
       max-file: "1"
 
+x-catalog: &catalog
+  build:
+    context: .
+    dockerfile: services/catalog/Dockerfile
+  image: chaos-playground/catalog
+  environment:
+    APP_NAME: catalog
+    APP_ENV: ${APP_ENV:-local}
+    APP_DEBUG: "false"
+    LOG_LEVEL: info
+    DB_HOST: toxiproxy
+    DB_PORT: "13306"
+    DB_DATABASE: catalog
+    DB_USERNAME: catalog
+    DB_PASSWORD: catalog
+    REDIS_HOST: toxiproxy
+    REDIS_PORT: "16379"
+    FLAGD_HOST: toxiproxy
+    FLAGD_PORT: "18013"
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    toxiproxy:
+      condition: service_started
+    flagd:
+      condition: service_started
+  networks: [backend]
+
 x-commerce: &commerce
   build:
     context: .
@@ -362,6 +392,13 @@ services:
     networks: [backend]
 
   # ------------------------------------------------------------------- services
+
+  catalog:
+    <<: [*service, *catalog]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+    mem_limit: 256m
 
   commerce-migrate:
     <<: [*job, *commerce]

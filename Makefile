@@ -90,6 +90,8 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 	done
 
 # Hostnames the PHP services use when their tests run inside the compose network.
+check-env-catalog := -e DB_HOST=mysql -e REDIS_HOST=redis
+check-php-catalog := 8.3
 check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
 	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test
 check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
@@ -99,4 +101,4 @@ check: ## Lint, analyse and test one PHP service against the running stack (s=co
 	@scripts/test-databases.sh
 	docker run --rm --network chaos-playground_backend -v "$(CURDIR)":/app \
 		-v chaos-playground-composer-cache:/tmp/composer/cache $(check-env-$(s)) \
-		-w /app/services/$(s) chaos-playground/php-base:$(PHP) sh -c 'composer install -q && composer check'
+		-w /app/services/$(s) chaos-playground/php-base:$(or $(check-php-$(s)),$(PHP)) sh -c 'composer install -q && composer check'

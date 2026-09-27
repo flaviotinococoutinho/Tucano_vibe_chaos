@@ -9,6 +9,13 @@ plugins:
       echo_downstream: true
 
 services:
+  - name: catalog
+    url: http://nginx:8081
+    routes:
+      - name: catalog-api
+        paths: [/api/catalog]
+        strip_path: true
+
   - name: commerce
     url: http://nginx:8082
     routes:
