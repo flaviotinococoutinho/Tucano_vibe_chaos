@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
-use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\QueryException;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Ramsey\Uuid\Uuid;
-use Tests\TestCase;
+use Tests\IntegrationTestCase;
 
 /**
  * The catalog rules also live in MySQL, so a bug in the code (or a manual
@@ -17,34 +16,12 @@ use Tests\TestCase;
  * (HY000, 23000), so the assertions look at the driver error code instead.
  */
 #[Group('integration')]
-final class SchemaConstraintsTest extends TestCase
+final class SchemaConstraintsTest extends IntegrationTestCase
 {
     private const int CHECK_VIOLATED = 3819;
     private const int DUPLICATE_ENTRY = 1062;
     private const int NO_REFERENCED_ROW = 1452;
     private const int DATA_TRUNCATED = 1265;
-
-    private static bool $migrated = false;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // DDL commits on its own in MySQL, so the schema is built once, before the
-        // first transaction, and every test rolls its changes back.
-        if (!self::$migrated) {
-            $this->artisan('migrate:fresh', ['--seed' => true, '--force' => true]);
-            self::$migrated = true;
-        }
-        $this->database()->beginTransaction();
-    }
-
-    protected function tearDown(): void
-    {
-        $this->database()->rollBack();
-
-        parent::tearDown();
-    }
 
     #[Test]
     public function a_sku_outside_the_format_is_rejected(): void
@@ -102,30 +79,6 @@ final class SchemaConstraintsTest extends TestCase
 
         self::assertSame(9990, (int) $products->clone()->where('sku', 'BOOK-DDD-001')->value('price_cents'));
         self::assertSame($count, $products->clone()->count());
-    }
-
-    private function database(): ConnectionInterface
-    {
-        return $this->app->make('db')->connection();
-    }
-
-    /** @param array<string, mixed> $overrides */
-    private function insertProduct(array $overrides = []): void
-    {
-        $this->database()->table('products')->insert([
-            'id' => Uuid::uuid7()->getBytes(),
-            'sku' => 'BOOK-TEST-001',
-            'name' => 'Test book',
-            'category_id' => $this->database()->table('categories')->where('slug', 'books')->value('id'),
-            'status' => 'active',
-            'price_cents' => 1000,
-            'currency' => 'BRL',
-            'weight_grams' => 500,
-            'length_mm' => 200,
-            'width_mm' => 150,
-            'height_mm' => 20,
-            ...$overrides,
-        ]);
     }
 
     private function assertRejected(int $mysqlError, callable $statement): void

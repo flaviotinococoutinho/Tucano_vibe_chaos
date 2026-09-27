@@ -9,7 +9,12 @@ use App\Health\HealthCheck;
 use App\Health\Readiness;
 use App\Health\RedisCheck;
 use App\Logging\LogContext;
+use App\Messaging\LazyProducer;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Support\ServiceProvider;
+use LogicException;
+use Psr\Log\LoggerInterface;
 use Tucano\FeatureFlags\Cache\ApcuFlagCache;
 use Tucano\FeatureFlags\Cache\FlagCache;
 use Tucano\FeatureFlags\Cache\InMemoryFlagCache;
@@ -18,13 +23,16 @@ use Tucano\FeatureFlags\FeatureFlags;
 use Tucano\FeatureFlags\Flagd;
 use Tucano\FeatureFlags\InMemoryFlags;
 use Tucano\FeatureFlags\ProductionGuard;
+use Tucano\Messaging\Kafka\Producer;
+use Tucano\Messaging\Kafka\RdKafkaProducer;
 use Tucano\SharedKernel\Time\Clock;
 use Tucano\SharedKernel\Time\SystemClock;
 
 /**
  * Wires the platform pieces every feature relies on: clock, feature flags,
- * log context and health checks. The flag cache depends on the runtime: PHP-FPM
- * shares APCu between its children, while a CLI process keeps it in memory.
+ * Kafka producer, cache locks, log context and health checks. The flag cache
+ * depends on the runtime: PHP-FPM shares APCu between its children, while a CLI
+ * process keeps it in memory.
  */
 final class PlatformServiceProvider extends ServiceProvider
 {
@@ -36,6 +44,8 @@ final class PlatformServiceProvider extends ServiceProvider
         $this->app->singleton(Clock::class, SystemClock::class);
         $this->app->singleton(FeatureFlags::class, fn(): FeatureFlags => $this->featureFlags());
         $this->app->singleton(LogContext::class);
+        $this->app->singleton(Producer::class, fn(): Producer => new LazyProducer($this->kafkaProducer(...)));
+        $this->app->bind(LockProvider::class, fn(): LockProvider => $this->locks());
 
         $this->app->tag([DatabaseCheck::class, RedisCheck::class], HealthCheck::TAG);
         $this->app->when(Readiness::class)->needs('$checks')->giveTagged(HealthCheck::TAG);
@@ -67,5 +77,26 @@ final class PlatformServiceProvider extends ServiceProvider
     private function flagCache(): FlagCache
     {
         return PHP_SAPI === 'fpm-fcgi' ? new ApcuFlagCache() : new InMemoryFlagCache();
+    }
+
+    private function kafkaProducer(): Producer
+    {
+        return new RdKafkaProducer(
+            (string) config('platform.kafka.brokers'),
+            (string) config('platform.service'),
+            ['message.timeout.ms' => (string) config('platform.kafka.message_timeout_ms')],
+            $this->app->make(LoggerInterface::class),
+        );
+    }
+
+    /** Locks live in the configured cache store: Redis in the stack, memory in unit tests. */
+    private function locks(): LockProvider
+    {
+        $store = $this->app->make(Cache::class)->getStore();
+        if (!$store instanceof LockProvider) {
+            throw new LogicException(sprintf('The cache store %s cannot hold locks.', $store::class));
+        }
+
+        return $store;
     }
 }

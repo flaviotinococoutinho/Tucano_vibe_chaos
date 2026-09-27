@@ -33,7 +33,13 @@ Todo evento no Kafka é um [CloudEvent](https://github.com/cloudevents/spec) em 
 | `correlationid` | o mesmo do request que originou o fluxo (vem do Kong) |
 | `causationid` | `id` do evento ou comando que causou este |
 
-O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../contracts/events/cloudevent.schema.json). Os schemas do `data` de cada evento entram em `contracts/events/` junto com o produtor, e os testes de contrato validam produtor e consumidor contra eles.
+O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../contracts/events/cloudevent.schema.json). Os schemas do `data` de cada evento entram em `contracts/events/` junto com o produtor, e os testes de contrato do produtor validam o evento contra o envelope e contra o schema do `data`:
+
+| Evento | Schema do `data` |
+|---|---|
+| `tucano.catalog.product.snapshot` | [`catalog.product.snapshot.schema.json`](../../contracts/events/catalog.product.snapshot.schema.json) |
+| `tucano.commerce.order.placed` | [`commerce.order.placed.schema.json`](../../contracts/events/commerce.order.placed.schema.json) |
+| `tucano.commerce.order.cancelled` | [`commerce.order.cancelled.schema.json`](../../contracts/events/commerce.order.cancelled.schema.json) |
 
 ## Tópicos
 

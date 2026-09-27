@@ -37,11 +37,15 @@ x-catalog: &catalog
     REDIS_PORT: "16379"
     FLAGD_HOST: toxiproxy
     FLAGD_PORT: "18013"
+    KAFKA_BROKERS: toxiproxy:19092
+    KAFKA_MESSAGE_TIMEOUT_MS: "5000"
   depends_on:
     mysql:
       condition: service_healthy
     redis:
       condition: service_healthy
+    kafka-init:
+      condition: service_completed_successfully
     toxiproxy:
       condition: service_started
     flagd:
@@ -396,8 +400,9 @@ services:
 
   catalog-migrate:
     <<: [*job, *catalog]
-    # Runs once before the API starts, like a Kubernetes Job: schema and seeds.
-    command: ["php", "artisan", "migrate", "--force", "--seed"]
+    # Runs once before the API starts, like a Kubernetes Job: schema, seeds, and every
+    # published product on the compacted topic, so a new consumer finds the whole catalog.
+    command: ["sh", "-c", "php artisan migrate --force --seed && php artisan catalog:republish"]
 
   catalog:
     <<: [*service, *catalog]

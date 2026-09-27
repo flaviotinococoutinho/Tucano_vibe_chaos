@@ -204,7 +204,7 @@ jobs:
         with:
           # Lumen 11 is frozen on PHP 8.3 (ADR 0009).
           php-version: "8.3"
-          extensions: apcu, bcmath, intl, pdo_mysql, redis
+          extensions: apcu, bcmath, intl, pdo_mysql, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress

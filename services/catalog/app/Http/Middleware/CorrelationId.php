@@ -24,7 +24,7 @@ final readonly class CorrelationId
     {
         $correlationId = $request->headers->get(self::HEADER) ?: Uuid::uuid7()->toString();
         $request->headers->set(self::HEADER, $correlationId);
-        $this->logContext->add('correlation_id', $correlationId);
+        $this->logContext->add(LogContext::CORRELATION_ID, $correlationId);
 
         $response = $next($request);
         $response->headers->set(self::HEADER, $correlationId);

@@ -215,6 +215,11 @@ O campo `version` guarda a última mudança aplicada. A projeção só escreve s
 
 Um Redis só para a stack inteira. Cada serviço usa o próprio nome como prefixo das chaves (`catalog-`, `commerce-`, `logistics-`), e o cache do framework fica no banco lógico `1`, separado do `0`: um `cache:clear` não apaga nada além de cache.
 
+| Chave (depois do prefixo) | Dono | TTL | Para quê |
+|---|---|---|---|
+| `product:v1:<sku>` | catalog | 270 a 330 s; 30 s para `missing` | cache-aside do produto; o `v1` muda quando o formato gravado mudar |
+| `product-rebuild:<sku>` | catalog | 5 s | lock contra stampede: só quem o pega relê o MySQL |
+
 ## DynamoDB (Floci)
 
 As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`. As duas são pagas por requisição e têm TTL no atributo `expiresAt`: o DynamoDB apaga o item vencido sozinho, sem job de limpeza.
