@@ -51,6 +51,39 @@ x-commerce: &commerce
       condition: service_started
   networks: [backend]
 
+x-logistics: &logistics
+  build:
+    context: .
+    dockerfile: services/logistics/Dockerfile
+  image: chaos-playground/logistics
+  environment:
+    APP_NAME: logistics
+    APP_ENV: ${APP_ENV:-local}
+    APP_KEY: base64:Jf5wQm2Xk8Rz4Tn7Vb1Yc3Ud6He9Lg0Pa5Sq2Wx8Zr4=
+    APP_DEBUG: "false"
+    LOG_LEVEL: info
+    DB_HOST: toxiproxy
+    DB_PORT: "15433"
+    DB_DATABASE: logistics
+    DB_USERNAME: logistics
+    DB_PASSWORD: logistics
+    REDIS_HOST: toxiproxy
+    REDIS_PORT: "16379"
+    FLAGD_HOST: toxiproxy
+    FLAGD_PORT: "18013"
+    SNOWFLAKE_DATACENTER_ID: "1"
+    SNOWFLAKE_WORKER_ID: "11"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    toxiproxy:
+      condition: service_started
+    flagd:
+      condition: service_started
+  networks: [backend]
+
 x-healthcheck: &healthcheck
   interval: 15s
   timeout: 5s
@@ -324,6 +357,13 @@ services:
 
   commerce:
     <<: [*service, *commerce]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+    mem_limit: 256m
+
+  logistics:
+    <<: [*service, *logistics]
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]

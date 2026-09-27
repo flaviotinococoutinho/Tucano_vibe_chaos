@@ -15,3 +15,10 @@ services:
       - name: commerce-api
         paths: [/api/commerce]
         strip_path: true
+
+  - name: logistics
+    url: http://nginx:8083
+    routes:
+      - name: logistics-api
+        paths: [/api/logistics]
+        strip_path: true
