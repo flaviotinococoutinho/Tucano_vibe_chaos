@@ -6,8 +6,10 @@ namespace Commerce\Shared\Adapter;
 
 use Commerce\Shared\Adapter\Driven\LaravelTransactions;
 use Commerce\Shared\Adapter\Driven\OutboxEvents;
+use Commerce\Shared\Adapter\Driven\PostgresInbox;
 use Commerce\Shared\Adapter\Driven\PostgresRequestMemory;
 use Commerce\Shared\Adapter\Driving\Console\RelayOutbox;
+use Commerce\Shared\Application\Port\Driven\ForDeduplicatingMessages;
 use Commerce\Shared\Application\Port\Driven\ForPublishingEvents;
 use Commerce\Shared\Application\Port\Driven\ForRememberingRequests;
 use Commerce\Shared\Application\Port\Driven\ForRunningTransactions;
@@ -24,6 +26,7 @@ final class SharedServiceProvider extends ServiceProvider
         ForRunningTransactions::class => LaravelTransactions::class,
         ForPublishingEvents::class => OutboxEvents::class,
         ForRememberingRequests::class => PostgresRequestMemory::class,
+        ForDeduplicatingMessages::class => PostgresInbox::class,
     ];
 
     public function register(): void

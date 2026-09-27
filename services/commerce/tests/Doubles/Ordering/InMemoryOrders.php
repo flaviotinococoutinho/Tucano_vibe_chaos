@@ -25,6 +25,11 @@ final class InMemoryOrders implements ForStoringOrders
         return $this->orders[$id->toString()] ?? throw OrderNotFound::withId($id->toString());
     }
 
+    public function lock(OrderId $id): Order
+    {
+        return $this->get($id);
+    }
+
     public function save(Order $order): void
     {
         $order->releaseTransitions();

@@ -45,4 +45,22 @@ final readonly class PostgresReservations implements ForRecordingReservations
              WHERE stock.sku = released.sku AND stock.fulfillment_center = released.fulfillment_center
             SQL, [$orderId]);
     }
+
+    public function commit(string $orderId): void
+    {
+        // A sale lowers on_hand and reserved together, so reserved <= on_hand keeps holding.
+        $this->connection->affectingStatement(<<<'SQL'
+            WITH committed AS (
+                UPDATE stock_reservations SET status = 'committed'
+                 WHERE order_id = ? AND status = 'active'
+             RETURNING sku, fulfillment_center, quantity
+            )
+            UPDATE stock_items AS stock
+               SET on_hand = stock.on_hand - committed.quantity,
+                   reserved = stock.reserved - committed.quantity,
+                   updated_at = now()
+              FROM committed
+             WHERE stock.sku = committed.sku AND stock.fulfillment_center = committed.fulfillment_center
+            SQL, [$orderId]);
+    }
 }

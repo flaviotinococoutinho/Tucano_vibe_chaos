@@ -20,10 +20,12 @@ use Commerce\Ordering\Application\Port\Driven\ForStoringCatalogCopies;
 use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
 use Commerce\Ordering\Application\Port\Driving\ForExpiringOrders;
 use Commerce\Ordering\Application\Port\Driving\ForPlacingOrders;
+use Commerce\Ordering\Application\Port\Driving\ForSettlingOrderPayments;
 use Commerce\Ordering\Application\Port\Driving\ForSyncingCatalog;
 use Commerce\Ordering\Application\Port\Driving\ForViewingOrders;
 use Commerce\Ordering\Application\UseCase\ExpireOrders;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
+use Commerce\Ordering\Application\UseCase\SettleOrderPayment;
 use Commerce\Ordering\Application\UseCase\SyncCatalogProduct;
 use Commerce\Ordering\Application\UseCase\ViewOrder;
 use Commerce\Ordering\Domain\Order\ReservationWindow;
@@ -40,6 +42,7 @@ final class OrderingServiceProvider extends ServiceProvider
         ForViewingOrders::class => ViewOrder::class,
         ForSyncingCatalog::class => SyncCatalogProduct::class,
         ForExpiringOrders::class => ExpireOrders::class,
+        ForSettlingOrderPayments::class => SettleOrderPayment::class,
         ForStoringOrders::class => PostgresOrders::class,
         ForFindingProducts::class => PostgresCatalogSnapshots::class,
         ForStoringCatalogCopies::class => PostgresCatalogSnapshots::class,

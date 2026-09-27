@@ -14,4 +14,7 @@ interface ForRecordingReservations
 
     /** Marks the active reservations of the order as released and gives their units back. */
     public function release(string $orderId): void;
+
+    /** Marks the active reservations of the order as committed and takes their units off the shelf. */
+    public function commit(string $orderId): void;
 }

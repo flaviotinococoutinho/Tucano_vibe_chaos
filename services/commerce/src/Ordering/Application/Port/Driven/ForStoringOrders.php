@@ -17,6 +17,13 @@ interface ForStoringOrders
     /** @throws OrderNotFound */
     public function get(OrderId $id): Order;
 
+    /**
+     * Like get(), with the row locked until the transaction ends.
+     *
+     * @throws OrderNotFound
+     */
+    public function lock(OrderId $id): Order;
+
     /** @throws OrderChangedMeanwhile when the stored version is not the one this order was loaded with */
     public function save(Order $order): void;
 
