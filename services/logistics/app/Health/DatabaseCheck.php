@@ -15,8 +15,13 @@ final readonly class DatabaseCheck implements HealthCheck
         return 'database';
     }
 
+    /**
+     * Runs the query on PDO itself. Through the connection, a lost connection would be
+     * reconnected and the query run again, hiding the failure this check exists to report
+     * and doubling the time it takes. Opening the connection still gets one retry.
+     */
     public function check(): void
     {
-        $this->database->connection()->select('select 1');
+        $this->database->connection()->getPdo()->query('select 1');
     }
 }

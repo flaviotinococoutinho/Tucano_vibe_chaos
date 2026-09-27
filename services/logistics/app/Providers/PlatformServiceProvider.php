@@ -10,6 +10,8 @@ use App\Health\Readiness;
 use App\Health\RedisCheck;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\ServiceProvider;
+use MongoDB\Client;
+use MongoDB\Database;
 use Tucano\FeatureFlags\Cache\ApcuFlagCache;
 use Tucano\FeatureFlags\Cache\FlagCache;
 use Tucano\FeatureFlags\Cache\InMemoryFlagCache;
@@ -28,7 +30,7 @@ use Tucano\SharedKernel\Time\SystemClock;
 
 /**
  * Wires the platform pieces every feature relies on: clock, ids, feature
- * flags and health checks. The runtime decides some of them: PHP-FPM shares
+ * flags, the read model database and health checks. The runtime decides some of them: PHP-FPM shares
  * APCu between its children, while a CLI worker is a single long-lived process.
  */
 final class PlatformServiceProvider extends ServiceProvider
@@ -42,6 +44,10 @@ final class PlatformServiceProvider extends ServiceProvider
             $this->app->make(Clock::class),
         ));
         $this->app->singleton(FeatureFlags::class, fn(): FeatureFlags => $this->featureFlags());
+        $this->app->singleton(Database::class, fn(): Database => (new Client(
+            (string) config('read_models.uri'),
+            (array) config('read_models.options'),
+        ))->selectDatabase((string) config('read_models.database')));
 
         $this->app->tag([DatabaseCheck::class, RedisCheck::class], HealthCheck::TAG);
         $this->app->when(Readiness::class)->needs('$checks')->giveTagged(HealthCheck::TAG);

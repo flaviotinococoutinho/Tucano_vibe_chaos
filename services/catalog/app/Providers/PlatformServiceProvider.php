@@ -30,6 +30,9 @@ final class PlatformServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // mysqlnd reads this from php.ini, not from the PDO options.
+        ini_set('mysqlnd.net_read_timeout', (string) config('database.connections.mysql.read_timeout'));
+
         $this->app->singleton(Clock::class, SystemClock::class);
         $this->app->singleton(FeatureFlags::class, fn(): FeatureFlags => $this->featureFlags());
         $this->app->singleton(LogContext::class);
