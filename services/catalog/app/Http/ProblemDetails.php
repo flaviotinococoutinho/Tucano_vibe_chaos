@@ -34,7 +34,10 @@ final readonly class ProblemDetails
             $problem['errors'] = $error->errors();
         }
 
-        return new JsonResponse($problem, $status, ['Content-Type' => 'application/problem+json']);
+        // Some HTTP errors carry headers the client needs: Allow on a 405, Retry-After on a 429.
+        $headers = $error instanceof HttpExceptionInterface ? $error->getHeaders() : [];
+
+        return new JsonResponse($problem, $status, [...$headers, 'Content-Type' => 'application/problem+json']);
     }
 
     private static function statusOf(Throwable $error): int
