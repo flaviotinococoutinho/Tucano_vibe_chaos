@@ -11,6 +11,11 @@ return [
         'webhook_secret' => env('PAYFAKE_WEBHOOK_SECRET', 'whsec_local_payfake'),
     ],
 
+    'reconciliation' => [
+        // A payment without the provider's final word is looked at after this long without news.
+        'quiet_seconds' => (int) env('PAYMENT_RECONCILIATION_QUIET_SECONDS', 60),
+    ],
+
     'circuit' => [
         'failure_threshold' => (int) env('PAYFAKE_CIRCUIT_FAILURES', 5),
         'window_seconds' => (int) env('PAYFAKE_CIRCUIT_WINDOW_SECONDS', 30),

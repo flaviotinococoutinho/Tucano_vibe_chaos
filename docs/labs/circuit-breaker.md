@@ -37,7 +37,7 @@ O log mostra as duas pontas: `Circuit payfake opened for 20 s: 5 failures in 30 
 
 ## O que ficou pendente
 
-Os cinco primeiros pagamentos terminaram `pending` e sem id de cobrança. A latência atrasou só a resposta: as cobranças chegaram ao PayFake e foram processadas. O commerce não sabe disso, e esse é o caso clássico de desfecho desconhecido. Quem resolve é o webhook, que carrega o id do pagamento como referência, ou uma nova tentativa do cliente com a mesma chave, que reenvia a cobrança com o mesmo id e recebe de volta a que já existia.
+Os cinco primeiros pagamentos terminaram `pending` e sem id de cobrança. A latência atrasou só a resposta: as cobranças chegaram ao PayFake e foram processadas. O commerce não sabe disso, e esse é o caso clássico de desfecho desconhecido. Quem resolve é o webhook, que carrega o id do pagamento como referência, ou uma nova tentativa do cliente com a mesma chave, que reenvia a cobrança com o mesmo id e recebe de volta a que já existia. Se nenhum dos dois vier, a conciliação pergunta ao PSP depois de 60 s ([laboratório de conciliação](payment-reconciliation.md)).
 
 ## Outra forma de deixar o PSP lento
 

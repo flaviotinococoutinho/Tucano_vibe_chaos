@@ -9,7 +9,8 @@ O PayFake é o PSP da Tucano. Ele fala a própria língua (charge, refund, event
 | Rota | O que faz |
 |---|---|
 | `POST /payfake/v1/charges` | cria uma cobrança, que nasce `processing` |
-| `GET /payfake/v1/charges/{id}` | mostra a cobrança como ela está agora, que é o que a conciliação lê |
+| `GET /payfake/v1/charges?reference=` | acha a cobrança pela referência do lojista, que é o que a conciliação lê: o id da cobrança pode ter se perdido junto com a resposta |
+| `GET /payfake/v1/charges/{id}` | mostra a cobrança como ela está agora |
 | `POST /payfake/v1/charges/{id}/refunds` | estorna uma cobrança `succeeded`, sempre pelo valor total |
 | `GET`, `PUT` e `DELETE /_chaos/payfake` | os controles de caos |
 

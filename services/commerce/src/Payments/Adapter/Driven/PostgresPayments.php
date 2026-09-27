@@ -47,6 +47,27 @@ final readonly class PostgresPayments implements ForStoringPayments
         return $row instanceof stdClass ? self::paymentFrom($row) : $payment;
     }
 
+    public function claimUnsettled(DateTimeImmutable $untouchedSince, DateTimeImmutable $now): ?Payment
+    {
+        // One statement claims and touches: SKIP LOCKED gives each payment to one copy of the
+        // job, and the touch keeps it away from the next round until it is quiet again. The
+        // WHERE repeats the predicate of payments_unsettled_idx, so the planner can use it.
+        $row = $this->connection->selectOne(<<<'SQL'
+            UPDATE payments SET updated_at = ?
+            WHERE id = (
+                SELECT id FROM payments
+                WHERE (status IN ('pending', 'refund_requested') OR (status = 'abandoned' AND provider_charge_id IS NOT NULL))
+                  AND updated_at <= ?
+                ORDER BY updated_at
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING id, order_id, status, amount_cents, currency, provider_charge_id, failure_reason, created_at, updated_at
+            SQL, [$now->format(DATE_RFC3339_EXTENDED), $untouchedSince->format(DATE_RFC3339_EXTENDED)]);
+
+        return $row instanceof stdClass ? self::paymentFrom($row) : null;
+    }
+
     public function save(Payment $payment): void
     {
         $this->connection->update(

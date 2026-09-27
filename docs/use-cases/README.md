@@ -38,8 +38,8 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-INV-04](UC-INV-04-commit-stock.md) | subfunção | Commerce | confirmar a venda do estoque | Inventory |
 | [UC-PAY-01](UC-PAY-01-pay-order.md) | usuário | Cliente | pagar um pedido | Payments |
 | [UC-PAY-02](UC-PAY-02-settle-payment.md) | subfunção | PayFake | informar o resultado de um pagamento | Payments |
-| UC-PAY-03 | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
-| UC-PAY-04 | subfunção | Commerce | estornar um pagamento | Payments |
+| [UC-PAY-03](UC-PAY-03-reconcile-payments.md) | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
+| [UC-PAY-04](UC-PAY-04-refund-payment.md) | subfunção | Commerce | estornar um pagamento | Payments |
 | UC-NTF-01 | subfunção | Commerce | notificar o cliente | Notifications |
 | [UC-SHP-01](UC-SHP-01-create-shipment.md) | subfunção | Commerce | criar a remessa de um pedido pago | Shipping |
 | UC-SHP-02 | subfunção | Logistics | escolher a transportadora | Carrier Selection |

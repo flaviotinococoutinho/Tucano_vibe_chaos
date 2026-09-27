@@ -23,8 +23,6 @@ final class ExpireOrdersWorker extends Command
 
     private const int FAILURE_MILLISECONDS = 2_000;
 
-    private const int STEP_MILLISECONDS = 200;
-
     public function handle(ForExpiringOrders $orders, LoggerInterface $logger): int
     {
         $stop = StopSignal::onTermination();
@@ -34,12 +32,12 @@ final class ExpireOrdersWorker extends Command
                 $expired = $orders->expireNext();
             } catch (Throwable $failure) {
                 $logger->error('Order expiry failed: {message}', ['message' => $failure->getMessage(), 'exception' => $failure]);
-                self::pause($stop, self::FAILURE_MILLISECONDS);
+                $stop->pause(self::FAILURE_MILLISECONDS);
 
                 continue;
             }
             if ($expired === null) {
-                self::pause($stop, self::IDLE_MILLISECONDS);
+                $stop->pause(self::IDLE_MILLISECONDS);
 
                 continue;
             }
@@ -48,13 +46,5 @@ final class ExpireOrdersWorker extends Command
         $logger->info('order expiry stopped');
 
         return self::SUCCESS;
-    }
-
-    /** Sleeps in short steps, so SIGTERM does not wait for a whole idle period. */
-    private static function pause(StopSignal $stop, int $milliseconds): void
-    {
-        for ($slept = 0; $slept < $milliseconds && !$stop->requested(); $slept += self::STEP_MILLISECONDS) {
-            usleep(self::STEP_MILLISECONDS * 1_000);
-        }
     }
 }

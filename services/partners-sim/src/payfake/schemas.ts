@@ -16,6 +16,9 @@ const money = {
   },
 } as const;
 
+/** The merchant's own id for the payment: what a charge carries and what finds it again. */
+const reference = { type: 'string', minLength: 1, maxLength: 128 } as const;
+
 export const chargeRequestSchema = {
   type: 'object',
   additionalProperties: false,
@@ -23,7 +26,7 @@ export const chargeRequestSchema = {
   properties: {
     amount: money,
     cardToken: { type: 'string', pattern: '^tok_\\w{1,60}$' },
-    reference: { type: 'string', minLength: 1, maxLength: 128 },
+    reference,
   },
 } as const;
 
@@ -68,4 +71,11 @@ export const chaosSettingsSchema = {
       },
     },
   },
+} as const;
+
+export const chargeLookupSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['reference'],
+  properties: { reference },
 } as const;

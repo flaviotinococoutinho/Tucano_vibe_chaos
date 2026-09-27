@@ -42,7 +42,7 @@ final class Payment
         return new self($id, $orderId, $amount, $status, $chargeId, $failureReason, $createdAt, $updatedAt);
     }
 
-    /** Still waiting for the provider to take the charge: a retry, or the reconciliation, must send it (again). */
+    /** Still waiting for the provider to take the charge: a retry with the same key sends it again. */
     public function awaitsCharge(): bool
     {
         return $this->status === PaymentStatus::Pending && $this->chargeId === null;
@@ -69,9 +69,31 @@ final class Payment
         $this->failureReason = $reason;
     }
 
+    /**
+     * Stops waiting for a charge the provider never got. A payment the provider took (it has a
+     * charge id) can only be ended by the provider's word.
+     */
+    public function abandon(DateTimeImmutable $at): void
+    {
+        if ($this->chargeId !== null) {
+            throw InvalidPayment::because(sprintf('Payment %s has charge %s at the provider and cannot be abandoned.', $this->id, $this->chargeId));
+        }
+        $this->moveTo(PaymentStatus::Abandoned, $at);
+    }
+
     public function requestRefund(DateTimeImmutable $at): void
     {
         $this->moveTo(PaymentStatus::RefundRequested, $at);
+    }
+
+    /** The charge whose money goes back. Only a payment waiting for its refund has one. */
+    public function chargeToRefund(): string
+    {
+        if ($this->status !== PaymentStatus::RefundRequested || $this->chargeId === null) {
+            throw InvalidPayment::because(sprintf('Payment %s is %s and has no refund to ask for.', $this->id, $this->status->value));
+        }
+
+        return $this->chargeId;
     }
 
     public function markRefunded(DateTimeImmutable $at): void

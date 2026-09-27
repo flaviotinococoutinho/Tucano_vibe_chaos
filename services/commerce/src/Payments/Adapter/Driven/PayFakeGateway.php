@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Commerce\Payments\Adapter\Driven;
 
+use Commerce\Payments\Application\ChargeState;
 use Commerce\Payments\Application\Port\Driven\ForChargingCards;
+use Commerce\Payments\Application\ProviderCharge;
 use Commerce\Payments\Domain\CardToken;
 use Commerce\Payments\Domain\ChargeRefused;
 use Commerce\Payments\Domain\GatewayFailure;
@@ -18,7 +20,7 @@ use Tucano\SharedKernel\Money\Money;
 /**
  * The anticorruption layer with PayFake: its vocabulary (charge, cardToken,
  * value) stops here. The payment id goes as the Idempotency-Key, so resending
- * the same payment can never create a second charge.
+ * the same payment can never create a second charge, nor a second refund.
  */
 final readonly class PayFakeGateway implements ForChargingCards
 {
@@ -34,18 +36,54 @@ final readonly class PayFakeGateway implements ForChargingCards
 
     public function charge(PaymentId $payment, Money $amount, CardToken $card): string
     {
+        $charge = $this->send('POST', '/payfake/v1/charges', [
+            'headers' => ['Idempotency-Key' => $payment->toString()],
+            'json' => [
+                'amount' => self::money($amount),
+                'cardToken' => $card->value,
+                'reference' => $payment->toString(),
+            ],
+        ]);
+        $chargeId = $charge['id'] ?? null;
+
+        return is_string($chargeId) && $chargeId !== '' ? $chargeId : throw GatewayFailure::because('the answer has no charge id');
+    }
+
+    public function chargeOf(PaymentId $payment): ?ProviderCharge
+    {
+        $found = $this->send('GET', '/payfake/v1/charges', ['query' => ['reference' => $payment->toString()]]);
+        $charges = $found['data'] ?? null;
+        if (!is_array($charges)) {
+            throw GatewayFailure::because('the answer has no list of charges');
+        }
+        $charge = $charges[0] ?? null;
+
+        return is_array($charge) ? self::providerCharge($charge) : null;
+    }
+
+    public function refund(PaymentId $payment, string $chargeId, Money $amount): void
+    {
+        $this->send('POST', sprintf('/payfake/v1/charges/%s/refunds', rawurlencode($chargeId)), [
+            'headers' => ['Idempotency-Key' => $payment->toString()],
+            'json' => ['amount' => self::money($amount)],
+        ]);
+    }
+
+    /**
+     * One call to PayFake: a 5xx or no answer is a failure with an unknown outcome, and any
+     * other 4xx is a refusal of the request itself.
+     *
+     * @param array{headers?: array<string, string>, json?: array<string, mixed>, query?: array<string, string>} $options
+     *
+     * @return array<mixed> the decoded body
+     */
+    private function send(string $method, string $uri, array $options): array
+    {
         $budget = $this->afterInjectedLatency();
+        $options['headers'] = [...$options['headers'] ?? [], 'X-Correlation-Id' => (string) Context::get('correlation_id', '')];
         try {
-            $response = $this->http->request('POST', '/payfake/v1/charges', [
-                'headers' => [
-                    'Idempotency-Key' => $payment->toString(),
-                    'X-Correlation-Id' => (string) Context::get('correlation_id', ''),
-                ],
-                'json' => [
-                    'amount' => ['value' => $amount->cents(), 'currency' => $amount->currency()->code()],
-                    'cardToken' => $card->value,
-                    'reference' => $payment->toString(),
-                ],
+            $response = $this->http->request($method, $uri, [
+                ...$options,
                 'timeout' => $budget / 1_000,
                 'connect_timeout' => min(0.5, $budget / 1_000),
                 'http_errors' => false,
@@ -55,17 +93,47 @@ final readonly class PayFakeGateway implements ForChargingCards
         }
 
         $status = $response->getStatusCode();
-        /** @var array<string, mixed> $body */
-        $body = json_decode((string) $response->getBody(), true) ?? [];
+        $body = json_decode((string) $response->getBody(), true);
+        $body = is_array($body) ? $body : [];
         if ($status >= 500) {
             throw GatewayFailure::because(sprintf('HTTP %d', $status));
         }
         if ($status >= 400) {
             throw ChargeRefused::because(is_string($body['detail'] ?? null) ? $body['detail'] : sprintf('HTTP %d', $status));
         }
-        $chargeId = $body['id'] ?? null;
 
-        return is_string($chargeId) && $chargeId !== '' ? $chargeId : throw GatewayFailure::because('the answer has no charge id');
+        return $body;
+    }
+
+    /** @return array{value: int, currency: string} */
+    private static function money(Money $amount): array
+    {
+        return ['value' => $amount->cents(), 'currency' => $amount->currency()->code()];
+    }
+
+    /**
+     * PayFake's charge, one of four states, in Payments' words. A refunded charge carries its
+     * refund, and only a refund that succeeded means the money is back.
+     *
+     * @param array<mixed> $charge
+     */
+    private static function providerCharge(array $charge): ProviderCharge
+    {
+        $id = $charge['id'] ?? null;
+        if (!is_string($id) || $id === '') {
+            throw GatewayFailure::because('a charge came without its id');
+        }
+        $refund = $charge['refund'] ?? null;
+        $state = match ($charge['status'] ?? null) {
+            'processing' => ChargeState::Processing,
+            'succeeded' => ChargeState::Succeeded,
+            'failed' => ChargeState::Failed,
+            'refunded' => is_array($refund) && ($refund['status'] ?? null) === 'succeeded' ? ChargeState::Refunded : ChargeState::Refunding,
+            default => throw GatewayFailure::because(sprintf('charge %s has a status Payments does not know', $id)),
+        };
+        $failureCode = $charge['failureCode'] ?? null;
+
+        return new ProviderCharge($id, $state, is_string($failureCode) ? $failureCode : null);
     }
 
     /**

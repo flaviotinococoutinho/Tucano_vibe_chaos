@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Nível** | subfunção |
-| **Ator principal** | PayFake (webhook) |
+| **Ator principal** | PayFake (webhook), ou a conciliação (UC-PAY-03) quando o webhook se perde |
 | **Escopo** | Commerce (Payments) |
 | **Gatilho** | o PSP termina de processar uma cobrança ou um estorno e envia o webhook |
 
@@ -44,14 +44,16 @@
 - 3a. Tipo de evento que o Payments não lê: `200` com `ignored`.
 - 4a. Evento repetido: a inbox já tem o id; `200` com `duplicate`.
 - 4b. Referência que não é um pagamento daqui: `200` com `unknown_payment`.
-- 5a. O pagamento já saiu de `pending` (uma cópia tardia de outro evento): nada muda; `200` com `already_settled`.
+- 5a. O pagamento já tem a palavra final (uma cópia tardia de outro evento): nada muda; `200` com `already_settled`.
 - 5b. Cobrança aprovada depois de o pedido expirar: o pagamento vai para `refund_requested`, e o estorno (UC-PAY-04) devolve o dinheiro.
+- 5c. Resultado de um pagamento `abandoned` (a conciliação desistiu dele, UC-PAY-03): a captura vai direto para `refund_requested`, porque o pedido já foi cancelado; a recusa só fica registrada.
 - \*a. O banco falha no meio: tudo volta, o webhook responde `5xx` e o PayFake reenvia com backoff.
 
 ## Variações de tecnologia
 
 - Sem `Idempotency-Key`: o id do evento, na inbox, faz esse papel.
 - O corpo é verificado byte a byte, antes de qualquer decodificação: decodificar e codificar de novo mudaria o HMAC.
+- O webhook empurra o resultado e a conciliação puxa; os dois passam pelo mesmo caso de uso e pela mesma inbox, então um resultado é aplicado de um jeito só, venha por onde vier.
 
 ## No código
 

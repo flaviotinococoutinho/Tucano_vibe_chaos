@@ -16,6 +16,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Laboratório de circuit breaker, com o experimento de latência no PSP e os números.
 - Webhook do PayFake (UC-PAY-02): assinatura `PayFake-Signature` verificada sobre o corpo cru, inbox para evento repetido e, numa transação só, pagamento capturado ou recusado, pedido pago ou cancelado (UC-ORD-07), reserva convertida em venda (UC-INV-04) e `OrderPaid` na outbox; dinheiro que chega depois da expiração fica marcado para estorno.
 - Job `contracts` no CI: os JSON Schemas de eventos são validados contra o metaschema e os contratos HTTP passam pelo lint do Redocly.
+- Conciliação de pagamentos (UC-PAY-03) e estorno (UC-PAY-04): worker `commerce-payment-reconciler`, que pergunta ao PayFake pelos pagamentos sem desfecho há 60 s e aplica a resposta pelo mesmo caminho do webhook; estado `abandoned` para a cobrança que nunca chegou ao PSP, com a palavra tardia do PSP ainda aceita; estorno com o id do pagamento como `Idempotency-Key`; e o laboratório com o experimento.
+- `GET /payfake/v1/charges?reference=` no PayFake, para achar a cobrança cujo id se perdeu junto com a resposta.
 
 ### Fixed
 
