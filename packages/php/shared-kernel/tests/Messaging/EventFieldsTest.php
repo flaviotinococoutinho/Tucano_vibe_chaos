@@ -31,6 +31,7 @@ final class EventFieldsTest extends TestCase
         self::assertSame('BOOK-DDD-001', $fields->objects('items')[0]->text('sku'));
         self::assertNull($fields->optionalText('coupon'));
         self::assertNull($fields->optionalNumber('latitude'));
+        self::assertSame(['amount' => 18990, 'currency' => 'BRL'], $fields->object('total')->toArray());
     }
 
     #[Test]

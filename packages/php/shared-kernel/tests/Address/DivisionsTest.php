@@ -33,7 +33,9 @@ final class DivisionsTest extends TestCase
 
         self::assertSame(BrazilianState::MG, $divisions->state());
         self::assertSame('Belo Horizonte', $divisions->municipality()->name);
-        self::assertSame('Centro', $divisions->narrowest()->name);
+        self::assertSame('Centro', $divisions->find(DivisionKind::Neighborhood)?->name);
+        self::assertNull($divisions->find(DivisionKind::Subdistrict));
+        self::assertSame(['district', 'neighborhood'], array_map(static fn(Division $division): string => $division->kind->value, $divisions->below(DivisionKind::Municipality)));
         self::assertSame(
             ['state', 'municipality', 'district', 'neighborhood'],
             array_map(static fn(Division $division): string => $division->kind->value, iterator_to_array($divisions, false)),
@@ -45,14 +47,14 @@ final class DivisionsTest extends TestCase
     {
         $divisions = Divisions::of(Division::state(BrazilianState::SP), Division::municipality('Cajamar'));
 
-        self::assertSame('Cajamar', $divisions->narrowest()->name);
+        self::assertSame([], $divisions->below(DivisionKind::Municipality));
         self::assertNull($divisions->municipality()->code);
     }
 
     #[Test]
     public function a_state_is_known_by_its_uf_and_named_as_ibge_names_it(): void
     {
-        self::assertEquals(new Division(DivisionKind::State, 'São Paulo', 'SP'), Division::state(BrazilianState::SP));
+        self::assertEquals(Division::of(DivisionKind::State, 'São Paulo', 'SP'), Division::state(BrazilianState::SP));
         self::assertCount(27, array_unique(array_map(static fn(BrazilianState $state): string => $state->ibgeCode(), BrazilianState::cases())));
         self::assertCount(27, array_unique(array_map(static fn(BrazilianState $state): string => $state->officialName(), BrazilianState::cases())));
         self::assertSame(['31', '53'], [BrazilianState::MG->ibgeCode(), BrazilianState::DF->ibgeCode()]);
@@ -65,7 +67,7 @@ final class DivisionsTest extends TestCase
 
         self::assertSame(
             [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], ['kind' => 'municipality', 'code' => '3118601', 'name' => 'Contagem']],
-            $divisions->upTo(DivisionKind::Municipality)->jsonSerialize(),
+            $divisions->upTo(DivisionKind::Municipality)->toArray(),
         );
     }
 
@@ -78,7 +80,9 @@ final class DivisionsTest extends TestCase
             Division::neighborhood('Copacabana'),
         );
 
-        self::assertEquals($divisions, Divisions::fromJson(json_encode($divisions, JSON_THROW_ON_ERROR)));
+        self::assertSame('[{"kind":"state","code":"RJ","name":"Rio de Janeiro"},{"kind":"municipality","code":"3304557","name":"Rio de Janeiro"},{"kind":"neighborhood","code":null,"name":"Copacabana"}]', $divisions->toJson());
+        self::assertEquals($divisions, Divisions::fromJson($divisions->toJson()));
+        self::assertEquals($divisions, Divisions::fromArray($divisions->toArray()));
     }
 
     /** @return iterable<string, array{Closure(): mixed}> */
@@ -90,13 +94,15 @@ final class DivisionsTest extends TestCase
         yield 'the same kind twice' => [static fn() => Divisions::of(Division::state(BrazilianState::SP), Division::municipality('Campinas'), Division::neighborhood('Cambuí'), Division::neighborhood('Centro'))];
         yield 'a municipality of São Paulo in Minas Gerais' => [static fn() => Divisions::of(Division::state(BrazilianState::MG), Division::municipality('São Paulo', '3550308'))];
         yield 'a district outside its municipality' => [static fn() => Divisions::of(Division::state(BrazilianState::MG), Division::municipality('Belo Horizonte', '3106200'), Division::district('Sede', '311860105'))];
-        yield 'a state that is not a UF' => [static fn() => new Division(DivisionKind::State, 'Guanabara', 'GB')];
-        yield 'a state without its UF' => [static fn() => new Division(DivisionKind::State, 'São Paulo')];
+        yield 'a state that is not a UF' => [static fn() => Division::of(DivisionKind::State, 'Guanabara', 'GB')];
+        yield 'a state without its UF' => [static fn() => Division::of(DivisionKind::State, 'São Paulo')];
         yield 'a geocode short of a digit' => [static fn() => Division::municipality('Belo Horizonte', '310620')];
         yield 'a geocode with letters' => [static fn() => Division::subdistrict('Sede', '3106200050A')];
         yield 'a blank name' => [static fn() => Division::neighborhood('   ')];
         yield 'a name longer than the column' => [static fn() => Division::municipality(str_repeat('a', 81))];
-        yield 'a blank local code' => [static fn() => new Division(DivisionKind::Neighborhood, 'Centro', ' ')];
+        yield 'a blank local code' => [static fn() => Division::of(DivisionKind::Neighborhood, 'Centro', ' ')];
+        yield 'an array of divisions that is not a list' => [static fn() => Divisions::fromArray(['state' => ['kind' => 'state', 'code' => 'SP', 'name' => 'São Paulo']])];
+        yield 'a division that is not an object' => [static fn() => Divisions::fromArray(['SP', 'Campinas'])];
         yield 'json that is not a list' => [static fn() => Divisions::fromJson('{"kind":"state"}')];
         yield 'json that is not json' => [static fn() => Divisions::fromJson('[{')];
         yield 'a division without a name' => [static fn() => Divisions::fromJson('[{"kind":"state","code":"SP"},{"kind":"municipality","code":null}]')];

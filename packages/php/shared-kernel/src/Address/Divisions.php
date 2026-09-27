@@ -9,7 +9,6 @@ use IteratorAggregate;
 use JsonException;
 use JsonSerializable;
 use Traversable;
-use ValueError;
 
 /**
  * The territory of an address, from the broadest division to the narrowest.
@@ -47,7 +46,20 @@ final readonly class Divisions implements IteratorAggregate, JsonSerializable
         return new self($divisions, $uf, $municipality);
     }
 
-    /** Reads back what jsonSerialize wrote, as a jsonb column keeps it. */
+    /** @param array<mixed> $divisions the shape toArray writes */
+    public static function fromArray(array $divisions): self
+    {
+        if (!array_is_list($divisions)) {
+            throw InvalidAddress::because('The divisions are a list, from the broadest to the narrowest.');
+        }
+
+        return self::of(...array_map(
+            static fn(mixed $division): Division => is_array($division) ? Division::fromArray($division) : throw InvalidAddress::because('Each division is an object.'),
+            $divisions,
+        ));
+    }
+
+    /** Reads back what toJson wrote, as a jsonb column keeps it. */
     public static function fromJson(string $json): self
     {
         try {
@@ -55,11 +67,8 @@ final readonly class Divisions implements IteratorAggregate, JsonSerializable
         } catch (JsonException $unreadable) {
             throw InvalidAddress::because(sprintf('The divisions are not JSON: %s.', $unreadable->getMessage()));
         }
-        if (!is_array($divisions) || !array_is_list($divisions)) {
-            throw InvalidAddress::because('The divisions are a list.');
-        }
 
-        return self::of(...array_map(self::division(...), $divisions));
+        return is_array($divisions) ? self::fromArray($divisions) : throw InvalidAddress::because('The divisions are a list.');
     }
 
     public function state(): BrazilianState
@@ -72,18 +81,27 @@ final readonly class Divisions implements IteratorAggregate, JsonSerializable
         return $this->municipality;
     }
 
-    /** The smallest place the address names: the neighborhood, when there is one. */
-    public function narrowest(): Division
+    public function find(DivisionKind $kind): ?Division
     {
-        return $this->divisions[array_key_last($this->divisions)];
+        foreach ($this->divisions as $division) {
+            if ($division->kind === $kind) {
+                return $division;
+            }
+        }
+
+        return null;
+    }
+
+    /** @return list<Division> the divisions inside a kind, broadest first: below(Municipality) are district, subdistrict and neighborhood */
+    public function below(DivisionKind $kind): array
+    {
+        return array_values(array_filter($this->divisions, static fn(Division $division): bool => $division->kind->rank() > $kind->rank()));
     }
 
     /** The same territory up to a kind: upTo(Municipality) leaves the state and the municipality. */
     public function upTo(DivisionKind $kind): self
     {
-        $kept = array_values(array_filter($this->divisions, static fn(Division $division): bool => $division->kind->rank() <= $kind->rank()));
-
-        return self::of(...$kept);
+        return self::of(...array_filter($this->divisions, static fn(Division $division): bool => $division->kind->rank() <= $kind->rank()));
     }
 
     /** @return Traversable<int, Division> */
@@ -93,24 +111,20 @@ final readonly class Divisions implements IteratorAggregate, JsonSerializable
     }
 
     /** @return list<array{kind: string, code: ?string, name: string}> */
-    public function jsonSerialize(): array
+    public function toArray(): array
     {
-        return array_map(static fn(Division $division): array => $division->jsonSerialize(), $this->divisions);
+        return array_map(static fn(Division $division): array => $division->toArray(), $this->divisions);
     }
 
-    private static function division(mixed $fields): Division
+    public function toJson(): string
     {
-        $kind = is_array($fields) ? $fields['kind'] ?? null : null;
-        $name = is_array($fields) ? $fields['name'] ?? null : null;
-        $code = is_array($fields) ? $fields['code'] ?? null : null;
-        if (!is_string($kind) || !is_string($name) || ($code !== null && !is_string($code))) {
-            throw InvalidAddress::because('A division has a kind, a name and a code or null.');
-        }
-        try {
-            return new Division(DivisionKind::from($kind), $name, $code);
-        } catch (ValueError) {
-            throw InvalidAddress::because(sprintf('"%s" is not a kind of division.', $kind));
-        }
+        return json_encode($this->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    /** @return list<array{kind: string, code: ?string, name: string}> */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     /** @param non-empty-list<Division> $divisions */

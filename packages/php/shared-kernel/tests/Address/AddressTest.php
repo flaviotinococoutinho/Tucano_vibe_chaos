@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\AddressBuilder;
 use Tucano\SharedKernel\Address\BrazilianState;
 use Tucano\SharedKernel\Address\Coordinates;
 use Tucano\SharedKernel\Address\Division;
@@ -19,68 +20,101 @@ use Tucano\SharedKernel\Address\PostalCode;
 use Tucano\SharedKernel\Address\Thoroughfare;
 
 #[CoversClass(Address::class)]
+#[CoversClass(AddressBuilder::class)]
 #[CoversClass(Thoroughfare::class)]
 #[CoversClass(PostalCode::class)]
 #[CoversClass(Coordinates::class)]
 final class AddressTest extends TestCase
 {
     #[Test]
-    public function a_number_on_a_highway_is_the_kilometre(): void
+    public function the_builder_takes_the_parts_in_the_order_people_say_them(): void
     {
-        $address = new Address(
-            new Thoroughfare('Rodovia', 'Fernão Dias'),
-            'KM 500',
-            'Galpão 3',
-            Divisions::of(Division::state(BrazilianState::MG), Division::municipality('Betim', '3106705')),
-            PostalCode::of('32669-000'),
-        );
+        $address = self::bahia()->complement('apto 42')->coordinates(-19.9245, -43.9352)->build();
 
-        self::assertSame('Rodovia Fernão Dias', (string) $address->thoroughfare);
-        self::assertSame('KM 500', $address->number);
+        self::assertSame('Rua da Bahia, 1200 - apto 42', $address->thoroughfareLine());
         self::assertSame(BrazilianState::MG, $address->state());
-        self::assertSame('32669-000', $address->postalCode->formatted());
+        self::assertSame('Belo Horizonte', $address->municipality()->name);
+        self::assertSame('30160-011', $address->postalCode->formatted());
+        self::assertEquals(Coordinates::of(-19.9245, -43.9352), $address->coordinates);
+    }
+
+    #[Test]
+    public function on_a_highway_the_number_is_the_kilometre(): void
+    {
+        $address = Address::builder()
+            ->thoroughfare('Rodovia', 'Fernão Dias')->number('KM 500')->complement('Galpão 3')
+            ->state(BrazilianState::MG)->municipality('Betim', '3106705')
+            ->postalCode('32669-000')
+            ->build();
+
+        self::assertSame('Rodovia Fernão Dias, KM 500 - Galpão 3', $address->thoroughfareLine());
     }
 
     #[Test]
     public function what_is_typed_is_trimmed_and_a_blank_complement_is_none(): void
     {
-        $address = new Address(new Thoroughfare(' Rua ', ' da Bahia '), ' S/N ', '   ', self::belo(), PostalCode::of('30160011'));
+        $address = self::bahia()->thoroughfare(' Rua ', ' da Bahia ')->number(' S/N ')->complement('   ')->build();
 
         self::assertSame(['Rua', 'da Bahia', 'S/N', null], [$address->thoroughfare->type, $address->thoroughfare->name, $address->number, $address->complement]);
     }
 
     #[Test]
-    public function the_json_is_the_shape_of_the_events_and_the_api(): void
+    public function to_array_is_the_shape_of_the_api_and_the_events_and_from_array_reads_it_back(): void
     {
-        $address = new Address(new Thoroughfare('Avenida', 'Afonso Pena'), '1500', 'sala 3', self::belo(), PostalCode::of('30130-005'), new Coordinates(-19.9245, -43.9352));
+        $address = self::bahia()->complement('sala 3')->coordinates(-19.9245, -43.9352)->build();
 
         self::assertSame([
-            'thoroughfare' => ['type' => 'Avenida', 'name' => 'Afonso Pena'],
-            'number' => '1500',
+            'thoroughfare' => ['type' => 'Rua', 'name' => 'da Bahia'],
+            'number' => '1200',
             'complement' => 'sala 3',
             'divisions' => [
                 ['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'],
                 ['kind' => 'municipality', 'code' => '3106200', 'name' => 'Belo Horizonte'],
                 ['kind' => 'neighborhood', 'code' => null, 'name' => 'Centro'],
             ],
-            'postalCode' => '30130005',
+            'postalCode' => '30160011',
             'latitude' => -19.9245,
             'longitude' => -43.9352,
-        ], $address->jsonSerialize());
+        ], $address->toArray());
+        self::assertEquals($address, Address::fromArray($address->toArray()));
+        $decoded = json_decode(json_encode($address, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertEquals($address, Address::fromArray($decoded));
+    }
+
+    #[Test]
+    public function of_takes_the_parts_already_built(): void
+    {
+        $address = Address::of(
+            Thoroughfare::of('Avenida', 'Afonso Pena'),
+            '1500',
+            null,
+            Divisions::of(Division::state(BrazilianState::MG), Division::municipality('Belo Horizonte')),
+            PostalCode::of('30130-005'),
+        );
+
+        self::assertSame('Avenida Afonso Pena, 1500', $address->thoroughfareLine());
+        self::assertNull($address->coordinates);
     }
 
     /** @return iterable<string, array{Closure(): mixed}> */
     public static function invalidAddresses(): iterable
     {
-        yield 'no number at all' => [static fn() => new Address(new Thoroughfare('Rua', 'da Bahia'), ' ', null, self::belo(), PostalCode::of('30160011'))];
-        yield 'a number longer than the column' => [static fn() => new Address(new Thoroughfare('Rua', 'da Bahia'), str_repeat('1', 21), null, self::belo(), PostalCode::of('30160011'))];
-        yield 'a complement longer than the column' => [static fn() => new Address(new Thoroughfare('Rua', 'da Bahia'), '1200', str_repeat('b', 81), self::belo(), PostalCode::of('30160011'))];
-        yield 'a thoroughfare without a type' => [static fn() => new Thoroughfare('', 'da Bahia')];
-        yield 'a type longer than the column' => [static fn() => new Thoroughfare(str_repeat('R', 31), 'da Bahia')];
-        yield 'a thoroughfare without a name' => [static fn() => new Thoroughfare('Rua', '  ')];
-        yield 'a name longer than the column' => [static fn() => new Thoroughfare('Rua', str_repeat('a', 161))];
+        yield 'no number at all' => [static fn() => self::bahia()->number(' ')->build()];
+        yield 'a number longer than the column' => [static fn() => self::bahia()->number(str_repeat('1', 21))->build()];
+        yield 'a complement longer than the column' => [static fn() => self::bahia()->complement(str_repeat('b', 81))->build()];
+        yield 'nothing but the territory' => [static fn() => Address::builder()->state(BrazilianState::MG)->municipality('Belo Horizonte')->build()];
+        yield 'no territory' => [static fn() => Address::builder()->thoroughfare('Rua', 'da Bahia')->number('1200')->postalCode('30160011')->build()];
+        yield 'half of the coordinates' => [static fn() => self::bahia()->coordinates(-19.9, null)];
+        yield 'a thoroughfare without a type' => [static fn() => Thoroughfare::of('', 'da Bahia')];
+        yield 'a type longer than the column' => [static fn() => Thoroughfare::of(str_repeat('R', 31), 'da Bahia')];
+        yield 'a thoroughfare without a name' => [static fn() => Thoroughfare::of('Rua', '  ')];
+        yield 'a name longer than the column' => [static fn() => Thoroughfare::of('Rua', str_repeat('a', 161))];
         yield 'a short CEP' => [static fn() => PostalCode::of('3016001')];
-        yield 'coordinates off the globe' => [static fn() => new Coordinates(-91.0, 0.0)];
+        yield 'coordinates off the globe' => [static fn() => Coordinates::of(-91.0, 0.0)];
+        yield 'an array without the thoroughfare' => [static fn() => Address::fromArray(['number' => '1200', 'divisions' => [], 'postalCode' => '30160011'])];
+        yield 'an array with the number as a number' => [static fn() => Address::fromArray([...self::bahia()->build()->toArray(), 'number' => 1200])];
+        yield 'an array with a latitude in words' => [static fn() => Address::fromArray([...self::bahia()->build()->toArray(), 'latitude' => 'south'])];
     }
 
     /** @param Closure(): mixed $build */
@@ -93,8 +127,11 @@ final class AddressTest extends TestCase
         $build();
     }
 
-    private static function belo(): Divisions
+    private static function bahia(): AddressBuilder
     {
-        return Divisions::of(Division::state(BrazilianState::MG), Division::municipality('Belo Horizonte', '3106200'), Division::neighborhood('Centro'));
+        return Address::builder()
+            ->thoroughfare('Rua', 'da Bahia')->number('1200')
+            ->state(BrazilianState::MG)->municipality('Belo Horizonte', '3106200')->neighborhood('Centro')
+            ->postalCode('30160-011');
     }
 }

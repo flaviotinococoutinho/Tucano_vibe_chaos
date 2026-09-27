@@ -18,20 +18,23 @@ final readonly class Thoroughfare implements JsonSerializable, Stringable
 
     public const int MAX_NAME = 160;
 
-    public string $type;
+    private function __construct(public string $type, public string $name) {}
 
-    public string $name;
-
-    public function __construct(string $type, string $name)
+    public static function of(string $type, string $name): self
     {
-        $this->type = self::fitted('type', $type, self::MAX_TYPE);
-        $this->name = self::fitted('name', $name, self::MAX_NAME);
+        return new self(self::fitted('type', $type, self::MAX_TYPE), self::fitted('name', $name, self::MAX_NAME));
+    }
+
+    /** @return array{type: string, name: string} */
+    public function toArray(): array
+    {
+        return ['type' => $this->type, 'name' => $this->name];
     }
 
     /** @return array{type: string, name: string} */
     public function jsonSerialize(): array
     {
-        return ['type' => $this->type, 'name' => $this->name];
+        return $this->toArray();
     }
 
     public function __toString(): string
