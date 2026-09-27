@@ -14,6 +14,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - PayFake no `partners-sim`: cobranças com `Idempotency-Key`, ciclo de vida como união discriminada, webhooks assinados (`PayFake-Signature`, HMAC-SHA256 com timestamp) com retry e backoff, estornos, API de caos em tempo real e contrato OpenAPI 3.1 com os webhooks.
 - Pagamento de pedidos (UC-PAY-01): `POST /v1/orders/{id}/payments` com idempotência, um pagamento pendente por pedido garantido pelo banco, chamada ao PayFake fora de transação com a camada anticorrupção, e circuit breaker com estado no Redis (`503` com `Retry-After` quando aberto).
 - Laboratório de circuit breaker, com o experimento de latência no PSP e os números.
+- Webhook do PayFake (UC-PAY-02): assinatura `PayFake-Signature` verificada sobre o corpo cru, inbox para evento repetido e, numa transação só, pagamento capturado ou recusado, pedido pago ou cancelado (UC-ORD-07), reserva convertida em venda (UC-INV-04) e `OrderPaid` na outbox; dinheiro que chega depois da expiração fica marcado para estorno.
 - Job `contracts` no CI: os JSON Schemas de eventos são validados contra o metaschema e os contratos HTTP passam pelo lint do Redocly.
 
 ### Fixed

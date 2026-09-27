@@ -31,11 +31,13 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | UC-ORD-04 | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
 | [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
 | [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
+| [UC-ORD-07](UC-ORD-07-settle-order-payment.md) | subfunção | Payments | registrar o resultado do pagamento no pedido | Ordering |
 | [UC-INV-01](UC-INV-01-reserve-stock.md) | subfunção | Commerce | reservar estoque | Inventory |
 | UC-INV-02 | usuário | Operador logístico | repor estoque | Inventory |
 | [UC-INV-03](UC-INV-03-release-stock.md) | subfunção | Commerce | liberar a reserva de um pedido | Inventory |
+| [UC-INV-04](UC-INV-04-commit-stock.md) | subfunção | Commerce | confirmar a venda do estoque | Inventory |
 | [UC-PAY-01](UC-PAY-01-pay-order.md) | usuário | Cliente | pagar um pedido | Payments |
-| UC-PAY-02 | subfunção | PayFake | informar o resultado de um pagamento | Payments |
+| [UC-PAY-02](UC-PAY-02-settle-payment.md) | subfunção | PayFake | informar o resultado de um pagamento | Payments |
 | UC-PAY-03 | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
 | UC-PAY-04 | subfunção | Commerce | estornar um pagamento | Payments |
 | UC-NTF-01 | subfunção | Commerce | notificar o cliente | Notifications |
