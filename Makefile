@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check
+.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -13,8 +13,14 @@ help: ## Show available commands
 doctor: ## Check that Docker has enough resources for the stack
 	@scripts/doctor.sh
 
-up: ## Start the stack and wait until it is healthy (APP_ENV=local|staging|production)
-	$(COMPOSE) up -d --wait
+base: ## Build the PHP base images (8.3 and 8.4); cached after the first run
+	@for version in 8.3 8.4; do \
+		docker build -q -t chaos-playground/php-base:$$version --build-arg PHP_VERSION=$$version infra/php-base >/dev/null \
+		&& echo "php-base:$$version ready"; \
+	done
+
+up: base ## Start the stack and wait until it is healthy (APP_ENV=local|staging|production)
+	$(COMPOSE) up -d --build --wait
 
 down: ## Stop the stack, keeping the data
 	$(COMPOSE) --profile tools down
