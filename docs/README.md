@@ -26,6 +26,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 ## 4. Laboratórios
 
 - [Overselling](labs/overselling.md): cinco estratégias de reserva de estoque sob disputa real, e o que cada uma vende.
+- [Circuit breaker](labs/circuit-breaker.md): o PSP fica lento, o circuito abre, e o checkout responde em milissegundos em vez de travar.
 
 ## 5. Casos de uso
 
