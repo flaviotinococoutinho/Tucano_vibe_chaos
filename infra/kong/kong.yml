@@ -9,6 +9,13 @@ plugins:
       echo_downstream: true
 
 services:
+  - name: bff
+    url: http://bff:3000
+    routes:
+      - name: bff-api
+        paths: [/bff]
+        strip_path: true
+
   - name: catalog
     url: http://nginx:8081
     routes:

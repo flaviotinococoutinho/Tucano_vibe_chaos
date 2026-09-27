@@ -59,9 +59,11 @@ As chaves seguem o formato `<área>.<nome>` em kebab-case. O rollout percentual 
 | Runtime | Provider | Como avalia |
 |---|---|---|
 | PHP (FPM e Swoole) | `open-feature/flagd-provider` | chamada HTTP ao flagd (porta 8013) a cada avaliação, com cache curto em memória |
-| Node (BFF, partners-sim) | `@openfeature/flagd-provider` em modo in-process | sincroniza as definições pela porta 8015 e avalia localmente, sem ida à rede |
+| Node (BFF) | `@openfeature/flagd-provider` em modo in-process | sincroniza as definições pela porta 8015 e avalia localmente, sem ida à rede |
 
 A diferença é intencional e rende conversa de entrevista. No PHP-FPM cada request começa do zero, então não há onde manter uma cópia viva das regras; o custo é uma chamada de rede por avaliação, que o cache resolve. No Node o processo é longo, e a avaliação in-process fica em microssegundos.
+
+O `partners-sim` não lê flags. Ele faz o papel de empresas de fora, que não conhecem as flags da Tucano, e fica só na rede `edge`, sem acesso ao flagd. O comportamento dele muda pela própria API de caos.
 
 ## No código PHP
 

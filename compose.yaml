@@ -442,6 +442,41 @@ services:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
 
+  bff:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/bff/Dockerfile
+    image: chaos-playground/bff
+    environment:
+      SERVICE_NAME: bff
+      APP_ENV: ${APP_ENV:-local}
+      PORT: "3000"
+      LOG_LEVEL: info
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:3000/health/ready"]
+    mem_limit: 96m
+    networks: [edge, backend]
+
+  # The outside world: only on edge, and the services reach it through Toxiproxy (payfake, carriers).
+  partners-sim:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/partners-sim/Dockerfile
+    image: chaos-playground/partners-sim
+    environment:
+      SERVICE_NAME: partners-sim
+      APP_ENV: ${APP_ENV:-local}
+      PORT: "4000"
+      LOG_LEVEL: info
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:4000/health/ready"]
+    mem_limit: 96m
+    networks: [edge]
+
   # ---------------------------------------------------------- tools (profile)
 
   kafka-ui:
