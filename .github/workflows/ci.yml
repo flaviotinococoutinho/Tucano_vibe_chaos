@@ -239,7 +239,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, rdkafka, redis
+          # pcntl and posix: the race test forks one buyer per process.
+          extensions: apcu, bcmath, intl, mongodb, pcntl, pdo_pgsql, posix, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
