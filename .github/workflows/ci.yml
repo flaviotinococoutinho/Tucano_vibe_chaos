@@ -177,6 +177,39 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
+  catalog:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'catalog')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: catalog
+          MYSQL_USER: catalog
+          MYSQL_PASSWORD: catalog
+        ports: ["3306:3306"]
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent" --health-interval 5s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          # Lumen 11 is frozen on PHP 8.3 (ADR 0009).
+          php-version: "8.3"
+          extensions: apcu, bcmath, intl, pdo_mysql, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   commerce:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'commerce')
@@ -251,7 +284,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, commerce, logistics]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

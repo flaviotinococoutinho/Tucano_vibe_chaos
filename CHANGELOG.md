@@ -9,6 +9,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Imagem base do PHP (8.3 e 8.4) com as extensões dos serviços e nginx na frente dos apps PHP-FPM.
 - Serviço `commerce` (Laravel 13, PHP 8.4): esqueleto de API com health checks, erros RFC 9457, correlation id, flags e Snowflake, exposto pelo Kong em `/api/commerce`.
 - Serviço `logistics` (Laravel 13, PHP 8.4) com a mesma estrutura do commerce, exposto pelo Kong em `/api/logistics`.
+- Serviço `catalog` (Lumen 11, PHP 8.3) no papel de serviço legado: health checks, erros RFC 9457, correlation id e flags, exposto pelo Kong em `/api/catalog`.
 - Read models no MongoDB: pacote `tucano/read-models` (migrations com `$jsonSchema` e upsert por versão), coleções `order_views` e `shipment_timelines` criadas no job de migração.
 - Pacote `tucano/messaging`: producer idempotente, consumer at-least-once com retry e DLQ, relay da outbox com `SKIP LOCKED` e inbox, testado contra PostgreSQL e Kafka reais.
 - Schemas PostgreSQL do commerce e do logistics com DDL explícito (constraints, índices parciais, comentários), seeders idempotentes, jobs de migração no compose e testes das constraints contra o banco real.
