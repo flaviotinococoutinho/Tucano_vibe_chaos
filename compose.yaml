@@ -1,0 +1,122 @@
+name: chaos-playground
+
+# Shared defaults: rotated logs and automatic restarts for long-running containers.
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# One-shot jobs (topic creation, flag bootstrap) run once and exit.
+x-job: &job
+  restart: "no"
+  logging:
+    driver: json-file
+    options:
+      max-size: "1m"
+      max-file: "1"
+
+x-healthcheck: &healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+  start_interval: 2s
+
+services:
+  # ---------------------------------------------------------------- data stores
+
+  postgres:
+    <<: *service
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c work_mem=4MB
+      -c max_connections=60
+      -c log_min_duration_statement=500
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+    mem_limit: 256m
+    networks: [backend]
+
+  mysql:
+    <<: *service
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: catalog
+      MYSQL_USER: catalog
+      MYSQL_PASSWORD: catalog
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --performance-schema=OFF
+      - --skip-name-resolve
+      - --max-connections=60
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+    mem_limit: 512m
+    networks: [backend]
+
+  mongo:
+    <<: *service
+    image: mongo:8.0
+    # Single-node replica set: needed for transactions and change streams.
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      <<: *healthcheck
+      # Initiates the replica set on first boot and reports healthy only once this node is primary.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (error) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}) } quit(db.hello().isWritablePrimary ? 0 : 1)"
+    mem_limit: 512m
+    networks: [backend]
+
+  redis:
+    <<: *service
+    image: redis:8-alpine
+    # volatile-lru evicts only keys with a TTL (cache), never locks or GEO data.
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru", "--save", "60", "1000"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "redis-cli", "ping"]
+    mem_limit: 128m
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  postgres-data:
+  mysql-data:
+  mongo-data:
+  redis-data:
