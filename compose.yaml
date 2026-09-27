@@ -270,6 +270,52 @@ services:
     mem_limit: 256m
     networks: [edge, backend]
 
+  # ---------------------------------------------------------- tools (profile)
+
+  kafka-ui:
+    <<: *service
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    profiles: [tools]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      JAVA_OPTS: -Xms64m -Xmx192m
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    mem_limit: 320m
+    networks: [backend]
+
+  adminer:
+    <<: *service
+    image: adminer:6.1.1
+    profiles: [tools]
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "127.0.0.1:8088:8080"
+    mem_limit: 64m
+    networks: [backend]
+
+  dynamodb-admin:
+    <<: *service
+    image: aaronshaf/dynamodb-admin:5.3.4
+    profiles: [tools]
+    environment:
+      DYNAMO_ENDPOINT: http://floci:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "127.0.0.1:8089:8001"
+    depends_on:
+      floci:
+        condition: service_healthy
+    mem_limit: 128m
+    networks: [backend]
+
 networks:
   edge:
   backend:
