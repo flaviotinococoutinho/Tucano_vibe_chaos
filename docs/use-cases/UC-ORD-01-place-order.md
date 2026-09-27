@@ -46,7 +46,7 @@
 ## Variações de tecnologia
 
 - Idempotência: a chave entra em `idempotency_keys` na mesma transação do pedido. Uma segunda requisição com a mesma chave espera a primeira terminar e devolve o resultado dela, com o header `Idempotent-Replayed: true`; se a primeira falhou, a chave fica livre para uma nova tentativa.
-- Estratégias de reserva: `atomic` (padrão), `pessimistic`, `optimistic`, `serializable`, `redis` e `naive` (só no laboratório, onde quero ver o lost update acontecer).
+- Estratégias de reserva: `atomic` (padrão), `pessimistic`, `optimistic`, `serializable` e `naive` (só no laboratório, onde quero ver o lost update acontecer). Comparação e números no [laboratório de overselling](../labs/overselling.md).
 
 ## No código
 
