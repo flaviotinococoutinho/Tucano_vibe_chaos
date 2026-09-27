@@ -237,6 +237,7 @@ O código também garante tudo isso, mas o banco é a última linha de defesa co
 | no máximo três tentativas | `CHECK (attempt_number BETWEEN 1 AND 3)` + `UNIQUE (shipment_id, attempt_number)` | `delivery_attempts` |
 | entrega exige quem recebeu | `CHECK (outcome <> 'delivered' OR receiver_name IS NOT NULL)` | `delivery_attempts` |
 | mesma chave de idempotência uma vez por escopo | `PRIMARY KEY (scope, key)` | `idempotency_keys` |
+| reserva só existe com pedido | chave estrangeira `DEFERRABLE INITIALLY DEFERRED`, conferida no `COMMIT` | `stock_reservations` |
 | SKU no formato do catálogo, uma vez só | `CHECK (REGEXP_LIKE(sku, ...))` + `UNIQUE (sku)` | `products` (MySQL) |
 | produto com peso e medidas | `CHECK (weight_grams > 0 AND ...)` | `products` (MySQL) |
 

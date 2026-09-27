@@ -14,4 +14,6 @@ src/<Subdomínio>/
     └── Driven/             banco, Kafka, S3, APIs de parceiros
 ```
 
-Subdomínios previstos: `Ordering`, `Inventory`, `Payments` e `Notifications`. O `deptrac.yaml` garante a direção das dependências, e o teste `UseCasesAreDocumentedTest` exige a ficha de cada caso de uso em `docs/use-cases`.
+Pacotes: `Ordering` (pedidos), `Inventory` (estoque) e `Shared` (os ports que todos usam: transação, outbox e idempotência). `Payments` e `Notifications` entram com as próximas funcionalidades.
+
+Um pacote chama outro pelo port de entrada dele. O `PlaceOrder` precisa de estoque e declara isso no port de saída `ForReservingStock` do Ordering; o adapter desse port chama o `ForReservingStock` do Inventory. Hoje os dois rodam no mesmo processo; se o Inventory virar um serviço, só o adapter muda. O `deptrac.yaml` garante a direção das dependências, e o teste `UseCasesAreDocumentedTest` exige a ficha de cada caso de uso em `docs/use-cases`.
