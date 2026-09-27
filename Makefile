@@ -73,14 +73,13 @@ kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
 
-php: ## Run a command in the PHP tools image (dir=<path> c="<command>" PHP=8.3|8.4 net=<docker network>)
-	@docker image inspect chaos-playground/php-tools:$(PHP) >/dev/null 2>&1 || \
-		docker build -q -t chaos-playground/php-tools:$(PHP) --build-arg PHP_VERSION=$(PHP) infra/php-tools >/dev/null
+php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.4 net=<docker network>)
+	@docker image inspect chaos-playground/php-base:$(PHP) >/dev/null 2>&1 || $(MAKE) --no-print-directory base
 	docker run --rm $(if $(net),--network $(net),) -v "$(CURDIR)":/app -v chaos-playground-composer-cache:/tmp/composer/cache \
-		-w /app/$(dir) chaos-playground/php-tools:$(PHP) sh -c '$(c)'
+		-w /app/$(dir) chaos-playground/php-base:$(PHP) sh -c '$(c)'
 
 packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
-	@for package in shared-kernel feature-flags; do \
+	@for package in shared-kernel feature-flags messaging; do \
 		for version in 8.3 8.4; do \
 			echo "== $$package on PHP $$version"; \
 			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
