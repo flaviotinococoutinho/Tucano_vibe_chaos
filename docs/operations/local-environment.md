@@ -43,6 +43,7 @@ Todas as portas escutam só em `127.0.0.1`.
 | Floci (AWS local) | http://localhost:4566 | `test`/`test`, região `us-east-1` |
 | Mailpit | http://localhost:8025 | - |
 | Toxiproxy API | http://localhost:8474 | - |
+| partners-sim (PayFake) | http://localhost:4000 | API de caos em `/_chaos/payfake` |
 | flagd | `localhost:8013` (avaliação) e `localhost:8016` (OFREP) | - |
 | Kafka UI | http://localhost:8080 | perfil `tools` |
 | Adminer | http://localhost:8088 | perfil `tools` |

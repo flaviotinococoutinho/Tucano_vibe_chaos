@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console;
 
+use App\Console\Commands\RepublishProducts;
 use Laravel\Lumen\Console\Kernel as LumenKernel;
 
 /**
@@ -12,6 +13,9 @@ use Laravel\Lumen\Console\Kernel as LumenKernel;
  */
 final class Kernel extends LumenKernel
 {
+    /** @var list<class-string> */
+    protected $commands = [RepublishProducts::class];
+
     /** @var bool */
     protected $aliases = false;
 }

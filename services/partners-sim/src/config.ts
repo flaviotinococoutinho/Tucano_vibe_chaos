@@ -1,8 +1,19 @@
 const environments = ['local', 'staging', 'production'] as const;
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
+// Ten minutes is plenty for a simulation and stays far from Node's timer limit
+// (about 24 days), past which a timer fires at once.
+const MAX_PROCESSING_DELAY_MS = 600_000;
+
 export type Environment = (typeof environments)[number];
 export type LogLevel = (typeof logLevels)[number];
+
+export type PayFakeConfig = {
+  /** Where webhooks go and the secret they are signed with. */
+  readonly webhook: { readonly url: string; readonly secret: string };
+  /** How long a charge or a refund stays processing before it settles. */
+  readonly processingDelayMs: { readonly min: number; readonly max: number };
+};
 
 export type Config = {
   readonly serviceName: string;
@@ -10,6 +21,7 @@ export type Config = {
   readonly host: string;
   readonly port: number;
   readonly logLevel: LogLevel;
+  readonly payfake: PayFakeConfig;
 };
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -54,12 +66,49 @@ export function loadConfig(env: Env): Config {
     return fallback;
   };
 
+  const url = (name: string, fallback: string): string => {
+    const value = text(name, fallback);
+    const protocol = URL.parse(value)?.protocol;
+    if (protocol === 'http:' || protocol === 'https:') {
+      return value;
+    }
+    problems.push(`${name} must be an http or https URL, got "${value}"`);
+    return fallback;
+  };
+
+  const milliseconds = (name: string, fallback: number): number => {
+    const value = text(name, String(fallback));
+    const parsed = Number(value);
+    if (/^\d+$/.test(value) && parsed <= MAX_PROCESSING_DELAY_MS) {
+      return parsed;
+    }
+    problems.push(
+      `${name} must be an integer from 0 to ${MAX_PROCESSING_DELAY_MS}, got "${value}"`,
+    );
+    return fallback;
+  };
+
+  const processingMin = milliseconds('PAYFAKE_PROCESSING_MIN_MS', 300);
+  const processingMax = milliseconds('PAYFAKE_PROCESSING_MAX_MS', 1500);
+  if (processingMax < processingMin) {
+    problems.push(
+      `PAYFAKE_PROCESSING_MAX_MS must be at least PAYFAKE_PROCESSING_MIN_MS (${processingMin}), got "${processingMax}"`,
+    );
+  }
+
   const config: Config = {
     serviceName: text('SERVICE_NAME', 'partners-sim'),
     environment: environmentOf(text('APP_ENV', 'production')),
     host: text('HOST', '0.0.0.0'),
     port: port('PORT', 4000),
     logLevel: choice('LOG_LEVEL', logLevels, 'info'),
+    payfake: {
+      webhook: {
+        url: url('PAYFAKE_WEBHOOK_URL', 'http://kong:8000/api/commerce/v1/webhooks/payfake'),
+        secret: text('PAYFAKE_WEBHOOK_SECRET', 'whsec_local_payfake'),
+      },
+      processingDelayMs: { min: processingMin, max: processingMax },
+    },
   };
   if (problems.length > 0) {
     throw new InvalidConfig(config.serviceName, problems);

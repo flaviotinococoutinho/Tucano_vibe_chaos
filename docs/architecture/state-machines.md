@@ -49,14 +49,19 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> pending: cobrança enviada ao PSP
-  pending --> captured: webhook de sucesso
-  pending --> failed: webhook de falha ou conciliação
-  captured --> refund_requested: pedido cancelado ou devolvido
+  pending --> captured: sucesso, por webhook ou conciliação
+  pending --> failed: recusa, por webhook ou conciliação
+  pending --> abandoned: sem cobrança no PSP e pedido encerrado
+  abandoned --> refund_requested: a cobrança aprovou depois
+  abandoned --> failed: a cobrança recusou depois
+  captured --> refund_requested: pedido expirado ou cancelado
   refund_requested --> refunded: estorno confirmado
   captured --> [*]
   failed --> [*]
   refunded --> [*]
 ```
+
+`abandoned` é um palpite: a conciliação (UC-PAY-03) desiste de um pagamento quando o PSP não tem cobrança nenhuma e o pedido já não espera. Se o PSP falar depois, a palavra dele vale, e o dinheiro que chegar volta pelo estorno (UC-PAY-04).
 
 ## Remessa (Shipping)
 
@@ -100,13 +105,15 @@ A tabela diz se a transição existe; os guards dizem se ela pode acontecer com 
 | `delivery_failed` | `returning` | 3 tentativas ou recusa do destinatário |
 | `returning` | `returned` | - |
 
-Os guards formam uma corrente (Chain of Responsibility): cada elo verifica uma regra e passa adiante; o primeiro que recusar interrompe a transição com um erro de domínio que diz o motivo.
+Os guards formam uma corrente (Chain of Responsibility): cada elo verifica uma regra e passa adiante; o primeiro que recusar interrompe a transição com `TransitionRefused`, que diz o motivo. Falta de evidência (etiqueta, hub, comprovante, motivo) é entrada inválida; regra de tentativas é conflito.
 
 ```mermaid
-flowchart LR
+flowchart TB
   request["transição pedida"] --> table{"existe na tabela?"}
   table -- não --> denied["TransitionNotAllowed"]
-  table -- sim --> label["LabelMustBeAttached"] --> proof["ProofOfDeliveryRequired"] --> attempts["AttemptsBelowLimit"] --> applied["transição aplicada<br/>+ evento de domínio"]
+  table -- sim --> label["LabelMustBeAttached"] --> hub["HubRequired"] --> proof["ProofOfDeliveryRequired"]
+  proof --> reason["FailureReasonRequired"] --> attempts["AttemptsBelowLimit"] --> back["ReturnAllowed"]
+  back --> applied["transição aplicada<br/>+ evento de domínio"]
 ```
 
 Cada transição aplicada:

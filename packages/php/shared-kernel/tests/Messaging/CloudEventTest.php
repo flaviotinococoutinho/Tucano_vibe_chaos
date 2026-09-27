@@ -85,6 +85,17 @@ final class CloudEventTest extends TestCase
         CloudEvent::fromArray($payload);
     }
 
+    #[Test]
+    public function it_refuses_a_time_that_is_not_an_instant(): void
+    {
+        $payload = CloudEvent::fromDomainEvent($this->orderPaid(), '/commerce', 'req-1#1')->toArray();
+        $payload['time'] = 'yesterday at teatime';
+
+        $this->expectExceptionObject(InvalidCloudEvent::malformed('time', 'yesterday at teatime'));
+
+        CloudEvent::fromArray($payload);
+    }
+
     private function orderPaid(): OrderPaid
     {
         return new OrderPaid(

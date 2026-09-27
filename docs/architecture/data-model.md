@@ -183,7 +183,7 @@ erDiagram
   }
 ```
 
-Também existem `product_snapshots` (peso e dimensões), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
+Também existem `product_snapshots` (peso e dimensões), `cancelled_orders` (pedidos pagos cancelados antes de ter remessa, para um `order.paid` reprocessado não despachar), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
 
 ## Read models (MongoDB)
 
@@ -215,6 +215,11 @@ O campo `version` guarda a última mudança aplicada. A projeção só escreve s
 
 Um Redis só para a stack inteira. Cada serviço usa o próprio nome como prefixo das chaves (`catalog-`, `commerce-`, `logistics-`), e o cache do framework fica no banco lógico `1`, separado do `0`: um `cache:clear` não apaga nada além de cache.
 
+| Chave (depois do prefixo) | Dono | TTL | Para quê |
+|---|---|---|---|
+| `product:v1:<sku>` | catalog | 270 a 330 s; 30 s para `missing` | cache-aside do produto; o `v1` muda quando o formato gravado mudar |
+| `product-rebuild:<sku>` | catalog | 5 s | lock contra stampede: só quem o pega relê o MySQL |
+
 ## DynamoDB (Floci)
 
 As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`. As duas são pagas por requisição e têm TTL no atributo `expiresAt`: o DynamoDB apaga o item vencido sozinho, sem job de limpeza.
@@ -237,6 +242,10 @@ O código também garante tudo isso, mas o banco é a última linha de defesa co
 | no máximo três tentativas | `CHECK (attempt_number BETWEEN 1 AND 3)` + `UNIQUE (shipment_id, attempt_number)` | `delivery_attempts` |
 | entrega exige quem recebeu | `CHECK (outcome <> 'delivered' OR receiver_name IS NOT NULL)` | `delivery_attempts` |
 | mesma chave de idempotência uma vez por escopo | `PRIMARY KEY (scope, key)` | `idempotency_keys` |
+| um pagamento pendente por pedido | índice único parcial `WHERE status = 'pending'` | `payments` |
+| um pagamento é conferido por uma conciliação só | `UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED)` sobre o índice parcial dos pagamentos sem desfecho | `payments` |
+| um pedido é cancelado por um worker só | `SELECT ... FOR UPDATE SKIP LOCKED` sobre o índice parcial de pendências | `orders` |
+| reserva só existe com pedido | chave estrangeira `DEFERRABLE INITIALLY DEFERRED`, conferida no `COMMIT` | `stock_reservations` |
 | SKU no formato do catálogo, uma vez só | `CHECK (REGEXP_LIKE(sku, ...))` + `UNIQUE (sku)` | `products` (MySQL) |
 | produto com peso e medidas | `CHECK (weight_grams > 0 AND ...)` | `products` (MySQL) |
 

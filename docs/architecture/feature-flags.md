@@ -39,8 +39,9 @@ Sigo a classificação de Pete Hodgson (artigo "Feature Toggles", no site do Mar
 | `chaos.commerce.outbox-relay-paused` | boolean | desligada | desligada | não existe |
 | `chaos.commerce.order-projector-paused` | boolean | desligada | desligada | não existe |
 | `chaos.logistics.label-failure-rate` | decimal | 0 | 0 | não existe |
+| `chaos.logistics.outbox-relay-paused` | boolean | desligada | desligada | não existe |
 | `chaos.tracking.gps-drop-rate` | decimal | 0 | 0 | não existe |
-| `inventory.reservation-strategy` | string | `atomic` (6 variantes) | `atomic` (3 variantes) | `atomic` (única variante) |
+| `inventory.reservation-strategy` | string | `atomic` (5 variantes) | `atomic` (2 variantes) | `atomic` (única variante) |
 | `logistics.own-fleet-dispatch` | boolean | ligada | ligada | ligada |
 | `checkout.express-shipping` | boolean | ligada | 50% dos clientes | 10% dos clientes |
 | `catalog.stock-badge` | boolean | ligada | ligada | ligada |

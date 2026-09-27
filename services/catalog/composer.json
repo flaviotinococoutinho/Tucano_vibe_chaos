@@ -12,6 +12,10 @@
         {
             "type": "path",
             "url": "../../packages/php/feature-flags"
+        },
+        {
+            "type": "path",
+            "url": "../../packages/php/messaging"
         }
     ],
     "require": {
@@ -20,10 +24,12 @@
         "laravel/lumen-framework": "^11.2",
         "ramsey/uuid": "^4.9",
         "tucano/feature-flags": "*@dev",
+        "tucano/messaging": "*@dev",
         "tucano/shared-kernel": "*@dev"
     },
     "require-dev": {
         "laravel/pint": "^1.27",
+        "opis/json-schema": "^2.4",
         "phpstan/phpstan": "^2.2",
         "phpunit/phpunit": "^12.5"
     },

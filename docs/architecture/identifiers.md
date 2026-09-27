@@ -57,9 +57,10 @@ O Twitter usava o ZooKeeper para distribuir os ids de worker. Aqui a atribuiçã
 | Datacenter | Worker | Processo |
 |---|---|---|
 | 1 | 1 | `commerce` (PHP-FPM) |
-| 1 | 2 | `commerce-order-expiry` |
 | 1 | 11 | `logistics` (PHP-FPM) |
 | 1 | 12 | `logistics-order-intake` |
+
+Só precisa de id próprio quem gera Snowflake. Os workers do commerce (outbox, catálogo, expiração e conciliação) não criam pedido nem remessa, então herdam o id do FPM sem risco de colisão.
 
 ### O detalhe do PHP-FPM
 

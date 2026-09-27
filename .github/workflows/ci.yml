@@ -47,6 +47,17 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
 
+  contracts:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'contracts')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Event schemas are valid JSON Schema
+        run: pipx run check-jsonschema --check-metaschema contracts/events/*.schema.json
+      - name: HTTP contracts
+        run: npx -y @redocly/cli@2.54.3 lint contracts/http/*.openapi.yaml
+
   shared-kernel:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'shared-kernel')
@@ -204,7 +215,7 @@ jobs:
         with:
           # Lumen 11 is frozen on PHP 8.3 (ADR 0009).
           php-version: "8.3"
-          extensions: apcu, bcmath, intl, pdo_mysql, redis
+          extensions: apcu, bcmath, intl, pdo_mysql, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
@@ -239,7 +250,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
+          # pcntl and posix: the race test forks one buyer per process.
+          extensions: apcu, bcmath, intl, mongodb, pcntl, pdo_pgsql, posix, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
@@ -274,14 +286,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
+          extensions: apcu, bcmath, intl, mongodb, pcntl, pdo_pgsql, posix, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
-  # Single required check for branch protection: it passes when every job
-  # above either succeeded or was skipped because its area didn't change.
   tracking:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'tracking')
@@ -347,9 +357,11 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check
 
+  # Single required check for branch protection: it passes when every job
+  # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
+    needs: [changes, compose, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

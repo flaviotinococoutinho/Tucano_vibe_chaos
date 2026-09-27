@@ -10,15 +10,10 @@ use PHPUnit\Framework\TestCase;
 /** Real PostgreSQL in a throwaway schema, with the same DDL the services migrate. */
 final class Postgres
 {
+    /** A connection to a fresh schema: the tables of the outbox and the inbox, empty. */
     public static function connect(): PDO
     {
-        $dsn = (string) getenv('MESSAGING_PG_DSN');
-        if ($dsn === '') {
-            TestCase::markTestSkipped('Set MESSAGING_PG_DSN (and MESSAGING_PG_USER/PASSWORD) to run the PostgreSQL tests.');
-        }
-        $pdo = new PDO($dsn, (string) getenv('MESSAGING_PG_USER'), (string) getenv('MESSAGING_PG_PASSWORD'), [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        ]);
+        $pdo = self::pdo();
         $pdo->exec(<<<'SQL'
             DROP SCHEMA IF EXISTS messaging_tests CASCADE;
             CREATE SCHEMA messaging_tests;
@@ -44,5 +39,26 @@ final class Postgres
         SQL);
 
         return $pdo;
+    }
+
+    /** Another connection to the schema connect() created, as a process opening its own would. */
+    public static function open(): PDO
+    {
+        $pdo = self::pdo();
+        $pdo->exec('SET search_path TO messaging_tests');
+
+        return $pdo;
+    }
+
+    private static function pdo(): PDO
+    {
+        $dsn = (string) getenv('MESSAGING_PG_DSN');
+        if ($dsn === '') {
+            TestCase::markTestSkipped('Set MESSAGING_PG_DSN (and MESSAGING_PG_USER/PASSWORD) to run the PostgreSQL tests.');
+        }
+
+        return new PDO($dsn, (string) getenv('MESSAGING_PG_USER'), (string) getenv('MESSAGING_PG_PASSWORD'), [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        ]);
     }
 }

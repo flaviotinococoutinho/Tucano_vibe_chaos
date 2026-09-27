@@ -4,6 +4,35 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+### Added
+
+- Pedidos no commerce: `POST /v1/orders` (UC-ORD-01) com idempotência na mesma transação do pedido, reserva de estoque por CD com savepoint (UC-INV-01), `OrderPlaced` na outbox com contrato em JSON Schema, e `GET /v1/orders/{id}` (UC-ORD-05).
+- Workers do commerce: relay da outbox (com pausa por flag de caos) e o consumidor `commerce.catalog-sync`, que mantém a cópia local do catálogo por versão (UC-ORD-06).
+- Laboratório de overselling: estratégias de reserva `atomic`, `pessimistic`, `optimistic`, `serializable` e `naive`, escolhidas pela flag `inventory.reservation-strategy` ou, no laboratório, pelo header `X-Inventory-Strategy`, com teste de corrida entre processos.
+- Expiração de pedidos não pagos (UC-ORD-03): worker `commerce-order-expiry` com `FOR UPDATE SKIP LOCKED`, liberação do estoque (UC-INV-03), histórico de transições gravado a partir do agregado e `OrderCancelled` na outbox com contrato em JSON Schema.
+- Produtos no catálogo (UC-CAT-01 a 04): API `/v1/products`, cache-aside com jitter, cache negativo e lock contra stampede, concorrência otimista com `If-Match`, snapshot no tópico compactado depois do commit (dual write consciente) e `catalog:republish`, que o job de migração roda a cada subida.
+- PayFake no `partners-sim`: cobranças com `Idempotency-Key`, ciclo de vida como união discriminada, webhooks assinados (`PayFake-Signature`, HMAC-SHA256 com timestamp) com retry e backoff, estornos, API de caos em tempo real e contrato OpenAPI 3.1 com os webhooks.
+- Pagamento de pedidos (UC-PAY-01): `POST /v1/orders/{id}/payments` com idempotência, um pagamento pendente por pedido garantido pelo banco, chamada ao PayFake fora de transação com a camada anticorrupção, e circuit breaker com estado no Redis (`503` com `Retry-After` quando aberto).
+- Laboratório de circuit breaker, com o experimento de latência no PSP e os números.
+- Webhook do PayFake (UC-PAY-02): assinatura `PayFake-Signature` verificada sobre o corpo cru, inbox para evento repetido e, numa transação só, pagamento capturado ou recusado, pedido pago ou cancelado (UC-ORD-07), reserva convertida em venda (UC-INV-04) e `OrderPaid` na outbox; dinheiro que chega depois da expiração fica marcado para estorno.
+- Job `contracts` no CI: os JSON Schemas de eventos são validados contra o metaschema e os contratos HTTP passam pelo lint do Redocly.
+- Conciliação de pagamentos (UC-PAY-03) e estorno (UC-PAY-04): worker `commerce-payment-reconciler`, que pergunta ao PayFake pelos pagamentos sem desfecho há 60 s e aplica a resposta pelo mesmo caminho do webhook; estado `abandoned` para a cobrança que nunca chegou ao PSP, com a palavra tardia do PSP ainda aceita; estorno com o id do pagamento como `Idempotency-Key`; e o laboratório com o experimento.
+- `GET /payfake/v1/charges?reference=` no PayFake, para achar a cobrança cujo id se perdeu junto com a resposta.
+- Remessas na logística: o consumidor `logistics.order-intake` cria a remessa do pedido pago (UC-SHP-01) e cancela a do pedido cancelado (UC-SHP-09), com inbox e outbox na mesma transação; escolha de transportadora por uma corrente de regras (UC-SHP-02); cópia de peso e dimensões do catálogo (UC-SHP-11); a máquina de estados completa com seis guards; e `ShipmentCreated` e `ShipmentCancelled` em `logistics.shipments.v1`, com contrato em JSON Schema.
+
+### Changed
+
+- A leitura de CloudEvents nos consumidores ficou num lugar só: `IncomingEvent` no pacote de mensageria e `EventFields` no shared kernel. Um `time` que não é data agora torna o evento ilegível, e ele vai direto para a DLQ em vez de gastar as tentativas.
+- O Ordering não conhece mais os erros do Inventory: o adapter traduz a recusa em `StockNotReserved`, com a mesma mensagem e categoria, como o Shipping já faz com o CarrierSelection.
+
+### Fixed
+
+- Os logs da librdkafka saem pelo logger do serviço, em JSON, e não mais em texto puro no stderr.
+- O relay da outbox abre uma conexão nova depois de um lote que falhou. Antes, uma queda do banco deixava o relay preso num PDO morto, e os eventos paravam de sair até alguém reiniciar o worker.
+- Consumidores Kafka: conexão perdida com o banco espera o banco voltar em vez de mandar a mensagem para a DLQ, e um `SIGTERM` no meio das tentativas não confirma o offset. Os dois experimentos estão no laboratório de banco fora do ar.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added
@@ -53,7 +82,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...develop
+[0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/flaviotinococoutinho/chaos_playground/releases/tag/v0.1.0

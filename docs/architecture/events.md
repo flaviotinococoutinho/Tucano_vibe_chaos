@@ -33,7 +33,16 @@ Todo evento no Kafka é um [CloudEvent](https://github.com/cloudevents/spec) em 
 | `correlationid` | o mesmo do request que originou o fluxo (vem do Kong) |
 | `causationid` | `id` do evento ou comando que causou este |
 
-O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../contracts/events/cloudevent.schema.json). Os schemas do `data` de cada evento entram em `contracts/events/` junto com o produtor, e os testes de contrato validam produtor e consumidor contra eles.
+O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../contracts/events/cloudevent.schema.json). Os schemas do `data` de cada evento entram em `contracts/events/` junto com o produtor, e os testes de contrato do produtor validam o evento contra o envelope e contra o schema do `data`:
+
+| Evento | Schema do `data` |
+|---|---|
+| `tucano.catalog.product.snapshot` | [`catalog.product.snapshot.schema.json`](../../contracts/events/catalog.product.snapshot.schema.json) |
+| `tucano.commerce.order.placed` | [`commerce.order.placed.schema.json`](../../contracts/events/commerce.order.placed.schema.json) |
+| `tucano.commerce.order.paid` | [`commerce.order.paid.schema.json`](../../contracts/events/commerce.order.paid.schema.json) |
+| `tucano.commerce.order.cancelled` | [`commerce.order.cancelled.schema.json`](../../contracts/events/commerce.order.cancelled.schema.json) |
+| `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
+| `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
 
 ## Tópicos
 
@@ -73,12 +82,12 @@ flowchart LR
   consumer --> inbox{"id já está<br/>na inbox?"}
   inbox -- sim --> skip["ignora e confirma offset"]
   inbox -- não --> handle["efeito + inbox<br/>na mesma transação"] --> commit["confirma offset"]
-  handle -- "falhou N vezes" --> dlq[("dlq.consumer-group")]
+  handle -- "recusa ou tentativas esgotadas" --> dlq[("dlq.consumer-group")]
 ```
 
 - **Produção**: o caso de uso grava o estado e o evento na mesma transação (Transactional Outbox). O relay publica com `acks=all` e produtor idempotente e só então marca a mensagem como publicada. Se o relay cair no meio, a mensagem é publicada de novo: a entrega é at-least-once.
 - **Consumo**: cada consumidor registra o `id` do evento na tabela de inbox junto com o efeito. Evento repetido é ignorado; o offset só é confirmado depois do processamento.
-- **Falhas**: retry com backoff exponencial e jitter. Esgotadas as tentativas, a mensagem vai para `dlq.<consumer-group>` com o erro nos headers, e o consumidor segue em frente em vez de travar a partição.
+- **Falhas**: cada tipo tem sua resposta, sempre com backoff exponencial e jitter. Mensagem ilegível ou recusa do domínio (`PermanentFailure`) vai direto para `dlq.<consumer-group>`, com o erro nos headers. Conexão perdida com o banco tenta sem limite: a partição espera o banco voltar, porque desistir mandaria uma mensagem boa para a DLQ, e a seguinte falharia igual. Qualquer outra falha tem tentativas contadas e, esgotadas, vai para a DLQ. Um `SIGTERM` no meio das tentativas não confirma o offset, e a mensagem volta depois do restart.
 
 ## Evolução de schema
 

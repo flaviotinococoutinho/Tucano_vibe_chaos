@@ -20,7 +20,7 @@ area_of() {
   case "$1" in
     .github/*|scripts/ci/*)         echo "$ALL_AREAS" ;;
     packages/php/*)                 echo "$PHP_AREAS" ;;
-    contracts/*)                    echo "contracts catalog commerce logistics bff" ;;
+    contracts/*)                    echo "contracts catalog commerce logistics bff partners-sim" ;;
     services/*)                     echo "$1" | cut -d/ -f2 ;;
     infra/flags/*)                  echo "compose feature-flags" ;;
     compose*.yaml|infra/*|Makefile) echo "compose" ;;

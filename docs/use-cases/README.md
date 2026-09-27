@@ -21,32 +21,37 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | ID | Nível | Ator principal | Objetivo | Contexto |
 |---|---|---|---|---|
 | [UC-000](UC-000-buy-and-receive.md) | resumo | Cliente | comprar e receber um produto | todos |
-| UC-CAT-01 | usuário | Cliente | consultar o catálogo | Catalog |
-| UC-CAT-02 | usuário | Administrador do catálogo | publicar um produto | Catalog |
-| UC-CAT-03 | usuário | Administrador do catálogo | alterar o preço de um produto | Catalog |
-| UC-CAT-04 | usuário | Administrador do catálogo | descontinuar um produto | Catalog |
+| [UC-CAT-01](UC-CAT-01-browse-catalog.md) | usuário | Cliente | consultar o catálogo | Catalog |
+| [UC-CAT-02](UC-CAT-02-publish-product.md) | usuário | Administrador do catálogo | publicar um produto | Catalog |
+| [UC-CAT-03](UC-CAT-03-change-price.md) | usuário | Administrador do catálogo | alterar o preço de um produto | Catalog |
+| [UC-CAT-04](UC-CAT-04-discontinue-product.md) | usuário | Administrador do catálogo | descontinuar um produto | Catalog |
 | [UC-ORD-01](UC-ORD-01-place-order.md) | usuário | Cliente | fazer um pedido | Ordering |
 | UC-ORD-02 | usuário | Cliente | cancelar um pedido | Ordering |
-| UC-ORD-03 | subfunção | Relógio | expirar pedidos não pagos | Ordering |
+| [UC-ORD-03](UC-ORD-03-expire-unpaid-orders.md) | subfunção | Relógio | expirar pedidos não pagos | Ordering |
 | UC-ORD-04 | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
-| UC-ORD-05 | usuário | Cliente | consultar os próprios pedidos | Ordering |
-| UC-INV-01 | subfunção | Commerce | reservar estoque | Inventory |
+| [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
+| [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
+| [UC-ORD-07](UC-ORD-07-settle-order-payment.md) | subfunção | Payments | registrar o resultado do pagamento no pedido | Ordering |
+| [UC-INV-01](UC-INV-01-reserve-stock.md) | subfunção | Commerce | reservar estoque | Inventory |
 | UC-INV-02 | usuário | Operador logístico | repor estoque | Inventory |
+| [UC-INV-03](UC-INV-03-release-stock.md) | subfunção | Commerce | liberar a reserva de um pedido | Inventory |
+| [UC-INV-04](UC-INV-04-commit-stock.md) | subfunção | Commerce | confirmar a venda do estoque | Inventory |
 | [UC-PAY-01](UC-PAY-01-pay-order.md) | usuário | Cliente | pagar um pedido | Payments |
-| UC-PAY-02 | subfunção | PayFake | informar o resultado de um pagamento | Payments |
-| UC-PAY-03 | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
-| UC-PAY-04 | subfunção | Commerce | estornar um pagamento | Payments |
+| [UC-PAY-02](UC-PAY-02-settle-payment.md) | subfunção | PayFake | informar o resultado de um pagamento | Payments |
+| [UC-PAY-03](UC-PAY-03-reconcile-payments.md) | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
+| [UC-PAY-04](UC-PAY-04-refund-payment.md) | subfunção | Commerce | estornar um pagamento | Payments |
 | UC-NTF-01 | subfunção | Commerce | notificar o cliente | Notifications |
 | [UC-SHP-01](UC-SHP-01-create-shipment.md) | subfunção | Commerce | criar a remessa de um pedido pago | Shipping |
-| UC-SHP-02 | subfunção | Logistics | escolher a transportadora | Carrier Selection |
+| [UC-SHP-02](UC-SHP-02-choose-carrier.md) | subfunção | Logistics | escolher a transportadora | Carrier Selection |
 | UC-SHP-03 | subfunção | Fila de etiquetas | gerar a etiqueta | Labels |
 | UC-SHP-04 | usuário | Transportadora | registrar a coleta | Shipping |
 | UC-SHP-05 | usuário | Transportadora | registrar passagem por hub | Shipping |
 | UC-SHP-06 | usuário | Operador logístico | despachar para entrega | Shipping |
 | [UC-SHP-07](UC-SHP-07-record-delivery-outcome.md) | usuário | Entregador | registrar o resultado da entrega | Shipping |
 | UC-SHP-08 | subfunção | Logistics | devolver ao remetente | Shipping |
-| UC-SHP-09 | subfunção | Commerce | cancelar a remessa | Shipping |
+| [UC-SHP-09](UC-SHP-09-cancel-shipment.md) | subfunção | Commerce | cancelar a remessa | Shipping |
 | UC-SHP-10 | usuário | Cliente | rastrear pelo código | Shipping |
+| [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso e dimensões dos produtos | Shipping |
 | UC-TRK-01 | usuário | Entregador | transmitir a posição | Tracking |
 | UC-TRK-02 | subfunção | Logistics | encontrar o entregador disponível mais próximo | Tracking |
 | [UC-TRK-03](UC-TRK-03-follow-delivery-live.md) | usuário | Cliente | acompanhar a entrega ao vivo | Tracking |

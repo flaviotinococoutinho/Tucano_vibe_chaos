@@ -23,10 +23,15 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 
 - [Ambiente local](operations/local-environment.md): subir a stack, endereços, comandos e problemas comuns.
 
-## 4. Casos de uso
+## 4. Laboratórios
+
+- [Overselling](labs/overselling.md): cinco estratégias de reserva de estoque sob disputa real, e o que cada uma vende.
+- [Circuit breaker](labs/circuit-breaker.md): o PSP fica lento, o circuito abre, e o checkout responde em milissegundos em vez de travar.
+
+## 5. Casos de uso
 
 - [Lista ator-objetivo e fichas](use-cases/README.md), no formato de Alistair Cockburn.
 
-## 5. Decisões
+## 6. Decisões
 
 - [ADRs](adr/README.md): o porquê de cada escolha, com alternativas e consequências.

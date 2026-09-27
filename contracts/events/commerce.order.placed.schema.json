@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/commerce.order.placed.schema.json",
+  "title": "tucano.commerce.order.placed",
+  "description": "The data of an OrderPlaced event: the order exists, waits for payment and holds its stock until reservationExpiresAt.",
+  "type": "object",
+  "required": ["orderId", "orderNumber", "customerId", "fulfillmentCenter", "total", "lines", "reservationExpiresAt"],
+  "properties": {
+    "orderId": { "$ref": "#/$defs/uuidv7" },
+    "orderNumber": {
+      "type": "string",
+      "pattern": "^[0-9]{1,19}$",
+      "description": "Snowflake as a decimal string: JavaScript cannot hold 63-bit integers."
+    },
+    "customerId": { "$ref": "#/$defs/uuidv7" },
+    "fulfillmentCenter": { "type": "string", "pattern": "^[A-Z]{3}[0-9]$" },
+    "total": { "$ref": "#/$defs/money" },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["sku", "quantity", "unitPrice"],
+        "properties": {
+          "sku": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{2,31}$" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 10 },
+          "unitPrice": { "$ref": "#/$defs/money" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "reservationExpiresAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "integer", "minimum": 0, "description": "Minor units (cents)." },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

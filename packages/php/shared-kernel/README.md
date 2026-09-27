@@ -9,7 +9,7 @@ Shared kernel dos serviços PHP (catalog, commerce, logistics e tracking). Fica 
 | `Money` | `Money` em centavos e `Currency` ISO 4217 |
 | `Time` | `Clock`, `SystemClock` (sempre UTC) e `FrozenClock` para testes |
 | `Domain` | `AggregateRoot` e `DomainEvent` |
-| `Messaging` | `CloudEvent`, o envelope CloudEvents 1.0 dos tópicos Kafka |
+| `Messaging` | `CloudEvent`, o envelope CloudEvents 1.0 dos tópicos Kafka, e `EventFields`, a leitura tipada e tolerante do `data` que os consumidores fazem |
 | `Documentation` | atributo `#[UseCase('UC-ORD-01')]`, que liga o código à ficha do caso de uso |
 
 Roda em PHP 8.3 (o Lumen do catálogo) e 8.4 (Laravel e Swoole), e o CI testa as duas versões.

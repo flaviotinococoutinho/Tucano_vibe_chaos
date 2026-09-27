@@ -36,13 +36,21 @@
 
 ## Extensões
 
-- 2a. Circuit breaker aberto (PSP instável): o sistema responde `503` com `Retry-After`, sem chamar o PSP.
-- 2b. Timeout: o pagamento fica `pending`; uma nova tentativa do cliente reaproveita o mesmo pagamento e a mesma chave.
+- 1a. Pedido desconhecido: `404`. Pedido que não está aguardando pagamento, ou com a reserva vencida: `409`.
+- 2a. Circuit breaker aberto (PSP instável): o sistema responde `503` com `Retry-After`, sem chamar o PSP e sem criar pagamento, para que a nova tentativa seja uma tentativa de verdade.
+- 2b. Timeout: o pagamento fica `pending` e o sistema responde `202`. Repetir o request com a mesma chave reenvia a cobrança com o mesmo id, e o PSP devolve a cobrança que já tinha.
+- 2c. Outra tentativa chega enquanto o pedido tem um pagamento pendente (com outra chave): as duas compartilham o pagamento, e o PSP vê uma chave só.
 - 4a. Webhook duplicado: ignorado pela inbox.
 - 4b. Webhook perdido: a conciliação consulta o PSP (UC-PAY-03).
 - 5a. Pagamento recusado: pagamento `failed`, pedido `cancelled` e reserva liberada.
 - 5b. Pagamento aprovado depois de a reserva expirar: o pedido já está `cancelled`, então o sistema estorna (UC-PAY-04).
 
+## Variações de tecnologia
+
+- A chamada ao PSP acontece fora de transação: nenhuma linha fica travada enquanto a rede decide.
+- Um pagamento pendente por pedido é regra do banco (índice único parcial `WHERE status = 'pending'`), e a criação usa `INSERT ... ON CONFLICT DO NOTHING` nesse índice.
+- O circuit breaker guarda o estado no Redis, porque o PHP-FPM não guarda nada entre requests. O experimento está no [laboratório de circuit breaker](../labs/circuit-breaker.md).
+
 ## No código
 
-- Port `ForPayingOrders`, caso de uso `PayOrder`, pacote `Commerce\Payments`.
+- Port `ForPayingOrders`, caso de uso `PayOrder`, pacote `Commerce\Payments`. O PSP é o port `ForChargingCards`: o adapter `PayFakeGateway` (a camada anticorrupção) atrás do decorator `BreakerGuardedGateway`.

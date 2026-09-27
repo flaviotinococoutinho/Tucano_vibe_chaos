@@ -101,11 +101,11 @@ C4Container
 | `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
 | `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
 | `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | esqueleto rodando (health, erros) |
-| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | esqueleto rodando (health, erros, flags) |
-| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | esqueleto rodando (health, erros, flags) |
-| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | esqueleto rodando (health, erros, flags) |
+| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
+| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |
+| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, cópia do catálogo, outbox |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | esqueleto rodando (health, erros) |
-| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | esqueleto rodando (health, erros) |
+| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | PayFake: cobranças, estornos, webhooks assinados e caos em tempo real |
 | `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
 | `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |
 | `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |
@@ -137,7 +137,7 @@ sequenceDiagram
   C->>W: paga
   W->>CM: POST /v1/orders/{id}/payments
   CM->>PSP: cobra (Idempotency-Key)
-  PSP-->>CM: webhook payment.succeeded
+  PSP-->>CM: webhook charge.succeeded
   CM->>K: OrderPaid (via outbox)
   K->>LG: OrderPaid
   LG->>LG: cria a remessa, escolhe a transportadora e gera a etiqueta

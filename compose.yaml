@@ -37,11 +37,15 @@ x-catalog: &catalog
     REDIS_PORT: "16379"
     FLAGD_HOST: toxiproxy
     FLAGD_PORT: "18013"
+    KAFKA_BROKERS: toxiproxy:19092
+    KAFKA_MESSAGE_TIMEOUT_MS: "5000"
   depends_on:
     mysql:
       condition: service_healthy
     redis:
       condition: service_healthy
+    kafka-init:
+      condition: service_completed_successfully
     toxiproxy:
       condition: service_started
     flagd:
@@ -72,6 +76,9 @@ x-commerce: &commerce
     SNOWFLAKE_WORKER_ID: "1"
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: commerce_read
+    KAFKA_BROKERS: toxiproxy:19092
+    PAYFAKE_URL: http://toxiproxy:14001
+    PAYFAKE_WEBHOOK_SECRET: whsec_local_payfake
   depends_on:
     postgres:
       condition: service_healthy
@@ -90,7 +97,7 @@ x-logistics: &logistics
     context: .
     dockerfile: services/logistics/Dockerfile
   image: chaos-playground/logistics
-  environment:
+  environment: &logistics-env
     APP_NAME: logistics
     APP_ENV: ${APP_ENV:-local}
     APP_KEY: base64:Jf5wQm2Xk8Rz4Tn7Vb1Yc3Ud6He9Lg0Pa5Sq2Wx8Zr4=
@@ -109,6 +116,7 @@ x-logistics: &logistics
     SNOWFLAKE_WORKER_ID: "11"
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: logistics_read
+    KAFKA_BROKERS: toxiproxy:19092
   depends_on:
     postgres:
       condition: service_healthy
@@ -395,8 +403,9 @@ services:
 
   catalog-migrate:
     <<: [*job, *catalog]
-    # Runs once before the API starts, like a Kubernetes Job: schema and seeds.
-    command: ["php", "artisan", "migrate", "--force", "--seed"]
+    # Runs once before the API starts, like a Kubernetes Job: schema, seeds, and every
+    # published product on the compacted topic, so a new consumer finds the whole catalog.
+    command: ["sh", "-c", "php artisan migrate --force --seed && php artisan catalog:republish"]
 
   catalog:
     <<: [*service, *catalog]
@@ -435,6 +444,63 @@ services:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
 
+  # Workers: the same image, one long-running command each, stopped with SIGTERM.
+  commerce-outbox-relay:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:relay-outbox"]
+    # The base image stops PHP-FPM with SIGQUIT; the workers finish their batch on SIGTERM.
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
+  commerce-catalog-sync:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:sync-catalog"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  commerce-order-expiry:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:expire-orders"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  commerce-payment-reconciler:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:reconcile-payments"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      # The circuit breaker of the provider lives in Redis, shared with the API.
+      redis:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
   logistics-migrate:
     <<: [*job, *logistics]
     # Runs once before the API starts, like a Kubernetes Job: SQL schema and seeds, then the read models.
@@ -455,6 +521,54 @@ services:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
+
+  # Workers: the same image, one long-running command each, stopped with SIGTERM.
+  logistics-outbox-relay:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:relay-outbox"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
+  logistics-catalog-sync:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:sync-catalog"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  logistics-order-intake:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:order-intake"]
+    stop_signal: SIGTERM
+    environment:
+      # Merge keys are shallow: the whole environment comes back, with the worker's own Snowflake id.
+      <<: *logistics-env
+      SNOWFLAKE_WORKER_ID: "12"
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
 
   tracking:
     <<: *service
@@ -513,6 +627,13 @@ services:
       APP_ENV: ${APP_ENV:-local}
       PORT: "4000"
       LOG_LEVEL: info
+      PAYFAKE_WEBHOOK_URL: http://kong:8000/api/commerce/v1/webhooks/payfake
+      PAYFAKE_WEBHOOK_SECRET: whsec_local_payfake
+      PAYFAKE_PROCESSING_MIN_MS: "300"
+      PAYFAKE_PROCESSING_MAX_MS: "1500"
+    # The chaos controls of PayFake, from the host.
+    ports:
+      - "127.0.0.1:4000:4000"
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:4000/health/ready"]

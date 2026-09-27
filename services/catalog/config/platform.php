@@ -14,4 +14,10 @@ return [
         'port' => (int) env('FLAGD_PORT', 18013),
         'cache_seconds' => (int) env('FLAGS_CACHE_SECONDS', 2),
     ],
+
+    'kafka' => [
+        'brokers' => env('KAFKA_BROKERS', 'toxiproxy:19092'),
+        // A write waits this long for Kafka at most, after MySQL has already committed it.
+        'message_timeout_ms' => (int) env('KAFKA_MESSAGE_TIMEOUT_MS', 5000),
+    ],
 ];

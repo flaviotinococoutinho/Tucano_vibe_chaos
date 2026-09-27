@@ -29,6 +29,10 @@ final class VersionedDocumentsTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Without a MongoDB configured, setUp skips the test before anything exists.
+        if (!isset($this->database)) {
+            return;
+        }
         $this->database->drop();
     }
 

@@ -32,6 +32,11 @@
       "variants": { "none": 0, "some": 0.2, "most": 0.8 },
       "defaultVariant": "none"
     },
+    "chaos.logistics.outbox-relay-paused": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "off"
+    },
     "chaos.tracking.gps-drop-rate": {
       "state": "ENABLED",
       "variants": { "none": 0, "some": 0.3, "most": 0.9 },
@@ -39,7 +44,7 @@
     },
     "inventory.reservation-strategy": {
       "state": "ENABLED",
-      "variants": { "atomic": "atomic", "pessimistic": "pessimistic", "redis": "redis" },
+      "variants": { "atomic": "atomic", "pessimistic": "pessimistic" },
       "defaultVariant": "atomic"
     },
     "logistics.own-fleet-dispatch": {
