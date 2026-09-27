@@ -97,8 +97,13 @@ check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_
 check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
 	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=logistics_read_test
 
-check: ## Lint, analyse and test one PHP service against the running stack (s=commerce)
+check: ## Lint, analyse and test one service (s=commerce); PHP runs against the stack
+ifneq ($(wildcard services/$(s)/package.json),)
+	docker run --rm -v "$(CURDIR)":/app -v chaos-playground-npm-cache:/root/.npm \
+		-w /app/services/$(s) node:24-alpine sh -c 'npm ci --no-audit --no-fund && npm run check'
+else
 	@scripts/test-databases.sh
 	docker run --rm --network chaos-playground_backend -v "$(CURDIR)":/app \
 		-v chaos-playground-composer-cache:/tmp/composer/cache $(check-env-$(s)) \
 		-w /app/services/$(s) chaos-playground/php-base:$(or $(check-php-$(s)),$(PHP)) sh -c 'composer install -q && composer check'
+endif

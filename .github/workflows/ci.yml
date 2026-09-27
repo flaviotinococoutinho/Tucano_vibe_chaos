@@ -282,9 +282,51 @@ jobs:
 
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
+  bff:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'bff')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/bff
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/bff/package-lock.json
+      # src/platform is a deliberate copy shared with partners-sim (ADR 0016).
+      - name: Platform copies match
+        working-directory: .
+        run: diff -r services/bff/src/platform services/partners-sim/src/platform
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
+  partners-sim:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'partners-sim')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/partners-sim
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/partners-sim/package-lock.json
+      # src/platform is a deliberate copy shared with bff (ADR 0016).
+      - name: Platform copies match
+        working-directory: .
+        run: diff -r services/bff/src/platform services/partners-sim/src/platform
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results
