@@ -1,0 +1,60 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "tucano/tracking",
+    "type": "project",
+    "description": "Tracking service: courier positions, nearest courier and live delivery tracking on Swoole.",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../packages/php/shared-kernel"
+        },
+        {
+            "type": "path",
+            "url": "../../packages/php/feature-flags"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-redis": "^6.0",
+        "ext-swoole": "^6.2",
+        "monolog/monolog": "^3.12",
+        "psr/log": "^3.0",
+        "ramsey/uuid": "^4.9",
+        "tucano/feature-flags": "*@dev",
+        "tucano/shared-kernel": "*@dev"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^12.5",
+        "swoole/ide-helper": "^6.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tracking\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

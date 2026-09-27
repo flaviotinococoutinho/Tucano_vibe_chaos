@@ -282,6 +282,29 @@ jobs:
 
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
+  tracking:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'tracking')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/tracking
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: swoole-6.2.3, apcu, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   bff:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'bff')
@@ -326,7 +349,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, bff, partners-sim]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

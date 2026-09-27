@@ -64,6 +64,8 @@ Os serviços PHP partem de uma imagem base própria (`infra/php-base`), constru�
 | `chaos-playground/php-base:8.4` | commerce, logistics, tracking | PHP-FPM 8.4 no Alpine com apcu, bcmath, intl, mongodb, opcache, pcntl, pdo_mysql, pdo_pgsql, rdkafka, redis, sockets e zip |
 | `chaos-playground/php-base:8.3` | catalog (Lumen) | as mesmas extensões sobre o PHP 8.3 |
 
+O tracking parte da base 8.4 e instala o Swoole 6.2 na própria imagem, porque só ele usa.
+
 Compilar essas extensões leva uns 5 minutos por versão. Com a base separada, isso acontece uma vez só, e os serviços compartilham as camadas no disco.
 
 Na frente dos apps FPM fica um nginx só, com uma porta por app (`8081` catalog, `8082` commerce, `8083` logistics). Ele não tem o código: todo request vai para o `public/index.php` do app via FastCGI. O `fastcgi_pass` usa variável e o resolver do Docker (`127.0.0.11`), porque com o nome fixo o nginx nem sobe quando um app está fora e ainda guarda o IP antigo depois de um restart. Com a variável, ele responde 502 enquanto o app está fora e volta sozinho quando o container sobe de novo.
@@ -157,6 +159,7 @@ Uso medido com a stack parada (sem tráfego), numa VM de 4 GB:
 | toxiproxy | 4 MB | 64 MB |
 | catalog, commerce, logistics (cada) | 15 a 25 MB | 256 MB |
 | bff, partners-sim (cada) | 33 MB | 96 MB |
+| tracking (Swoole, 2 workers) | 20 MB | 128 MB |
 | nginx | 5 MB | 64 MB |
 | **total** | **cerca de 1,3 GB** | |
 
