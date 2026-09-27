@@ -1,0 +1,331 @@
+name: chaos-playground
+
+# Shared defaults: rotated logs and automatic restarts for long-running containers.
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# One-shot jobs (topic creation, flag bootstrap) run once and exit.
+x-job: &job
+  restart: "no"
+  logging:
+    driver: json-file
+    options:
+      max-size: "1m"
+      max-file: "1"
+
+x-healthcheck: &healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+  start_interval: 2s
+
+services:
+  # ---------------------------------------------------------------- data stores
+
+  postgres:
+    <<: *service
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c work_mem=4MB
+      -c max_connections=60
+      -c log_min_duration_statement=500
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+    mem_limit: 256m
+    networks: [backend]
+
+  mysql:
+    <<: *service
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: catalog
+      MYSQL_USER: catalog
+      MYSQL_PASSWORD: catalog
+    command:
+      - --innodb-buffer-pool-size=64M
+      - --performance-schema=OFF
+      - --skip-name-resolve
+      - --max-connections=60
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+    mem_limit: 512m
+    networks: [backend]
+
+  mongo:
+    <<: *service
+    image: mongo:8.0
+    # Single-node replica set: needed for transactions and change streams.
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      <<: *healthcheck
+      # Initiates the replica set on first boot and reports healthy only once this node is primary.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (error) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}) } quit(db.hello().isWritablePrimary ? 0 : 1)"
+    mem_limit: 512m
+    networks: [backend]
+
+  redis:
+    <<: *service
+    image: redis:8-alpine
+    # volatile-lru evicts only keys with a TTL (cache), never locks or GEO data.
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru", "--save", "60", "1000"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "redis-cli", "ping"]
+    mem_limit: 128m
+    networks: [backend]
+
+  # ------------------------------------------------------------------ messaging
+
+  zookeeper:
+    <<: *service
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/bin/zookeeper-server-start.sh", "/etc/kafka/zookeeper.properties"]
+    environment:
+      KAFKA_HEAP_OPTS: -Xms64m -Xmx64m
+    volumes:
+      - ./infra/zookeeper/zookeeper.properties:/etc/kafka/zookeeper.properties:ro
+      - zookeeper-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:2181:2181"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep -q imok"]
+    mem_limit: 192m
+    networks: [backend]
+
+  kafka:
+    <<: *service
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/bin/kafka-server-start.sh", "/etc/kafka/server.properties"]
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - ./infra/kafka/server.properties:/etc/kafka/server.properties:ro
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:29092:29092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+    mem_limit: 640m
+    networks: [backend]
+
+  kafka-init:
+    <<: *job
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/scripts/create-topics.sh"]
+    volumes:
+      - ./infra/kafka/create-topics.sh:/opt/kafka/scripts/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks: [backend]
+
+  # ------------------------------------------------------------------ local aws
+
+  floci:
+    <<: *service
+    image: floci/floci:2.1.0-compat
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_SERVICES_SES_SMTP_HOST: mailpit
+      FLOCI_SERVICES_SES_SMTP_PORT: "1025"
+    volumes:
+      - floci-data:/app/data
+      - ./infra/floci/ready.d:/etc/floci/init/ready.d:ro
+      - ./infra/floci/dynamodb:/etc/floci/dynamodb:ro
+      - ./infra/floci/healthcheck.sh:/usr/local/bin/ready-check.sh:ro
+    ports:
+      - "127.0.0.1:4566:4566"
+    depends_on:
+      mailpit:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "/usr/local/bin/ready-check.sh"]
+    mem_limit: 256m
+    networks: [backend]
+
+  mailpit:
+    <<: *service
+    image: axllent/mailpit:v1.31.3
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:8025:8025"
+    mem_limit: 64m
+    networks: [backend]
+
+  # -------------------------------------------------------- chaos and flags
+
+  toxiproxy:
+    <<: *service
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./infra/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "127.0.0.1:8474:8474"
+    mem_limit: 64m
+    networks: [edge, backend]
+
+  flags-init:
+    <<: *job
+    image: alpine:3
+    network_mode: none
+    # flagd serves a single runtime copy of the environment file. The chaos panel edits
+    # that copy in place, and every `make up` starts again from the versioned file.
+    command:
+      - sh
+      - -c
+      - cp /environments/${APP_ENV:-local}.flagd.json /runtime/flags.flagd.json && chmod 0666 /runtime/flags.flagd.json
+    volumes:
+      - ./infra/flags/environments:/environments:ro
+      - flag-runtime:/runtime
+
+  flagd:
+    <<: *service
+    image: ghcr.io/open-feature/flagd:v0.17.0
+    command: ["start", "--uri", "file:/flags/runtime/flags.flagd.json"]
+    volumes:
+      - flag-runtime:/flags/runtime:ro
+    ports:
+      - "127.0.0.1:8013:8013"
+      - "127.0.0.1:8016:8016"
+    depends_on:
+      flags-init:
+        condition: service_completed_successfully
+    mem_limit: 64m
+    networks: [backend]
+
+  # ----------------------------------------------------------------------- edge
+
+  kong:
+    <<: *service
+    image: kong:3.9.3
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+      KONG_STATUS_LISTEN: 0.0.0.0:8100
+      KONG_NGINX_WORKER_PROCESSES: "1"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    volumes:
+      - ./infra/kong/kong.yml:/kong/kong.yml:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "kong", "health"]
+    mem_limit: 256m
+    networks: [edge, backend]
+
+  # ---------------------------------------------------------- tools (profile)
+
+  kafka-ui:
+    <<: *service
+    image: ghcr.io/kafbat/kafka-ui:v1.5.0
+    profiles: [tools]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      JAVA_OPTS: -Xms64m -Xmx192m
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    mem_limit: 320m
+    networks: [backend]
+
+  adminer:
+    <<: *service
+    image: adminer:6.1.1
+    profiles: [tools]
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "127.0.0.1:8088:8080"
+    mem_limit: 64m
+    networks: [backend]
+
+  dynamodb-admin:
+    <<: *service
+    image: aaronshaf/dynamodb-admin:5.3.4
+    profiles: [tools]
+    environment:
+      DYNAMO_ENDPOINT: http://floci:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "127.0.0.1:8089:8001"
+    depends_on:
+      floci:
+        condition: service_healthy
+    mem_limit: 128m
+    networks: [backend]
+
+networks:
+  edge:
+  backend:
+
+volumes:
+  postgres-data:
+  mysql-data:
+  mongo-data:
+  redis-data:
+  zookeeper-data:
+  kafka-data:
+  floci-data:
+  flag-runtime:
