@@ -97,11 +97,42 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
+  commerce:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'commerce')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/commerce
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: commerce
+          POSTGRES_PASSWORD: commerce
+          POSTGRES_DB: commerce
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U commerce" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: apcu, bcmath, intl, pdo_pgsql, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags]
+    needs: [changes, compose, shared-kernel, feature-flags, commerce]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

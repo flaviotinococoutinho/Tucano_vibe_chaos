@@ -1,0 +1,11 @@
+.git
+.github
+.claude
+docs
+**/vendor
+**/node_modules
+**/.phpunit.cache
+**/storage/logs/*.log
+**/storage/framework/cache/data
+**/storage/framework/views/*.php
+**/bootstrap/cache/*.php

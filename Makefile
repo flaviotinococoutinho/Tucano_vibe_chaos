@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check
+.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check kong-reload check
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -67,6 +67,9 @@ flags: ## Evaluate every feature flag (key=<targeting key>)
 	@curl -s -X POST localhost:8016/ofrep/v1/evaluate/flags -H 'Content-Type: application/json' \
 		-d '{"context": {"targetingKey": "$(or $(key),anonymous)"}}' | jq '.flags | map({(.key): .value}) | add'
 
+kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
+	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
+
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
 
@@ -83,3 +86,12 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
 		done; \
 	done
+
+# Hostnames the PHP services use when their tests run inside the compose network.
+check-env-commerce := -e DB_HOST=postgres -e REDIS_HOST=redis
+check-env-logistics := -e DB_HOST=postgres -e REDIS_HOST=redis
+
+check: ## Lint, analyse and test one PHP service against the running stack (s=commerce)
+	docker run --rm --network chaos-playground_backend -v "$(CURDIR)":/app \
+		-v chaos-playground-composer-cache:/tmp/composer/cache $(check-env-$(s)) \
+		-w /app/services/$(s) chaos-playground/php-base:$(PHP) sh -c 'composer install -q && composer check'
