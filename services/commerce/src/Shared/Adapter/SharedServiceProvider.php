@@ -12,6 +12,7 @@ use Commerce\Shared\Application\Port\Driven\ForPublishingEvents;
 use Commerce\Shared\Application\Port\Driven\ForRememberingRequests;
 use Commerce\Shared\Application\Port\Driven\ForRunningTransactions;
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
 use Tucano\Messaging\Kafka\Producer;
 use Tucano\Messaging\Kafka\RdKafkaProducer;
 
@@ -28,9 +29,10 @@ final class SharedServiceProvider extends ServiceProvider
     public function register(): void
     {
         // One producer per process: it keeps its connections and batches messages across calls.
-        $this->app->singleton(Producer::class, static fn(): Producer => new RdKafkaProducer(
+        $this->app->singleton(Producer::class, fn(): Producer => new RdKafkaProducer(
             (string) config('messaging.brokers'),
             (string) config('messaging.client_id'),
+            logger: $this->app->make(LoggerInterface::class),
         ));
     }
 

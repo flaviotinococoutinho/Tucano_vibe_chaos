@@ -10,6 +10,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Workers do commerce: relay da outbox (com pausa por flag de caos) e o consumidor `commerce.catalog-sync`, que mantém a cópia local do catálogo por versão (UC-ORD-06).
 - Laboratório de overselling: estratégias de reserva `atomic`, `pessimistic`, `optimistic`, `serializable` e `naive`, escolhidas pela flag `inventory.reservation-strategy` ou, no laboratório, pelo header `X-Inventory-Strategy`, com teste de corrida entre processos.
 
+### Fixed
+
+- Os logs da librdkafka saem pelo logger do serviço, em JSON, e não mais em texto puro no stderr.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added
