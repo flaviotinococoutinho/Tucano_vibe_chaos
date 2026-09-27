@@ -79,7 +79,7 @@ php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.
 		-w /app/$(dir) chaos-playground/php-base:$(PHP) sh -c '$(c)'
 
 packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
-	@for package in shared-kernel feature-flags messaging; do \
+	@for package in shared-kernel feature-flags messaging read-models; do \
 		for version in 8.3 8.4; do \
 			echo "== $$package on PHP $$version"; \
 			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
@@ -87,8 +87,10 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 	done
 
 # Hostnames the PHP services use when their tests run inside the compose network.
-check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis
-check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis
+check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
+	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test
+check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
+	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=logistics_read_test
 
 check: ## Lint, analyse and test one PHP service against the running stack (s=commerce)
 	@scripts/test-databases.sh
