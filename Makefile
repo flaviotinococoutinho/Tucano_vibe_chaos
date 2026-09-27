@@ -81,11 +81,21 @@ php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.
 	docker run --rm $(if $(net),--network $(net),) -v "$(CURDIR)":/app -v chaos-playground-composer-cache:/tmp/composer/cache \
 		-w /app/$(dir) chaos-playground/php-base:$(PHP) sh -c '$(c)'
 
-packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
+# The integration tests of the packages reach the running stack. The Kafka round trip is
+# left to the CI: it needs a broker that creates topics on demand, and the stack's does not.
+package-env := -e FLAGD_HOST=flagd -e 'MESSAGING_PG_DSN=pgsql:host=postgres;dbname=commerce_test' \
+	-e MESSAGING_PG_USER=commerce -e MESSAGING_PG_PASSWORD=commerce \
+	-e 'READ_MODELS_MONGO_URI=mongodb://mongo:27017/?directConnection=true'
+
+packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4, against the running stack
+	@scripts/test-databases.sh
 	@for package in shared-kernel feature-flags messaging read-models; do \
 		for version in 8.3 8.4; do \
 			echo "== $$package on PHP $$version"; \
-			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
+			docker run --rm --network chaos-playground_backend -v "$(CURDIR)":/app \
+				-v chaos-playground-composer-cache:/tmp/composer/cache $(package-env) \
+				-w /app/packages/php/$$package chaos-playground/php-base:$$version \
+				sh -c 'composer install -q && composer check' || exit 1; \
 		done; \
 	done
 
