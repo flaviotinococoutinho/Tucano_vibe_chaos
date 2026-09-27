@@ -7,6 +7,7 @@ Shared kernel dos serviços PHP (catalog, commerce, logistics e tracking). Fica 
 | `Identity` | `UuidIdentifier` (UUIDv7 gerado pelo domínio), `Snowflake` + `SnowflakeGenerator` e `CrockfordBase32` |
 | `Identity\Snowflake\Sequence` | `ApcuSequence` para PHP-FPM e `InMemorySequence` para processos de longa duração |
 | `Money` | `Money` em centavos e `Currency` ISO 4217 |
+| `Address` | `Address` com `Thoroughfare` (tipo e nome do logradouro), número em texto, `Divisions` (estado, município, distrito, subdistrito e bairro, com o geocódigo do IBGE), `PostalCode` e `Coordinates` ([ADR 0020](../../../docs/adr/0020-address-by-thoroughfare-and-divisions.md)) |
 | `Time` | `Clock`, `SystemClock` (sempre UTC) e `FrozenClock` para testes |
 | `Domain` | `AggregateRoot` e `DomainEvent` |
 | `Messaging` | `CloudEvent`, o envelope CloudEvents 1.0 dos tópicos Kafka, e `EventFields`, a leitura tipada e tolerante do `data` que os consumidores fazem |

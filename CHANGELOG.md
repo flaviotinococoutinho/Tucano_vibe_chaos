@@ -11,6 +11,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Laboratório da fila de etiquetas, com a flag `chaos.logistics.label-failure-rate`, os retries do job, o `failed_jobs` e o replay do Kafka.
 - CarrierFake no `partners-sim`: as transportadoras do laboratório (frota própria e parceiros), com agendamento de coleta idempotente, a jornada da encomenda num relógio comprimido (coleta, hubs, saída para entrega, até três visitas, devolução), webhooks assinados em ordem, caos em tempo real e contrato OpenAPI. O envio de webhooks, a assinatura e as chaves de idempotência viraram módulos comuns ao PayFake e ao CarrierFake.
 - A jornada da remessa até a porta (UC-SHP-04 a 08): a coleta agendada na transportadora quando a etiqueta fica pronta, e os webhooks assinados da transportadora aplicados na máquina de estados, com inbox, o comprovante e o motivo de cada visita em `delivery_attempts` e os sete eventos novos com contrato em JSON Schema.
+- O endereço no shared kernel ([ADR 0020](docs/adr/0020-address-by-thoroughfare-and-divisions.md)): logradouro com tipo e nome, número em texto (`KM 500`, `S/N`), divisões territoriais da UF ao bairro com o geocódigo do IBGE conferido por prefixo, CEP e coordenadas.
 
 ### Changed
 
