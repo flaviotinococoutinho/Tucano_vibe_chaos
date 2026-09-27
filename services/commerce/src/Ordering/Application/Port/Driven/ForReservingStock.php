@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Application\Port\Driven;
 
-use Commerce\Inventory\Domain\InsufficientStock;
 use Commerce\Ordering\Domain\Address\ShippingAddress;
+use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLines;
@@ -18,7 +18,7 @@ interface ForReservingStock
     /** Asked before the transaction starts: some reservation strategies need a stronger isolation. */
     public function requiredIsolation(): Isolation;
 
-    /** @throws InsufficientStock */
+    /** @throws StockNotReserved */
     public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode;
 
     public function release(OrderId $order): void;

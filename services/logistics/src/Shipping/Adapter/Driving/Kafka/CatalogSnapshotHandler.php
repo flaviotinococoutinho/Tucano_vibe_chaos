@@ -6,19 +6,19 @@ namespace Logistics\Shipping\Adapter\Driving\Kafka;
 
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
-use Logistics\Shared\Adapter\Driving\Kafka\EventFields;
-use Logistics\Shared\Adapter\Driving\Kafka\IncomingEvents;
 use Logistics\Shipping\Application\CatalogSnapshot;
 use Logistics\Shipping\Application\Port\Driving\ForSyncingCatalog;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Weight;
 use Logistics\Shipping\Domain\Product\Sku;
 use Psr\Log\LoggerInterface;
+use Tucano\Messaging\Kafka\IncomingEvent;
 use Tucano\Messaging\Kafka\MessageHandler;
 use Tucano\Messaging\Kafka\PermanentFailure;
 use Tucano\Messaging\Kafka\ReceivedMessage;
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Messaging\CloudEvent;
+use Tucano\SharedKernel\Messaging\EventFields;
 
 /**
  * Reads catalog.products.v1. The topic is compacted and carries the full state
@@ -37,7 +37,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
             // A tombstone. The catalog never deletes products today, so there is nothing to remove.
             return;
         }
-        $event = IncomingEvents::read($message);
+        $event = IncomingEvent::read($message);
         if ($event->type !== self::TYPE) {
             return;
         }
@@ -72,7 +72,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
                 $data->integer('version'),
             );
         } catch (InvalidArgumentException|DomainError $invalid) {
-            throw IncomingEvents::unreadable($message, $invalid);
+            throw IncomingEvent::unreadable($message, $invalid);
         }
     }
 }

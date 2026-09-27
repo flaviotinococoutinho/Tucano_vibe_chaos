@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Ordering;
 
-use Commerce\Inventory\Domain\InsufficientStock;
 use Commerce\Ordering\Application\PlaceOrderCommand;
 use Commerce\Ordering\Application\RequestedItem;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
@@ -16,6 +15,7 @@ use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
 use Commerce\Ordering\Domain\Customer\PersonName;
 use Commerce\Ordering\Domain\Error\ProductUnavailable;
+use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Order\ReservationWindow;
 use Commerce\Ordering\Domain\Product\CatalogProduct;
@@ -138,7 +138,7 @@ final class PlaceOrderTest extends TestCase
         try {
             $this->placeOrder->placeOrder(self::command('key-1', ['BOOK-DDD-001' => 1]));
             self::fail('The order should have been refused.');
-        } catch (InsufficientStock) {
+        } catch (StockNotReserved) {
             self::assertSame(0, $this->orders->count());
             self::assertSame([], $this->events->events);
         }

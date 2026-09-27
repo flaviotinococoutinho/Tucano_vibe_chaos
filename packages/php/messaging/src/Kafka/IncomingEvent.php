@@ -2,21 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Logistics\Shared\Adapter\Driving\Kafka;
+namespace Tucano\Messaging\Kafka;
 
 use JsonException;
 use Throwable;
-use Tucano\Messaging\Kafka\PermanentFailure;
-use Tucano\Messaging\Kafka\ReceivedMessage;
 use Tucano\SharedKernel\Messaging\CloudEvent;
 use Tucano\SharedKernel\Messaging\InvalidCloudEvent;
 
 /**
- * Opens the CloudEvent in a Kafka record. A record that cannot be read will
- * never become readable, so it goes straight to the dead letter topic, with
- * where it came from in the error.
+ * The first step of every handler: a Kafka record becomes a CloudEvent, or a
+ * PermanentFailure that sends it straight to the dead letter topic, since
+ * reading it again would fail the same way.
  */
-final readonly class IncomingEvents
+final class IncomingEvent
 {
     private function __construct() {}
 
@@ -30,6 +28,7 @@ final readonly class IncomingEvents
         }
     }
 
+    /** For a handler whose own reading of the data failed: the record is unreadable all the same. */
     public static function unreadable(ReceivedMessage $message, Throwable $reason): PermanentFailure
     {
         return new PermanentFailure(

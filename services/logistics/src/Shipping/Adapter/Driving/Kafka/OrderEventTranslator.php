@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Adapter\Driving\Kafka;
 
-use Logistics\Shared\Adapter\Driving\Kafka\EventFields;
 use Logistics\Shipping\Application\CancelledOrder;
 use Logistics\Shipping\Application\OrderLine;
 use Logistics\Shipping\Application\PaidOrder;
@@ -18,6 +17,7 @@ use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Recipient;
 use Tucano\SharedKernel\Messaging\CloudEvent;
+use Tucano\SharedKernel\Messaging\EventFields;
 
 /**
  * Translates the published language of Commerce (contracts/events/commerce.order.*)

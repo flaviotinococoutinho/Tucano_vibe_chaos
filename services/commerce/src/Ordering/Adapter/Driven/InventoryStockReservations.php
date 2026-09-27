@@ -11,17 +11,20 @@ use Commerce\Inventory\Application\StockItem;
 use Commerce\Inventory\Application\StockRequest;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
 use Commerce\Ordering\Domain\Address\ShippingAddress;
+use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
+use Tucano\SharedKernel\Domain\DomainError;
 
 /**
  * A driven port of Ordering answered by the driving port of Inventory. The two
  * modules share a process today; if Inventory ever becomes a service of its own,
- * this adapter is the only code that changes.
+ * this adapter is the only code that changes. It translates both ways: plain
+ * values in, and Inventory's refusals out as Ordering's own error.
  */
 final readonly class InventoryStockReservations implements ForReservingStock
 {
@@ -38,7 +41,11 @@ final readonly class InventoryStockReservations implements ForReservingStock
             static fn(OrderLine $line): StockItem => new StockItem((string) $line->sku, $line->quantity->value),
             iterator_to_array($lines, false),
         );
-        $reserved = $this->inventory->reserve(new StockRequest($order->toString(), $items, $destination->state->value, $until));
+        try {
+            $reserved = $this->inventory->reserve(new StockRequest($order->toString(), $items, $destination->state->value, $until));
+        } catch (DomainError $refusal) {
+            throw StockNotReserved::because($refusal);
+        }
 
         return FulfillmentCenterCode::of($reserved->fulfillmentCenter);
     }
