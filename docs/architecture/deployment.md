@@ -119,6 +119,8 @@ Uso medido com a stack parada (sem tráfego), numa VM de 4 GB:
 | mailpit | 9 MB | 64 MB |
 | redis | 8 MB | 128 MB |
 | toxiproxy | 4 MB | 64 MB |
-| **total** | **cerca de 1,2 GB** | |
+| catalog, commerce, logistics (cada) | 15 a 25 MB | 256 MB |
+| nginx | 5 MB | 64 MB |
+| **total** | **cerca de 1,25 GB** | |
 
 Os ajustes que mantêm isso baixo: heap fixo no Kafka (256 MB) e no ZooKeeper (64 MB), buffer pool de 64 MB e `performance_schema` desligado no MySQL, cache do WiredTiger em 256 MB no MongoDB e um único worker no Kong.
