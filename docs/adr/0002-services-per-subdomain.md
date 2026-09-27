@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O objetivo é estudar sistemas distribuídos sem cair no anti-padrão de microsserviços prematuros, e tudo precisa caber numa VM de 4 GB.
+Quero estudar sistemas distribuídos sem cair no antipadrão de microsserviços prematuros, e tudo precisa caber numa VM de 4 GB.
 
 ## Decisão
 
@@ -17,7 +17,7 @@ Um serviço por grande área de negócio, cada um com um motivo técnico para ex
 - `tracking` (Swoole): conexões de longa duração;
 - `bff` e `partners-sim` (Node): I/O concorrente e simulação.
 
-Dentro de cada serviço, os subdomínios são pacotes separados que só conversam por ports ou eventos. Assim, extrair um deles no futuro é mover uma pasta, não reescrever o sistema.
+Dentro de cada serviço, os subdomínios são pacotes separados que só conversam por ports ou eventos. Assim, extrair um deles no futuro exige mover uma pasta, não reescrever o sistema.
 
 ## Consequências
 
@@ -27,5 +27,5 @@ Dentro de cada serviço, os subdomínios são pacotes separados que só conversa
 
 ## Alternativas consideradas
 
-- **Microsserviço por contexto** (orders, payments, inventory, shipments...): mais pontos de falha que conceitos novos, e memória insuficiente para rodar tudo.
+- **Microsserviço por contexto** (orders, payments, inventory, shipments...): mais pontos de falha do que conceitos novos, e memória insuficiente para rodar tudo.
 - **Monólito único**: não exercitaria mensageria, consistência eventual nem falhas de rede entre serviços.
