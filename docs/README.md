@@ -14,6 +14,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 - [Linguagem ubíqua](architecture/ubiquitous-language.md): o vocabulário do negócio.
 - [Eventos](architecture/events.md): tópicos, CloudEvents, outbox, inbox e DLQ.
 - [Identificadores](architecture/identifiers.md): UUIDv7 e Snowflake.
+- [Modelo de dados](architecture/data-model.md): DDL, tipos, constraints e diagramas ER de cada banco.
 - [Máquinas de estados](architecture/state-machines.md): pedido, pagamento e remessa.
 - [Topologia local](architecture/deployment.md): redes, proxies de caos, listeners do Kafka e memória.
 - [Feature flags](architecture/feature-flags.md): flags privadas por ambiente com OpenFeature e flagd.
