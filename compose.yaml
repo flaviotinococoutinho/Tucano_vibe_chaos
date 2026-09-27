@@ -18,6 +18,39 @@ x-job: &job
       max-size: "1m"
       max-file: "1"
 
+x-commerce: &commerce
+  build:
+    context: .
+    dockerfile: services/commerce/Dockerfile
+  image: chaos-playground/commerce
+  environment:
+    APP_NAME: commerce
+    APP_ENV: ${APP_ENV:-local}
+    APP_KEY: base64:Hw0CB0x2Y7m9xvZcGf8Lh1u8mQ4vJ3kP2sT6yR5nE1A=
+    APP_DEBUG: "false"
+    LOG_LEVEL: info
+    DB_HOST: toxiproxy
+    DB_PORT: "15432"
+    DB_DATABASE: commerce
+    DB_USERNAME: commerce
+    DB_PASSWORD: commerce
+    REDIS_HOST: toxiproxy
+    REDIS_PORT: "16379"
+    FLAGD_HOST: toxiproxy
+    FLAGD_PORT: "18013"
+    SNOWFLAKE_DATACENTER_ID: "1"
+    SNOWFLAKE_WORKER_ID: "1"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    toxiproxy:
+      condition: service_started
+    flagd:
+      condition: service_started
+  networks: [backend]
+
 x-healthcheck: &healthcheck
   interval: 15s
   timeout: 5s
@@ -286,6 +319,15 @@ services:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/nginx-health"]
     mem_limit: 64m
     networks: [backend]
+
+  # ------------------------------------------------------------------- services
+
+  commerce:
+    <<: [*service, *commerce]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+    mem_limit: 256m
 
   # ---------------------------------------------------------- tools (profile)
 

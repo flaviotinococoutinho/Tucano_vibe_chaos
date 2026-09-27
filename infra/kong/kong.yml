@@ -7,3 +7,11 @@ plugins:
       header_name: X-Correlation-Id
       generator: uuid#counter
       echo_downstream: true
+
+services:
+  - name: commerce
+    url: http://nginx:8082
+    routes:
+      - name: commerce-api
+        paths: [/api/commerce]
+        strip_path: true
