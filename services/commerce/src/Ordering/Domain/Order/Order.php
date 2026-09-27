@@ -19,11 +19,15 @@ use Tucano\SharedKernel\Money\Money;
 
 /**
  * Aggregate root of Ordering. Every change goes through the state machine in
- * OrderStatus and records a domain event; the application layer stores the
- * events in the outbox together with the new state.
+ * OrderStatus and records a domain event and a status transition; the
+ * application layer stores the events in the outbox and the transitions in the
+ * history, together with the new state.
  */
 final class Order extends AggregateRoot
 {
+    /** @var list<StatusTransition> */
+    private array $transitions = [];
+
     private function __construct(
         private readonly OrderId $id,
         private readonly OrderNumber $number,
@@ -48,6 +52,7 @@ final class Order extends AggregateRoot
         DateTimeImmutable $reservationExpiresAt,
     ): self {
         $order = new self($id, $number, $customer, $address, $lines, $fulfillmentCenter, $placedAt, $reservationExpiresAt, OrderStatus::PendingPayment, 1);
+        $order->transitions[] = new StatusTransition(null, OrderStatus::PendingPayment, $placedAt);
         $order->recordThat(new OrderPlaced($id, $number, $customer->id, $lines, $fulfillmentCenter, $reservationExpiresAt, $placedAt));
 
         return $order;
@@ -102,40 +107,55 @@ final class Order extends AggregateRoot
 
     public function markAsPaid(DateTimeImmutable $paidAt): void
     {
-        $this->moveTo(OrderStatus::Paid);
+        $this->moveTo(OrderStatus::Paid, $paidAt);
         $this->recordThat(new OrderPaid($this->id, $this->number, $this->customer, $this->address, $this->lines, $this->fulfillmentCenter, $paidAt));
     }
 
     public function cancel(CancellationReason $reason, DateTimeImmutable $cancelledAt): void
     {
         $previous = $this->status;
-        $this->moveTo(OrderStatus::Cancelled);
+        $this->moveTo(OrderStatus::Cancelled, $cancelledAt, $reason->value);
         $this->recordThat(new OrderCancelled($this->id, $this->number, $reason, $previous, $cancelledAt));
     }
 
     public function markAsShipped(DateTimeImmutable $shippedAt): void
     {
-        $this->moveTo(OrderStatus::Shipped);
+        $this->moveTo(OrderStatus::Shipped, $shippedAt);
         $this->recordThat(new OrderShipped($this->id, $this->number, $shippedAt));
     }
 
     public function markAsDelivered(DateTimeImmutable $deliveredAt): void
     {
-        $this->moveTo(OrderStatus::Delivered);
+        $this->moveTo(OrderStatus::Delivered, $deliveredAt);
         $this->recordThat(new OrderDelivered($this->id, $this->number, $deliveredAt));
     }
 
     public function markAsReturned(DateTimeImmutable $returnedAt): void
     {
-        $this->moveTo(OrderStatus::Returned);
+        $this->moveTo(OrderStatus::Returned, $returnedAt);
         $this->recordThat(new OrderReturned($this->id, $this->number, $returnedAt));
     }
 
-    private function moveTo(OrderStatus $target): void
+    /**
+     * The transitions not stored yet, oldest first. Like events, they are handed
+     * over once: the repository writes them to the history when it saves the order.
+     *
+     * @return list<StatusTransition>
+     */
+    public function releaseTransitions(): array
+    {
+        $transitions = $this->transitions;
+        $this->transitions = [];
+
+        return $transitions;
+    }
+
+    private function moveTo(OrderStatus $target, DateTimeImmutable $at, ?string $reason = null): void
     {
         if (!$this->status->canMoveTo($target)) {
             throw OrderTransitionNotAllowed::from($this->status, $target);
         }
+        $this->transitions[] = new StatusTransition($this->status, $target, $at, $reason);
         $this->status = $target;
         $this->version++;
     }

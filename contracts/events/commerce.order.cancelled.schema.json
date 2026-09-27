@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/commerce.order.cancelled.schema.json",
+  "title": "tucano.commerce.order.cancelled",
+  "description": "The data of an OrderCancelled event. A cancelled paid order means a refund and a shipment to stop.",
+  "type": "object",
+  "required": ["orderId", "orderNumber", "reason", "previousStatus"],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "orderNumber": { "type": "string", "pattern": "^[0-9]{1,19}$" },
+    "reason": { "enum": ["payment_declined", "reservation_expired", "customer_request"] },
+    "previousStatus": { "enum": ["pending_payment", "paid"] }
+  },
+  "additionalProperties": false
+}

@@ -12,7 +12,9 @@ use Commerce\Inventory\Application\Port\Driven\ForChoosingStrategy;
 use Commerce\Inventory\Application\Port\Driven\ForFindingFulfillmentCenters;
 use Commerce\Inventory\Application\Port\Driven\ForHoldingStock;
 use Commerce\Inventory\Application\Port\Driven\ForRecordingReservations;
+use Commerce\Inventory\Application\Port\Driving\ForReleasingStock;
 use Commerce\Inventory\Application\Port\Driving\ForReservingStock;
+use Commerce\Inventory\Application\UseCase\ReleaseStock;
 use Commerce\Inventory\Application\UseCase\ReserveStock;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +24,7 @@ final class InventoryServiceProvider extends ServiceProvider
     /** @var array<class-string, class-string> */
     public array $bindings = [
         ForReservingStock::class => ReserveStock::class,
+        ForReleasingStock::class => ReleaseStock::class,
         ForHoldingStock::class => StrategicStockHolder::class,
         ForChoosingStrategy::class => FlaggedStrategies::class,
         ForRecordingReservations::class => PostgresReservations::class,

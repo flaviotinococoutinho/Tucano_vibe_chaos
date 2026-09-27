@@ -9,6 +9,7 @@ use Commerce\Ordering\Adapter\Driven\InventoryStockReservations;
 use Commerce\Ordering\Adapter\Driven\PostgresCatalogSnapshots;
 use Commerce\Ordering\Adapter\Driven\PostgresOrders;
 use Commerce\Ordering\Adapter\Driven\SnowflakeOrderNumbers;
+use Commerce\Ordering\Adapter\Driving\Console\ExpireOrdersWorker;
 use Commerce\Ordering\Adapter\Driving\Console\SyncCatalog;
 use Commerce\Ordering\Adapter\Driving\Http\PlaceOrderController;
 use Commerce\Ordering\Adapter\Driving\Http\ViewOrderController;
@@ -17,9 +18,11 @@ use Commerce\Ordering\Application\Port\Driven\ForNumberingOrders;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
 use Commerce\Ordering\Application\Port\Driven\ForStoringCatalogCopies;
 use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
+use Commerce\Ordering\Application\Port\Driving\ForExpiringOrders;
 use Commerce\Ordering\Application\Port\Driving\ForPlacingOrders;
 use Commerce\Ordering\Application\Port\Driving\ForSyncingCatalog;
 use Commerce\Ordering\Application\Port\Driving\ForViewingOrders;
+use Commerce\Ordering\Application\UseCase\ExpireOrders;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
 use Commerce\Ordering\Application\UseCase\SyncCatalogProduct;
 use Commerce\Ordering\Application\UseCase\ViewOrder;
@@ -36,6 +39,7 @@ final class OrderingServiceProvider extends ServiceProvider
         ForPlacingOrders::class => PlaceOrder::class,
         ForViewingOrders::class => ViewOrder::class,
         ForSyncingCatalog::class => SyncCatalogProduct::class,
+        ForExpiringOrders::class => ExpireOrders::class,
         ForStoringOrders::class => PostgresOrders::class,
         ForFindingProducts::class => PostgresCatalogSnapshots::class,
         ForStoringCatalogCopies::class => PostgresCatalogSnapshots::class,
@@ -53,7 +57,7 @@ final class OrderingServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
-        $this->commands([SyncCatalog::class]);
+        $this->commands([SyncCatalog::class, ExpireOrdersWorker::class]);
         $router->middleware('api')->group(static function (Router $router): void {
             $router->post('/v1/orders', PlaceOrderController::class)->middleware([RequireIdempotencyKey::class, ChooseReservationStrategy::class]);
             $router->get('/v1/orders/{orderId}', ViewOrderController::class);

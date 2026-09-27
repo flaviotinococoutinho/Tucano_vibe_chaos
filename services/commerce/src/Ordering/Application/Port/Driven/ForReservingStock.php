@@ -20,4 +20,6 @@ interface ForReservingStock
 
     /** @throws InsufficientStock */
     public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode;
+
+    public function release(OrderId $order): void;
 }
