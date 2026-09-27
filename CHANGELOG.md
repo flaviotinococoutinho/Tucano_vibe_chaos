@@ -7,3 +7,4 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 ### Added
 
 - Estrutura inicial do repositório, Git Flow e convenções de engenharia.
+- Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estado, casos de uso e ADRs 0001 a 0014.

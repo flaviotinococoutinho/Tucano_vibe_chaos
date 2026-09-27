@@ -3,9 +3,9 @@
 # with at least ~4 GB of memory and a few CPUs to stay responsive.
 set -euo pipefail
 
-ok()   { printf '  \033[32m✔\033[0m %s\n' "$1"; }
-warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
-fail() { printf '  \033[31m✘\033[0m %s\n' "$1"; exit 1; }
+ok()   { printf '  [ok]   %s\n' "$1"; }
+warn() { printf '  [warn] %s\n' "$1"; }
+fail() { printf '  [fail] %s\n' "$1"; exit 1; }
 
 command -v docker >/dev/null || fail "docker not found"
 docker info >/dev/null 2>&1 || fail "docker daemon is not running"

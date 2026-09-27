@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/cloudevent.schema.json",
+  "title": "Tucano CloudEvent envelope",
+  "description": "Structured-mode CloudEvents 1.0 envelope used on every Kafka topic.",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "subject", "time", "datacontenttype", "correlationid", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": {
+      "type": "string",
+      "description": "UUIDv7, used by consumers for de-duplication.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "source": { "type": "string", "enum": ["/catalog", "/commerce", "/logistics"] },
+    "type": { "type": "string", "pattern": "^tucano\\.[a-z]+\\.[a-z_]+\\.[a-z_]+$" },
+    "subject": { "type": "string", "minLength": 1, "description": "Aggregate id, also the Kafka message key." },
+    "time": { "type": "string", "format": "date-time" },
+    "datacontenttype": { "const": "application/json" },
+    "correlationid": { "type": "string", "minLength": 1 },
+    "causationid": { "type": "string" },
+    "data": { "type": "object" }
+  },
+  "additionalProperties": false
+}
