@@ -91,13 +91,15 @@ git commit -am "chore(release): 0.2.0"
 gh pr create --base main --title "chore(release): 0.2.0"
 ```
 
-Depois do merge na `main`:
+Depois do merge na `main`, a tag sai direto da `origin/main`, sem trocar de branch:
 
 ```bash
-git switch main && git pull
-git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0   # dispara o workflow de release
+git fetch origin
+git tag -a v0.2.0 origin/main -m "v0.2.0" && git push origin v0.2.0   # dispara o workflow de release
 gh pr create --base develop --head main --title "chore: back-merge v0.2.0"
 ```
+
+Trocar o working tree para uma `main` desatualizada apaga os arquivos que ela ainda não tem, e o `pull` recria esses arquivos em seguida. Os containers da stack que montam esses arquivos perdem o mount no meio do caminho (veja [problemas comuns](docs/operations/local-environment.md#problemas-comuns)).
 
 ## Hotfix
 
