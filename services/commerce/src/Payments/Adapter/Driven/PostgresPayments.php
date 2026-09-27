@@ -63,12 +63,14 @@ final readonly class PostgresPayments implements ForStoringPayments
 
     public function get(PaymentId $id): Payment
     {
-        $row = $this->connection->selectOne('SELECT ' . self::COLUMNS . ' FROM payments WHERE id = ? FOR UPDATE', [$id->toString()]);
-        if (!$row instanceof stdClass) {
-            throw PaymentNotFound::withId($id->toString());
-        }
+        return $this->find($id) ?? throw PaymentNotFound::withId($id->toString());
+    }
 
-        return self::paymentFrom($row);
+    public function find(PaymentId $id): ?Payment
+    {
+        $row = $this->connection->selectOne('SELECT ' . self::COLUMNS . ' FROM payments WHERE id = ? FOR UPDATE', [$id->toString()]);
+
+        return $row instanceof stdClass ? self::paymentFrom($row) : null;
     }
 
     private static function paymentFrom(stdClass $row): Payment

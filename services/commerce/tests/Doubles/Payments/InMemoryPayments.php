@@ -34,7 +34,12 @@ final class InMemoryPayments implements ForStoringPayments
 
     public function get(PaymentId $id): Payment
     {
-        return $this->payments[$id->toString()] ?? throw PaymentNotFound::withId($id->toString());
+        return $this->find($id) ?? throw PaymentNotFound::withId($id->toString());
+    }
+
+    public function find(PaymentId $id): ?Payment
+    {
+        return $this->payments[$id->toString()] ?? null;
     }
 
     public function count(): int
