@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Logistics\Shipping\Domain\Shipment;
 
 use DateTimeImmutable;
+use LogicException;
 use Logistics\Shipping\Domain\Destination\Destination;
 use Logistics\Shipping\Domain\Error\TransitionNotAllowed;
 use Logistics\Shipping\Domain\Event\DeliveryAttemptFailed;
@@ -44,6 +45,9 @@ final class Shipment extends AggregateRoot
 {
     /** @var list<StatusTransition> */
     private array $transitions = [];
+
+    /** @var list<DeliveryAttempt> the visits not stored yet */
+    private array $visits = [];
 
     private function __construct(
         private readonly ShipmentReference $reference,
@@ -139,6 +143,7 @@ final class Shipment extends AggregateRoot
     {
         $transition = $this->moveTo(ShipmentStatus::Delivered, $at, new Evidence(proof: $proof));
         $this->attempts = $this->attempts->succeeded();
+        $this->visits[] = DeliveryAttempt::delivered($this->attempts->made, $proof ?? throw new LogicException('The proof guard let a delivery through without its proof.'), $at);
         $this->recordThat(new ShipmentDelivered($this->reference, $transition, $this->attempts->made));
     }
 
@@ -146,6 +151,7 @@ final class Shipment extends AggregateRoot
     {
         $transition = $this->moveTo(ShipmentStatus::DeliveryFailed, $at, new Evidence(failure: $failure));
         $this->attempts = $this->attempts->failed($failure);
+        $this->visits[] = DeliveryAttempt::failed($this->attempts->made, $failure ?? throw new LogicException('The reason guard let a failed visit through without its reason.'), $at);
         $this->recordThat(new DeliveryAttemptFailed($this->reference, $transition, $this->attempts->made));
     }
 
@@ -177,6 +183,19 @@ final class Shipment extends AggregateRoot
         $this->transitions = [];
 
         return $transitions;
+    }
+
+    /**
+     * The visits to the address not stored yet, oldest first, handed over once like the transitions.
+     *
+     * @return list<DeliveryAttempt>
+     */
+    public function releaseVisits(): array
+    {
+        $visits = $this->visits;
+        $this->visits = [];
+
+        return $visits;
     }
 
     private function moveTo(ShipmentStatus $target, DateTimeImmutable $at, Evidence $evidence = new Evidence()): StatusTransition

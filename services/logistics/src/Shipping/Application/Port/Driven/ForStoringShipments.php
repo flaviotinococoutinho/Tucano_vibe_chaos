@@ -8,6 +8,7 @@ use Logistics\Shipping\Domain\Error\ShipmentChangedMeanwhile;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Shipment;
 use Logistics\Shipping\Domain\Shipment\ShipmentId;
+use Logistics\Shipping\Domain\Shipment\TrackingCode;
 
 interface ForStoringShipments
 {
@@ -22,6 +23,9 @@ interface ForStoringShipments
 
     /** Like forOrder(), by the shipment's own id. */
     public function withId(ShipmentId $shipment): ?Shipment;
+
+    /** Like forOrder(), by the code on the label, which is how carriers know the shipment. */
+    public function withTrackingCode(TrackingCode $trackingCode): ?Shipment;
 
     /** @throws ShipmentChangedMeanwhile when the stored version is not the one this shipment was loaded with */
     public function save(Shipment $shipment): void;

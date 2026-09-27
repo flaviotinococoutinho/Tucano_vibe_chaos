@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Commerce\Payments\Adapter\Driving\Http;
+namespace Tucano\Messaging\Webhook;
 
 /**
- * The PayFake-Signature header: `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">`,
- * the same check partners-sim exports. The time is inside the HMAC, so a captured
- * webhook cannot be replayed later with a fresh timestamp; several v1 values let
- * the secret rotate without downtime.
+ * The signature of the webhooks of the lab's partners (PayFake, CarrierFake),
+ * the scheme Stripe made common: `t=<unix seconds>,v1=<hex>`, where the hex is
+ * HMAC-SHA256 with the shared secret over `<t>.<raw body>`. The timestamp is
+ * signed too, so an old request replayed later is refused, and several v1 may
+ * come while a secret is rotated.
  */
-final readonly class PayFakeSignature
+final readonly class WebhookSignature
 {
     private const int TOLERANCE_SECONDS = 300;
 

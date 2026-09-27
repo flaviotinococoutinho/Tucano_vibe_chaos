@@ -44,11 +44,11 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-SHP-01](UC-SHP-01-create-shipment.md) | subfunção | Commerce | criar a remessa de um pedido pago | Shipping |
 | [UC-SHP-02](UC-SHP-02-choose-carrier.md) | subfunção | Logistics | escolher a transportadora | Carrier Selection |
 | [UC-SHP-03](UC-SHP-03-generate-label.md) | subfunção | Fila de etiquetas | gerar a etiqueta | Shipping |
-| UC-SHP-04 | usuário | Transportadora | registrar a coleta | Shipping |
-| UC-SHP-05 | usuário | Transportadora | registrar passagem por hub | Shipping |
-| UC-SHP-06 | usuário | Operador logístico | despachar para entrega | Shipping |
+| [UC-SHP-04](UC-SHP-04-record-pickup.md) | usuário | Transportadora | registrar a coleta | Shipping |
+| [UC-SHP-05](UC-SHP-05-record-hub-scan.md) | usuário | Transportadora | registrar passagem por hub | Shipping |
+| [UC-SHP-06](UC-SHP-06-dispatch-for-delivery.md) | usuário | Transportadora | despachar para entrega | Shipping |
 | [UC-SHP-07](UC-SHP-07-record-delivery-outcome.md) | usuário | Entregador | registrar o resultado da entrega | Shipping |
-| UC-SHP-08 | subfunção | Logistics | devolver ao remetente | Shipping |
+| [UC-SHP-08](UC-SHP-08-return-to-sender.md) | subfunção | Transportadora | devolver ao remetente | Shipping |
 | [UC-SHP-09](UC-SHP-09-cancel-shipment.md) | subfunção | Commerce | cancelar a remessa | Shipping |
 | UC-SHP-10 | usuário | Cliente | rastrear pelo código | Shipping |
 | [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso e dimensões dos produtos | Shipping |

@@ -10,7 +10,6 @@ use Commerce\Payments\Adapter\Driven\OrderingSettlements;
 use Commerce\Payments\Adapter\Driven\PayFakeGateway;
 use Commerce\Payments\Adapter\Driven\PostgresPayments;
 use Commerce\Payments\Adapter\Driving\Console\ReconcilePaymentsWorker;
-use Commerce\Payments\Adapter\Driving\Http\PayFakeSignature;
 use Commerce\Payments\Adapter\Driving\Http\PayFakeWebhookController;
 use Commerce\Payments\Adapter\Driving\Http\PayOrderController;
 use Commerce\Payments\Application\Port\Driven\ForChargingCards;
@@ -33,6 +32,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Tucano\FeatureFlags\FeatureFlags;
+use Tucano\Messaging\Webhook\WebhookSignature;
 
 /** Plugs the Payments ports into their adapters and registers its routes, the webhook included. */
 final class PaymentsServiceProvider extends ServiceProvider
@@ -51,7 +51,8 @@ final class PaymentsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->when(ReconcilePayments::class)->needs('$quietSeconds')->giveConfig('payments.reconciliation.quiet_seconds');
-        $this->app->bind(PayFakeSignature::class, static fn(): PayFakeSignature => new PayFakeSignature((string) config('payments.payfake.webhook_secret')));
+        // The one webhook commerce receives is PayFake's, so the one signature to check is its.
+        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('payments.payfake.webhook_secret')));
         // The provider behind a circuit breaker: a decorator of the same port.
         $this->app->bind(ForChargingCards::class, fn(): ForChargingCards => new BreakerGuardedGateway(
             new PayFakeGateway(

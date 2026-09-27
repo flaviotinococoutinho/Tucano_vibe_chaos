@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/logistics.shipment.in_transit.schema.json",
+  "title": "tucano.logistics.shipment.in_transit",
+  "description": "The data of a ShipmentInTransit: a sorting hub of the carrier scanned the parcels. The time is the CloudEvent time.",
+  "type": "object",
+  "required": ["shipmentId", "trackingCode", "orderId", "hub"],
+  "properties": {
+    "shipmentId": { "$ref": "#/$defs/uuidv7" },
+    "trackingCode": {
+      "type": "string",
+      "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$"
+    },
+    "orderId": { "$ref": "#/$defs/uuidv7" },
+    "hub": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "The hub that scanned the parcels."
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

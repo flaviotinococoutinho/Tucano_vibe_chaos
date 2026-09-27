@@ -5,39 +5,60 @@ declare(strict_types=1);
 namespace Logistics\Shipping\Adapter;
 
 use Aws\S3\S3Client;
+use GuzzleHttp\Client;
 use Illuminate\Contracts\Queue\Factory as Queues;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Logistics\Shipping\Adapter\Driven\CarrierFakePickups;
 use Logistics\Shipping\Adapter\Driven\CarrierSelectionChoices;
 use Logistics\Shipping\Adapter\Driven\LaravelLabelQueue;
 use Logistics\Shipping\Adapter\Driven\PostgresCancelledOrders;
 use Logistics\Shipping\Adapter\Driven\PostgresCatalogSnapshots;
+use Logistics\Shipping\Adapter\Driven\PostgresFulfillmentCenterStates;
 use Logistics\Shipping\Adapter\Driven\PostgresShipments;
 use Logistics\Shipping\Adapter\Driven\S3Labels;
 use Logistics\Shipping\Adapter\Driven\SnowflakeTrackingCodes;
 use Logistics\Shipping\Adapter\Driven\ZplLabels;
+use Logistics\Shipping\Adapter\Driving\Console\BookPickups;
 use Logistics\Shipping\Adapter\Driving\Console\OrderIntake;
 use Logistics\Shipping\Adapter\Driving\Console\RequestLabels;
 use Logistics\Shipping\Adapter\Driving\Console\SyncCatalog;
+use Logistics\Shipping\Adapter\Driving\Http\CarrierWebhookController;
 use Logistics\Shipping\Application\Port\Driven\ForChoosingCarriers;
 use Logistics\Shipping\Application\Port\Driven\ForFindingProducts;
 use Logistics\Shipping\Application\Port\Driven\ForIssuingTrackingCodes;
+use Logistics\Shipping\Application\Port\Driven\ForLocatingFulfillmentCenters;
 use Logistics\Shipping\Application\Port\Driven\ForPrintingLabels;
 use Logistics\Shipping\Application\Port\Driven\ForQueuingLabels;
+use Logistics\Shipping\Application\Port\Driven\ForSchedulingPickups;
 use Logistics\Shipping\Application\Port\Driven\ForStoringCancelledOrders;
 use Logistics\Shipping\Application\Port\Driven\ForStoringCatalogCopies;
 use Logistics\Shipping\Application\Port\Driven\ForStoringLabels;
 use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
+use Logistics\Shipping\Application\Port\Driving\ForBookingPickups;
 use Logistics\Shipping\Application\Port\Driving\ForCancellingShipments;
 use Logistics\Shipping\Application\Port\Driving\ForCreatingShipments;
+use Logistics\Shipping\Application\Port\Driving\ForDispatchingDeliveries;
 use Logistics\Shipping\Application\Port\Driving\ForGeneratingLabels;
+use Logistics\Shipping\Application\Port\Driving\ForRecordingDeliveryOutcomes;
+use Logistics\Shipping\Application\Port\Driving\ForRecordingHubScans;
+use Logistics\Shipping\Application\Port\Driving\ForRecordingPickups;
 use Logistics\Shipping\Application\Port\Driving\ForRequestingLabels;
+use Logistics\Shipping\Application\Port\Driving\ForReturningToSender;
 use Logistics\Shipping\Application\Port\Driving\ForSyncingCatalog;
+use Logistics\Shipping\Application\UseCase\BookPickup;
 use Logistics\Shipping\Application\UseCase\CancelShipment;
 use Logistics\Shipping\Application\UseCase\CreateShipment;
+use Logistics\Shipping\Application\UseCase\DispatchForDelivery;
 use Logistics\Shipping\Application\UseCase\GenerateLabel;
+use Logistics\Shipping\Application\UseCase\RecordDeliveryOutcome;
+use Logistics\Shipping\Application\UseCase\RecordHubScan;
+use Logistics\Shipping\Application\UseCase\RecordPickup;
 use Logistics\Shipping\Application\UseCase\RequestLabel;
+use Logistics\Shipping\Application\UseCase\ReturnToSender;
 use Logistics\Shipping\Application\UseCase\SyncCatalogProduct;
 use Tucano\FeatureFlags\FeatureFlags;
+use Tucano\Messaging\Webhook\WebhookSignature;
 
 /** Plugs the Shipping ports into their adapters and registers its workers. */
 final class ShippingServiceProvider extends ServiceProvider
@@ -56,6 +77,13 @@ final class ShippingServiceProvider extends ServiceProvider
         ForRequestingLabels::class => RequestLabel::class,
         ForGeneratingLabels::class => GenerateLabel::class,
         ForPrintingLabels::class => ZplLabels::class,
+        ForBookingPickups::class => BookPickup::class,
+        ForLocatingFulfillmentCenters::class => PostgresFulfillmentCenterStates::class,
+        ForRecordingPickups::class => RecordPickup::class,
+        ForRecordingHubScans::class => RecordHubScan::class,
+        ForDispatchingDeliveries::class => DispatchForDelivery::class,
+        ForRecordingDeliveryOutcomes::class => RecordDeliveryOutcome::class,
+        ForReturningToSender::class => ReturnToSender::class,
     ];
 
     public function register(): void
@@ -74,6 +102,11 @@ final class ShippingServiceProvider extends ServiceProvider
             $this->app->make(FeatureFlags::class),
             static fn(): float => random_int(0, PHP_INT_MAX - 1) / PHP_INT_MAX,
         ));
+        $this->app->bind(ForSchedulingPickups::class, static fn(): ForSchedulingPickups => new CarrierFakePickups(
+            new Client(['base_uri' => (string) config('carriers.url')]),
+            (int) config('carriers.timeout_ms'),
+        ));
+        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('carriers.webhook_secret')));
         $this->app->bind(ForQueuingLabels::class, fn(): ForQueuingLabels => new LaravelLabelQueue(
             $this->app->make(Queues::class),
             (string) config('labels.queue.connection'),
@@ -81,8 +114,12 @@ final class ShippingServiceProvider extends ServiceProvider
         ));
     }
 
-    public function boot(): void
+    public function boot(Router $router): void
     {
-        $this->commands([SyncCatalog::class, OrderIntake::class, RequestLabels::class]);
+        $this->commands([SyncCatalog::class, OrderIntake::class, RequestLabels::class, BookPickups::class]);
+        $router->middleware('api')->group(static function (Router $router): void {
+            // No Idempotency-Key here: the event id, through the inbox, plays that part.
+            $router->post('/v1/webhooks/carriers', CarrierWebhookController::class);
+        });
     }
 }

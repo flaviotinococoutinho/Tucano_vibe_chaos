@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Payments;
+namespace Tucano\Messaging\Tests\Webhook;
 
-use Commerce\Payments\Adapter\Driving\Http\PayFakeSignature;
-use Commerce\Payments\Adapter\Driving\Http\SignatureVerdict;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tucano\Messaging\Webhook\SignatureVerdict;
+use Tucano\Messaging\Webhook\WebhookSignature;
 
-/** The same vector partners-sim checks, computed with `openssl dgst -sha256 -hmac`. */
-final class PayFakeSignatureTest extends TestCase
+/** The test vector is the one in contracts/http/payfake.openapi.yaml, which partners-sim signs with. */
+#[CoversClass(WebhookSignature::class)]
+final class WebhookSignatureTest extends TestCase
 {
     private const string SECRET = 'whsec_local_payfake';
 
@@ -62,6 +64,6 @@ final class PayFakeSignatureTest extends TestCase
 
     private function verify(string $body, string $header, int $now = self::SIGNED_AT): SignatureVerdict
     {
-        return new PayFakeSignature(self::SECRET)->verify($body, $header, $now);
+        return (new WebhookSignature(self::SECRET))->verify($body, $header, $now);
     }
 }

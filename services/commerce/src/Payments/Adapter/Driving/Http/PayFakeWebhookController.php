@@ -11,6 +11,8 @@ use InvalidArgumentException;
 use JsonException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Tucano\Messaging\Webhook\SignatureVerdict;
+use Tucano\Messaging\Webhook\WebhookSignature;
 use Tucano\SharedKernel\Time\Clock;
 
 /**
@@ -22,7 +24,7 @@ final readonly class PayFakeWebhookController
 {
     public function __construct(
         private ForSettlingPayments $payments,
-        private PayFakeSignature $signature,
+        private WebhookSignature $signature,
         private Clock $clock,
         private LoggerInterface $logger,
     ) {}

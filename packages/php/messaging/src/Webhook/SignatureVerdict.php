@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Commerce\Payments\Adapter\Driving\Http;
+namespace Tucano\Messaging\Webhook;
 
 enum SignatureVerdict: string
 {
