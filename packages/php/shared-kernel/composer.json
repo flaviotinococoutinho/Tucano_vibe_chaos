@@ -1,0 +1,38 @@
+{
+    "name": "tucano/shared-kernel",
+    "description": "Shared kernel of the Tucano services: identities, money, time and the CloudEvents envelope.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "ramsey/uuid": "^4.9"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "opis/json-schema": "^2.4",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^12.5"
+    },
+    "suggest": {
+        "ext-apcu": "Needed by ApcuSequence to generate Snowflake ids under PHP-FPM"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tucano\\SharedKernel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tucano\\SharedKernel\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "check": ["@lint", "@analyse", "@test"]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
