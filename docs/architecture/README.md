@@ -98,11 +98,11 @@ C4Container
 
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
-| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, ainda sem rotas |
+| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rota `/api/commerce` |
 | `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
 | `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | planejado |
 | `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | planejado |
-| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | planejado |
+| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | esqueleto rodando (health, erros, flags) |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | planejado |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | planejado |
 | `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | planejado |

@@ -19,6 +19,8 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 | `make down` | para tudo e mantém os dados |
 | `make clean` | apaga todos os volumes; pede confirmação |
 | `make ps` e `make logs s=kafka` | estado dos containers e logs de um serviço |
+| `make check s=commerce` | Pint, PHPStan, Deptrac e PHPUnit de um serviço PHP, dentro da rede da stack |
+| `make kong-reload` | aplica o `infra/kong/kong.yml` no Kong em execução, sem downtime |
 
 Um boot a frio, com volumes vazios, leva uns 20 segundos até tudo ficar saudável.
 
