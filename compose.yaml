@@ -72,6 +72,7 @@ x-commerce: &commerce
     SNOWFLAKE_WORKER_ID: "1"
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: commerce_read
+    KAFKA_BROKERS: toxiproxy:19092
   depends_on:
     postgres:
       condition: service_healthy
@@ -434,6 +435,36 @@ services:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
+
+  # Workers: the same image, one long-running command each, stopped with SIGTERM.
+  commerce-outbox-relay:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:relay-outbox"]
+    # The base image stops PHP-FPM with SIGQUIT; the workers finish their batch on SIGTERM.
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
+  commerce-catalog-sync:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:sync-catalog"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
 
   logistics-migrate:
     <<: [*job, *logistics]
