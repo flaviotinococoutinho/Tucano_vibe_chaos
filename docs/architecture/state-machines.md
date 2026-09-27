@@ -105,13 +105,15 @@ A tabela diz se a transição existe; os guards dizem se ela pode acontecer com 
 | `delivery_failed` | `returning` | 3 tentativas ou recusa do destinatário |
 | `returning` | `returned` | - |
 
-Os guards formam uma corrente (Chain of Responsibility): cada elo verifica uma regra e passa adiante; o primeiro que recusar interrompe a transição com um erro de domínio que diz o motivo.
+Os guards formam uma corrente (Chain of Responsibility): cada elo verifica uma regra e passa adiante; o primeiro que recusar interrompe a transição com `TransitionRefused`, que diz o motivo. Falta de evidência (etiqueta, hub, comprovante, motivo) é entrada inválida; regra de tentativas é conflito.
 
 ```mermaid
-flowchart LR
+flowchart TB
   request["transição pedida"] --> table{"existe na tabela?"}
   table -- não --> denied["TransitionNotAllowed"]
-  table -- sim --> label["LabelMustBeAttached"] --> proof["ProofOfDeliveryRequired"] --> attempts["AttemptsBelowLimit"] --> applied["transição aplicada<br/>+ evento de domínio"]
+  table -- sim --> label["LabelMustBeAttached"] --> hub["HubRequired"] --> proof["ProofOfDeliveryRequired"]
+  proof --> reason["FailureReasonRequired"] --> attempts["AttemptsBelowLimit"] --> back["ReturnAllowed"]
+  back --> applied["transição aplicada<br/>+ evento de domínio"]
 ```
 
 Cada transição aplicada:

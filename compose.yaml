@@ -97,7 +97,7 @@ x-logistics: &logistics
     context: .
     dockerfile: services/logistics/Dockerfile
   image: chaos-playground/logistics
-  environment:
+  environment: &logistics-env
     APP_NAME: logistics
     APP_ENV: ${APP_ENV:-local}
     APP_KEY: base64:Jf5wQm2Xk8Rz4Tn7Vb1Yc3Ud6He9Lg0Pa5Sq2Wx8Zr4=
@@ -116,6 +116,7 @@ x-logistics: &logistics
     SNOWFLAKE_WORKER_ID: "11"
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: logistics_read
+    KAFKA_BROKERS: toxiproxy:19092
   depends_on:
     postgres:
       condition: service_healthy
@@ -520,6 +521,54 @@ services:
       <<: *healthcheck
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
+
+  # Workers: the same image, one long-running command each, stopped with SIGTERM.
+  logistics-outbox-relay:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:relay-outbox"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
+  logistics-catalog-sync:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:sync-catalog"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  logistics-order-intake:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:order-intake"]
+    stop_signal: SIGTERM
+    environment:
+      # Merge keys are shallow: the whole environment comes back, with the worker's own Snowflake id.
+      <<: *logistics-env
+      SNOWFLAKE_WORKER_ID: "12"
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
 
   tracking:
     <<: *service

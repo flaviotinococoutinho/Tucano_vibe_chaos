@@ -183,7 +183,7 @@ erDiagram
   }
 ```
 
-Também existem `product_snapshots` (peso e dimensões), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
+Também existem `product_snapshots` (peso e dimensões), `cancelled_orders` (pedidos pagos cancelados antes de ter remessa, para um `order.paid` reprocessado não despachar), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
 
 ## Read models (MongoDB)
 
