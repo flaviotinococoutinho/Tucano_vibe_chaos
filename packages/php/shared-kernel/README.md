@@ -33,6 +33,6 @@ No JSON o Snowflake sai como string, porque números acima de 2^53 perdem precis
 ## Rodando
 
 ```bash
-make kernel-check                                         # Pint, PHPStan e PHPUnit em PHP 8.3 e 8.4
+make packages-check                                       # Pint, PHPStan e PHPUnit dos pacotes em PHP 8.3 e 8.4
 make php dir=packages/php/shared-kernel c="composer test" # um comando avulso
 ```

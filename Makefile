@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php kernel-check
+.PHONY: help doctor up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -64,12 +64,16 @@ flags: ## Evaluate every feature flag (key=<targeting key>)
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
 
-php: ## Run a command in the PHP tools image (dir=<path> c="<command>" PHP=8.3|8.4)
+php: ## Run a command in the PHP tools image (dir=<path> c="<command>" PHP=8.3|8.4 net=<docker network>)
 	@docker image inspect chaos-playground/php-tools:$(PHP) >/dev/null 2>&1 || \
 		docker build -q -t chaos-playground/php-tools:$(PHP) --build-arg PHP_VERSION=$(PHP) infra/php-tools >/dev/null
-	docker run --rm -v "$(CURDIR)":/app -v chaos-playground-composer-cache:/tmp/composer/cache \
+	docker run --rm $(if $(net),--network $(net),) -v "$(CURDIR)":/app -v chaos-playground-composer-cache:/tmp/composer/cache \
 		-w /app/$(dir) chaos-playground/php-tools:$(PHP) sh -c '$(c)'
 
-kernel-check: ## Lint, analyse and test the shared kernel on PHP 8.3 and 8.4
-	$(MAKE) --no-print-directory php PHP=8.3 dir=packages/php/shared-kernel c="composer install -q && composer check"
-	$(MAKE) --no-print-directory php PHP=8.4 dir=packages/php/shared-kernel c="composer install -q && composer check"
+packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
+	@for package in shared-kernel feature-flags; do \
+		for version in 8.3 8.4; do \
+			echo "== $$package on PHP $$version"; \
+			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
+		done; \
+	done
