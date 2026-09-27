@@ -11,6 +11,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Laboratório de overselling: estratégias de reserva `atomic`, `pessimistic`, `optimistic`, `serializable` e `naive`, escolhidas pela flag `inventory.reservation-strategy` ou, no laboratório, pelo header `X-Inventory-Strategy`, com teste de corrida entre processos.
 - Expiração de pedidos não pagos (UC-ORD-03): worker `commerce-order-expiry` com `FOR UPDATE SKIP LOCKED`, liberação do estoque (UC-INV-03), histórico de transições gravado a partir do agregado e `OrderCancelled` na outbox com contrato em JSON Schema.
 
+### Fixed
+
+- Os logs da librdkafka saem pelo logger do serviço, em JSON, e não mais em texto puro no stderr.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added
