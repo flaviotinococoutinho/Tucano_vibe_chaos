@@ -6,6 +6,9 @@ namespace Commerce\Ordering\Application;
 
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderSnapshot;
+use DateTimeImmutable;
+use Tucano\SharedKernel\Money\Currency;
+use Tucano\SharedKernel\Money\Money;
 
 /**
  * What the outside world sees of an order. It is also the result stored for an
@@ -61,6 +64,24 @@ final readonly class OrderDetails
     public function orderId(): string
     {
         return (string) $this->fields['orderId'];
+    }
+
+    public function status(): string
+    {
+        return (string) $this->fields['status'];
+    }
+
+    public function total(): Money
+    {
+        /** @var array{amount: int, currency: string} $total */
+        $total = $this->fields['total'];
+
+        return Money::of($total['amount'], Currency::fromCode($total['currency']));
+    }
+
+    public function reservationExpiresAt(): DateTimeImmutable
+    {
+        return new DateTimeImmutable((string) $this->fields['reservationExpiresAt']);
     }
 
     /** @return array<string, mixed> */
