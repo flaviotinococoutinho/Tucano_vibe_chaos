@@ -9,6 +9,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Stack local em Docker Compose: PostgreSQL 18, MySQL 8.4, MongoDB 8, Redis 8, Kafka 3.9 com ZooKeeper, Floci, Mailpit, Toxiproxy, flagd e Kong 3.9.
 - Feature flags privadas por ambiente (local, staging e production) com OpenFeature e flagd.
 - Comandos `make` para operar a stack e job de CI que valida compose, configuração do Kong, flags e scripts.
+- Shared kernel PHP (`tucano/shared-kernel`): UUIDv7, Snowflake com sequência em APCu, Base32 de Crockford, `Money`, `Clock`, envelope CloudEvents e o atributo `#[UseCase]`, testado em PHP 8.3 e 8.4.
 
 ### Changed
 
