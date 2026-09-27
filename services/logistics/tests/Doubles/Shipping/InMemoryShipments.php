@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Doubles\Shipping;
+
+use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
+use Logistics\Shipping\Domain\Shipment\OrderId;
+use Logistics\Shipping\Domain\Shipment\Shipment;
+
+final class InMemoryShipments implements ForStoringShipments
+{
+    /** @var array<string, Shipment> keyed by order id */
+    private array $shipments = [];
+
+    public function add(Shipment $shipment): void
+    {
+        $shipment->releaseTransitions();
+        $this->shipments[$shipment->toSnapshot()->reference->orderId->toString()] = $shipment;
+    }
+
+    public function forOrder(OrderId $order): ?Shipment
+    {
+        return $this->shipments[$order->toString()] ?? null;
+    }
+
+    public function save(Shipment $shipment): void
+    {
+        $this->add($shipment);
+    }
+
+    public function count(): int
+    {
+        return count($this->shipments);
+    }
+}

@@ -1,0 +1,125 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Shipping;
+
+use Closure;
+use Logistics\Shipping\Domain\Destination\BrazilianState;
+use Logistics\Shipping\Domain\Destination\Coordinates;
+use Logistics\Shipping\Domain\Destination\Destination;
+use Logistics\Shipping\Domain\Destination\PostalCode;
+use Logistics\Shipping\Domain\Error\InvalidShipment;
+use Logistics\Shipping\Domain\Parcel\Dimensions;
+use Logistics\Shipping\Domain\Parcel\Parcels;
+use Logistics\Shipping\Domain\Parcel\Quantity;
+use Logistics\Shipping\Domain\Parcel\Weight;
+use Logistics\Shipping\Domain\Product\CatalogProduct;
+use Logistics\Shipping\Domain\Product\Sku;
+use Logistics\Shipping\Domain\Shipment\CarrierCode;
+use Logistics\Shipping\Domain\Shipment\DeliveryAttempts;
+use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
+use Logistics\Shipping\Domain\Shipment\Recipient;
+use Logistics\Shipping\Domain\Shipment\TrackingCode;
+use Logistics\Shipping\Domain\Transition\DeliveryFailure;
+use Logistics\Shipping\Domain\Transition\Hub;
+use Logistics\Shipping\Domain\Transition\ProofOfDelivery;
+use Logistics\Shipping\Domain\Transition\ShippingLabel;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+use Tests\Builders\ShipmentBuilder;
+use Tucano\SharedKernel\Identity\Snowflake\NodeId;
+use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
+
+final class ShippingValuesTest extends TestCase
+{
+    #[Test]
+    public function the_tracking_code_is_the_snowflake_in_crockford_base32(): void
+    {
+        // The example of docs/architecture/identifiers.md.
+        $code = new TrackingCode(Snowflake::fromInt(97663548934766595));
+
+        self::assertSame('TX02PQRFBTW5G03', (string) $code);
+        self::assertSame(15, strlen((string) $code));
+        self::assertEquals(new NodeId(1, 12), $code->snowflake->node());
+        self::assertSame('2026-09-27T12:00:04.567Z', $code->snowflake->createdAt()->format('Y-m-d\TH:i:s.v\Z'));
+    }
+
+    #[Test]
+    public function a_parcel_holds_every_unit_of_a_line_stacked(): void
+    {
+        $product = new CatalogProduct(Sku::of('BOOK-DDD-001'), Weight::ofGrams(1100), Dimensions::ofMillimetres(240, 170, 40));
+
+        $parcel = $product->packed(Quantity::of(3));
+
+        self::assertSame(3300, $parcel->weight->grams());
+        self::assertEquals(Dimensions::ofMillimetres(240, 170, 120), $parcel->dimensions);
+    }
+
+    #[Test]
+    public function the_total_weight_is_the_sum_of_the_parcels(): void
+    {
+        $parcels = Parcels::of(ShipmentBuilder::parcel(2200, 240, 170, 80), ShipmentBuilder::parcel(4990, 300, 300, 300), ShipmentBuilder::parcel(10, 10, 10, 10));
+
+        self::assertSame(7200, $parcels->totalWeight()->grams());
+        self::assertCount(3, $parcels);
+    }
+
+    #[Test]
+    public function the_last_failure_decides_whether_a_return_is_allowed_before_the_third_attempt(): void
+    {
+        $absent = DeliveryAttempts::none()->failed(DeliveryFailure::RecipientAbsent);
+        $refused = DeliveryAttempts::none()->failed(DeliveryFailure::RecipientRefused);
+
+        self::assertSame([1, 2, true, false], [$absent->made, $absent->next(), $absent->allowAnother(), $absent->allowReturn()]);
+        self::assertTrue($refused->allowReturn());
+        self::assertTrue($refused->allowAnother());
+        self::assertFalse(DeliveryAttempts::none()->allowReturn());
+    }
+
+    #[Test]
+    public function values_are_normalized(): void
+    {
+        self::assertSame('01310100', (string) PostalCode::of('01310-100'));
+        self::assertSame('BOOK-DDD-001', (string) Sku::of(' book-ddd-001 '));
+        self::assertSame('Hub Cajamar', Hub::named('  Hub Cajamar ')->name);
+        self::assertSame(['Ana Souza', 'ana@example.com'], [Recipient::of(' Ana Souza ', ' ana@example.com')->name, Recipient::of('Ana Souza', 'ana@example.com')->email]);
+    }
+
+    /** @return iterable<string, array{Closure(): mixed}> */
+    public static function invalidValues(): iterable
+    {
+        yield 'no weight' => [static fn() => Weight::ofGrams(0)];
+        yield 'a weight the INTEGER column cannot hold' => [static fn() => Weight::ofGrams(2_147_483_648)];
+        yield 'a weight that overflows once multiplied' => [static fn() => Weight::ofGrams(1_000_000_000)->times(Quantity::of(3))];
+        yield 'a flat box' => [static fn() => Dimensions::ofMillimetres(240, 170, 0)];
+        yield 'a stack taller than the column' => [static fn() => Dimensions::ofMillimetres(240, 170, 2_000_000_000)->stacked(Quantity::of(2))];
+        yield 'no units' => [static fn() => Quantity::of(0)];
+        yield 'no parcels' => [static fn() => Parcels::of()];
+        yield 'a carrier in capitals' => [static fn() => CarrierCode::of('Tucano-Express')];
+        yield 'a warehouse in lowercase' => [static fn() => FulfillmentCenterCode::of('gru1')];
+        yield 'a SKU with spaces' => [static fn() => Sku::of('BOOK DDD')];
+        yield 'a short CEP' => [static fn() => PostalCode::of('0131010')];
+        yield 'coordinates off the globe' => [static fn() => new Coordinates(91.0, 0.0)];
+        yield 'a street longer than the column' => [static fn() => new Destination(str_repeat('a', 161), '1', null, 'Centro', 'São Paulo', BrazilianState::SP, PostalCode::of('01310100'))];
+        yield 'a blank city' => [static fn() => new Destination('Rua A', '1', null, 'Centro', '  ', BrazilianState::SP, PostalCode::of('01310100'))];
+        yield 'a long complement' => [static fn() => new Destination('Rua A', '1', str_repeat('b', 81), 'Centro', 'São Paulo', BrazilianState::SP, PostalCode::of('01310100'))];
+        yield 'a recipient without a name' => [static fn() => Recipient::of(' ', 'ana@example.com')];
+        yield 'a recipient without an e-mail' => [static fn() => Recipient::of('Ana Souza', '')];
+        yield 'a label without a key' => [static fn() => ShippingLabel::storedAt('')];
+        yield 'a hub without a name' => [static fn() => Hub::named('')];
+        yield 'a proof without a document' => [static fn() => ProofOfDelivery::of('Ana Souza', ' ')];
+        yield 'four attempts' => [static fn() => DeliveryAttempts::restore(4, null)];
+    }
+
+    /** @param Closure(): mixed $build */
+    #[Test]
+    #[DataProvider('invalidValues')]
+    public function invalid_values_are_refused(Closure $build): void
+    {
+        $this->expectException(InvalidShipment::class);
+
+        $build();
+    }
+}

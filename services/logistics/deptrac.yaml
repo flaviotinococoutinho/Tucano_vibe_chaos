@@ -29,6 +29,10 @@ deptrac:
       collectors:
         - type: classLike
           value: ^Tucano\\FeatureFlags\\.*
+    - name: Messaging
+      collectors:
+        - type: classLike
+          value: ^Tucano\\(Messaging|ReadModels)\\.*
     - name: Framework
       collectors:
         - type: classLike
@@ -45,6 +49,7 @@ deptrac:
       - Domain
       - SharedKernel
       - FeatureFlags
+      - Messaging
       - Framework
     App:
       - Adapter
@@ -52,4 +57,5 @@ deptrac:
       - Domain
       - SharedKernel
       - FeatureFlags
+      - Messaging
       - Framework

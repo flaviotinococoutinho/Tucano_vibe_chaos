@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/logistics.shipment.created.schema.json",
+  "title": "tucano.logistics.shipment.created",
+  "description": "The data of a ShipmentCreated event: a paid order became a shipment with its tracking code, carrier and parcels. The creation time is the CloudEvent time. The destination goes out without street or recipient: no consumer needs personal data from a topic kept for a week.",
+  "type": "object",
+  "required": ["shipmentId", "trackingCode", "orderId", "carrier", "origin", "destination", "parcels", "totalWeightGrams"],
+  "properties": {
+    "shipmentId": { "$ref": "#/$defs/uuidv7" },
+    "trackingCode": { "$ref": "#/$defs/trackingCode" },
+    "orderId": { "$ref": "#/$defs/uuidv7" },
+    "carrier": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,32}$",
+      "description": "Code of the carrier chosen by the carrier chain (UC-SHP-02), such as tucano-express."
+    },
+    "origin": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}[0-9]$",
+      "description": "Fulfillment center the parcels leave from."
+    },
+    "destination": {
+      "type": "object",
+      "required": ["city", "state", "postalCode"],
+      "properties": {
+        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "postalCode": { "type": "string", "pattern": "^[0-9]{8}$" }
+      },
+      "additionalProperties": false
+    },
+    "parcels": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One parcel per order line: the unit weight times the quantity, and the units stacked on the height.",
+      "items": {
+        "type": "object",
+        "required": ["weightGrams", "dimensions"],
+        "properties": {
+          "weightGrams": { "$ref": "#/$defs/positiveInteger" },
+          "dimensions": {
+            "type": "object",
+            "required": ["lengthMm", "widthMm", "heightMm"],
+            "properties": {
+              "lengthMm": { "$ref": "#/$defs/positiveInteger" },
+              "widthMm": { "$ref": "#/$defs/positiveInteger" },
+              "heightMm": { "$ref": "#/$defs/positiveInteger" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "totalWeightGrams": { "$ref": "#/$defs/positiveInteger" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "trackingCode": {
+      "type": "string",
+      "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$",
+      "description": "Snowflake in Crockford Base32 after the TX prefix (CHAR(15)). It also names the shipment to people."
+    },
+    "positiveInteger": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+  }
+}

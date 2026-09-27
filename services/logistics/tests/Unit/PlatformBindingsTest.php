@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use Logistics\Shipping\Application\Port\Driven\ForIssuingTrackingCodes;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tucano\FeatureFlags\FeatureFlags;
@@ -20,6 +21,18 @@ final class PlatformBindingsTest extends TestCase
         $snowflake = $this->app->make(SnowflakeGenerator::class)->next();
 
         self::assertEquals(new NodeId(1, 11), $snowflake->node());
+    }
+
+    #[Test]
+    public function tracking_codes_tell_which_process_created_them(): void
+    {
+        // The order intake worker runs with SNOWFLAKE_WORKER_ID=12; PHP-FPM keeps the default 11.
+        config(['platform.snowflake.datacenter' => 1, 'platform.snowflake.worker' => 12]);
+
+        $code = $this->app->make(ForIssuingTrackingCodes::class)->next();
+
+        self::assertEquals(new NodeId(1, 12), $code->snowflake->node());
+        self::assertMatchesRegularExpression('/^TX[0-9A-HJKMNP-TV-Z]{13}$/', (string) $code);
     }
 
     #[Test]
