@@ -1,0 +1,24 @@
+name: Bug
+description: Something is not working as expected
+labels: [bug]
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      placeholder: commerce, logistics, tracking...
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      placeholder: make up, then...
