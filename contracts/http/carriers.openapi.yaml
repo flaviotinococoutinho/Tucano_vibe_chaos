@@ -1,0 +1,502 @@
+openapi: 3.1.0
+info:
+  title: CarrierFake
+  version: 1.0.0
+  summary: The carriers of the Tucano lab, simulated by partners-sim.
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    CarrierFake plays every carrier Tucano works with: its own fleet (`tucano-express`) and the
+    partners (`ligeirinho`, `correio-nacional`, `carga-pesada`). It speaks the vocabulary of a
+    carrier (pickup, parcel, hub, attempt), and logistics translates it into the shipment state
+    machine at the border of the Shipping context (anticorruption layer). Inside the stack,
+    logistics calls it through Toxiproxy (the `carriers` proxy).
+
+    ## The journey of a parcel
+
+    A pickup is accepted as `scheduled`, and from there CarrierFake walks the parcel through its
+    journey on its own clock, one step at a time. Each step comes after a delay drawn between
+    `CARRIERS_STEP_MIN_MS` and `CARRIERS_STEP_MAX_MS` (1000 to 4000 ms by default) and is
+    reported by webhook:
+
+    | Step | Event |
+    |---|---|
+    | the carrier collects the parcels at the fulfillment center | `parcel.picked_up` |
+    | a sorting hub scans them (partners only: the hub of the origin state, then the hub of the destination state when it is another one) | `parcel.hub_scanned` |
+    | a courier leaves with them | `parcel.out_for_delivery` |
+    | the courier hands them over | `parcel.delivered` |
+    | or the visit fails | `parcel.delivery_failed` |
+    | the parcels start their way back | `parcel.returning` |
+    | the parcels are back at the fulfillment center | `parcel.returned` |
+
+    The own fleet delivers in the state of the fulfillment center and skips the hubs. A failed
+    visit is tried again, up to three visits in all. A refusal of the recipient, or a third
+    failure, sends the parcels back.
+
+    ## Webhooks and their order
+
+    The events of one parcel go out one at a time: the next one waits until the previous one was
+    delivered or given up. A receiver that answers anything outside 2xx gets the same event again
+    after 1, 2, 4, 8 and 16 seconds, then CarrierFake gives up on that event and moves on. That is
+    how an event that arrives too early settles itself: the receiver answers 409, and the retry
+    comes after the missing event, if that one is only late and not lost.
+
+    Every webhook is signed like the PayFake ones: `Carrier-Signature: t=<unix seconds>,v1=<hex>`,
+    HMAC-SHA256 with the shared secret over `<t>.<raw body>`. Retries and duplicates carry the
+    same event `id`.
+
+    ## Idempotency
+
+    `POST /carriers/v1/pickups` requires an `Idempotency-Key`; logistics sends the shipment id.
+    The same key with the same body answers what the first request answered, with
+    `Idempotent-Replayed: true`, and the parcel makes its journey once. The same key with another
+    body is refused with 422.
+
+    ## Errors
+
+    RFC 9457 problem details (`application/problem+json`), the same shape every Tucano service
+    uses. Validation failures add `errors`, the messages per field.
+servers:
+  - url: http://toxiproxy:14002
+    description: Inside the stack, the way logistics calls it (through Toxiproxy)
+  - url: http://localhost:4000
+    description: From the host
+# Unlike a real carrier, CarrierFake takes no API key: it only exists inside the lab.
+security: []
+tags:
+  - name: pickups
+    description: Pickups booked by the merchant; each one is one parcel journey.
+  - name: chaos
+    description: Lab controls, not part of a real carrier. Changed at runtime and kept in memory.
+paths:
+  /carriers/v1/pickups:
+    post:
+      tags: [pickups]
+      operationId: bookPickup
+      summary: Book the pickup of a shipment
+      description: |
+        Accepts the pickup as `scheduled`. The parcel starts its journey right away, and every
+        step comes by webhook.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupRequest'
+            example:
+              carrier: correio-nacional
+              reference: 01a0e30e-0cea-7159-bc05-56a0f4d16cf7
+              trackingCode: TX02PRCV4X85G00
+              origin:
+                center: GRU1
+                state: SP
+              destination:
+                city: Belo Horizonte
+                state: MG
+                postalCode: '30160011'
+              parcels: 1
+              weightGrams: 400
+      responses:
+        '201':
+          description: The pickup, as it was when it was accepted.
+          headers:
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pickup'
+              example:
+                id: pk_01M3HBNT8TE1R8SV13STYN9CXP
+                carrier: correio-nacional
+                reference: 01a0e30e-0cea-7159-bc05-56a0f4d16cf7
+                trackingCode: TX02PRCV4X85G00
+                status: scheduled
+                attempts: 0
+                createdAt: '2026-09-27T15:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/MissingIdempotencyKey'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+    get:
+      tags: [pickups]
+      operationId: findPickups
+      summary: Find the pickup of a merchant reference
+      description: For a merchant whose answer to the booking was lost. At most one pickup, the latest.
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The pickups booked with the reference.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 1
+                    items:
+                      $ref: '#/components/schemas/Pickup'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+  /carriers/v1/pickups/{pickupId}:
+    get:
+      tags: [pickups]
+      operationId: getPickup
+      summary: Read a pickup as it is now
+      parameters:
+        - name: pickupId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: pk_01M3HBNT8TE1R8SV13STYN9CXP
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The pickup in its current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pickup'
+        '404':
+          description: No pickup with this id, or it is older than the retention.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /_chaos/carriers:
+    get:
+      tags: [chaos]
+      operationId: getCarrierChaos
+      summary: Read the chaos settings
+      responses:
+        '200':
+          description: The settings in force.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+    put:
+      tags: [chaos]
+      operationId: setCarrierChaos
+      summary: Replace the chaos settings
+      description: A knob left out goes back to its calm value, so each PUT describes the whole experiment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChaosSettings'
+            example:
+              failureRate: 0.5
+              refusalRate: 0.1
+              webhooks:
+                duplicateRate: 0.2
+      responses:
+        '200':
+          description: The settings now in force, every knob filled in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+    delete:
+      tags: [chaos]
+      operationId: resetCarrierChaos
+      summary: Go back to calm
+      responses:
+        '200':
+          description: The calm settings, every knob at zero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+webhooks:
+  parcel.event:
+    post:
+      operationId: parcelEvent
+      summary: A step of the journey of a parcel
+      description: One event per step, in the order of the journey; see the API description.
+      parameters:
+        - $ref: '#/components/parameters/CarrierSignature'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParcelEvent'
+            example:
+              id: evt_01M3HBNT8XEN7BHPFP3E6P118G
+              type: parcel.delivered
+              createdAt: '2026-09-27T15:00:12.000Z'
+              data:
+                pickupId: pk_01M3HBNT8TE1R8SV13STYN9CXP
+                carrier: correio-nacional
+                reference: 01a0e30e-0cea-7159-bc05-56a0f4d16cf7
+                trackingCode: TX02PRCV4X85G00
+                attempt: 1
+                receiverName: Ana Souza
+                receiverDocument: '123.456.789-09'
+      responses:
+        '2XX':
+          description: The receiver took the event.
+        '409':
+          description: The event came before the one it follows; CarrierFake sends it again later.
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Logistics sends the shipment id, so a shipment gets at most one pickup.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Echoed back on the response. CarrierFake creates a UUIDv7 when it is missing.
+      schema:
+        type: string
+    CarrierSignature:
+      name: Carrier-Signature
+      in: header
+      required: true
+      description: '`t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">`, as the PayFake signature.'
+      schema:
+        type: string
+        pattern: '^t=\d+(,\s*v1=[0-9a-f]{64})+$'
+  headers:
+    IdempotentReplayed:
+      description: Present only when the answer is a replay of an earlier request with the same key.
+      schema:
+        type: string
+        const: 'true'
+    CorrelationId:
+      description: The correlation id of the request, received or created.
+      schema:
+        type: string
+  responses:
+    MissingIdempotencyKey:
+      description: The `Idempotency-Key` header is missing, blank or longer than 255 characters.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableRequest:
+      description: The body breaks the schema, or the key was already used with another body.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    CarrierCode:
+      type: string
+      enum: [tucano-express, ligeirinho, correio-nacional, carga-pesada]
+    State:
+      type: string
+      pattern: '^[A-Z]{2}$'
+      description: A Brazilian state (UF).
+    PickupRequest:
+      type: object
+      additionalProperties: false
+      required: [carrier, reference, trackingCode, origin, destination, parcels, weightGrams]
+      properties:
+        carrier:
+          $ref: '#/components/schemas/CarrierCode'
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The merchant's own id for the shipment, sent back in every event.
+        trackingCode:
+          type: string
+          pattern: '^TX[0-9A-HJKMNP-TV-Z]{13}$'
+          description: The code printed on the label; CarrierFake tracks the parcels by it.
+        origin:
+          type: object
+          additionalProperties: false
+          required: [center, state]
+          properties:
+            center:
+              type: string
+              pattern: '^[A-Z]{3}[0-9]$'
+            state:
+              $ref: '#/components/schemas/State'
+        destination:
+          type: object
+          additionalProperties: false
+          required: [city, state, postalCode]
+          properties:
+            city:
+              type: string
+              minLength: 1
+              maxLength: 120
+            state:
+              $ref: '#/components/schemas/State'
+            postalCode:
+              type: string
+              pattern: '^[0-9]{8}$'
+        parcels:
+          type: integer
+          minimum: 1
+          maximum: 99
+        weightGrams:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+    Pickup:
+      type: object
+      required: [id, carrier, reference, trackingCode, status, attempts, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: '^pk_[0-9A-HJKMNP-TV-Z]{26}$'
+        carrier:
+          $ref: '#/components/schemas/CarrierCode'
+        reference:
+          type: string
+        trackingCode:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, picked_up, in_transit, out_for_delivery, delivered, delivery_failed, returning, returned]
+          description: Where the parcels are now; each change is also a webhook.
+        attempts:
+          type: integer
+          minimum: 0
+          maximum: 3
+          description: How many visits to the address were made so far.
+        createdAt:
+          type: string
+          format: date-time
+    ParcelEvent:
+      type: object
+      required: [id, type, createdAt, data]
+      properties:
+        id:
+          type: string
+          pattern: '^evt_[0-9A-HJKMNP-TV-Z]{26}$'
+          description: The same in every retry and duplicate. Deduplicate by it.
+        type:
+          type: string
+          enum:
+            - parcel.picked_up
+            - parcel.hub_scanned
+            - parcel.out_for_delivery
+            - parcel.delivered
+            - parcel.delivery_failed
+            - parcel.returning
+            - parcel.returned
+        createdAt:
+          type: string
+          format: date-time
+        data:
+          type: object
+          required: [pickupId, carrier, reference, trackingCode]
+          properties:
+            pickupId:
+              type: string
+            carrier:
+              $ref: '#/components/schemas/CarrierCode'
+            reference:
+              type: string
+            trackingCode:
+              type: string
+            hub:
+              type: string
+              maxLength: 120
+              description: Only in `parcel.hub_scanned`, the hub that scanned the parcels.
+            attempt:
+              type: integer
+              minimum: 1
+              maximum: 3
+              description: In `parcel.out_for_delivery`, `parcel.delivered` and `parcel.delivery_failed`, the visit it is about.
+            receiverName:
+              type: string
+              maxLength: 120
+              description: Only in `parcel.delivered`.
+            receiverDocument:
+              type: string
+              maxLength: 20
+              description: Only in `parcel.delivered`.
+            reason:
+              type: string
+              enum: [recipient_absent, address_not_found, recipient_refused]
+              description: Only in `parcel.delivery_failed`.
+    Rate:
+      type: number
+      minimum: 0
+      maximum: 1
+      default: 0
+    ChaosSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        failureRate:
+          $ref: '#/components/schemas/Rate'
+          description: Share of visits that fail with the recipient absent or the address not found.
+        refusalRate:
+          $ref: '#/components/schemas/Rate'
+          description: Share of visits where the recipient refuses the parcels. The two rates add up to at most 1.
+        webhooks:
+          type: object
+          additionalProperties: false
+          default: {}
+          properties:
+            dropRate:
+              $ref: '#/components/schemas/Rate'
+              description: Share of events never sent; the next event of the parcel arrives early.
+            duplicateRate:
+              $ref: '#/components/schemas/Rate'
+              description: Share of events sent twice, with the same id.
+            delayMs:
+              type: integer
+              minimum: 0
+              maximum: 600000
+              default: 0
+              description: Wait before the first attempt of every event.
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status, detail, instance, correlationId]
+      properties:
+        type:
+          const: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        correlationId:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
