@@ -11,6 +11,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Serviço `logistics` (Laravel 13, PHP 8.4) com a mesma estrutura do commerce, exposto pelo Kong em `/api/logistics`.
 - Serviço `catalog` (Lumen 11, PHP 8.3) no papel de serviço legado: health checks, erros RFC 9457, correlation id e flags, exposto pelo Kong em `/api/catalog`.
 - Serviços `bff` e `partners-sim` (Node 24, Fastify 5, TypeScript sem build): health checks, erros RFC 9457, correlation id e logs JSON. O bff fica no Kong em `/bff`; o simulador fica só na rede `edge`, e os serviços chegam nele pelo Toxiproxy.
+- Serviço `tracking` (Swoole 6.2, PHP 8.4): servidor HTTP e WebSocket de longa duração com health checks, erros RFC 9457, correlation id no contexto da corrotina e graceful shutdown, exposto pelo Kong em `/api/tracking`.
 - `make check s=<serviço>` também para os serviços Node.
 - Read models no MongoDB: pacote `tucano/read-models` (migrations com `$jsonSchema` e upsert por versão), coleções `order_views` e `shipment_timelines` criadas no job de migração.
 - Pacote `tucano/messaging`: producer idempotente, consumer at-least-once com retry e DLQ, relay da outbox com `SKIP LOCKED` e inbox, testado contra PostgreSQL e Kafka reais.
