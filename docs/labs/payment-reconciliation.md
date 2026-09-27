@@ -17,6 +17,8 @@ Quando o PSP não tem cobrança nenhuma, a conciliação espera enquanto o pedid
 
 Desistir é um palpite. Uma repetição do cliente pode estar a caminho do PSP no mesmo instante, e a busca de um PSP de verdade pode estar atrasada em relação às cobranças. Em vez de tentar impedir a cobrança tardia, que chega de qualquer jeito, eu garanto que ela tenha para onde ir: `abandoned` aceita a palavra tardia do PSP. Se a cobrança aprovar depois, o dinheiro vai para estorno, porque o pedido já foi cancelado; se recusar, a recusa fica registrada. A conciliação também continua olhando os pagamentos `abandoned` que ganharam um id de cobrança, para o caso de o webhook dessa cobrança se perder.
 
+A decisão e as alternativas estão no [ADR 0019](../adr/0019-abandoned-payments-accept-late-outcomes.md).
+
 ## O experimento
 
 Três pedidos, com o PayFake descartando todo webhook:

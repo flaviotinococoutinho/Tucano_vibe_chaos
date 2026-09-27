@@ -27,6 +27,9 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 
 - [Overselling](labs/overselling.md): cinco estratégias de reserva de estoque sob disputa real, e o que cada uma vende.
 - [Circuit breaker](labs/circuit-breaker.md): o PSP fica lento, o circuito abre, e o checkout responde em milissegundos em vez de travar.
+- [Conciliação de pagamentos](labs/payment-reconciliation.md): webhooks descartados e cobranças perdidas, e como a conciliação chega à palavra final do PSP.
+- [Banco fora do ar](labs/database-outage.md): o relay que não voltava, o consumidor que desistia cedo, e o que mudou nos dois.
+- [Fila de etiquetas](labs/label-queue.md): o bucket falha, o job tenta de novo, o `failed_jobs` guarda o resto e o replay do Kafka recupera o que sumiu.
 
 ## 5. Casos de uso
 
