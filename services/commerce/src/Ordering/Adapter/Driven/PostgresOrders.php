@@ -13,6 +13,7 @@ use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
 use Commerce\Ordering\Domain\Customer\PersonName;
+use Commerce\Ordering\Domain\Error\OrderChangedMeanwhile;
 use Commerce\Ordering\Domain\Error\OrderNotFound;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\Order;
@@ -23,6 +24,7 @@ use Commerce\Ordering\Domain\Order\OrderNumber;
 use Commerce\Ordering\Domain\Order\OrderSnapshot;
 use Commerce\Ordering\Domain\Order\OrderStatus;
 use Commerce\Ordering\Domain\Order\Quantity;
+use Commerce\Ordering\Domain\Order\StatusTransition;
 use Commerce\Ordering\Domain\Product\Sku;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -81,13 +83,39 @@ final readonly class PostgresOrders implements ForStoringOrders
             ];
         }
         $this->connection->table('order_lines')->insert($lines);
+        $this->recordTransitions($snapshot->id, $order->releaseTransitions());
+    }
 
-        $this->connection->table('order_status_transitions')->insert([
-            'order_id' => $snapshot->id->toString(),
-            'from_status' => null,
-            'to_status' => $snapshot->status->value,
-            'occurred_at' => $placedAt,
-        ]);
+    public function save(Order $order): void
+    {
+        $transitions = $order->releaseTransitions();
+        if ($transitions === []) {
+            return;
+        }
+        $snapshot = $order->toSnapshot();
+        // Optimistic lock: the row must still be at the version this order was loaded with.
+        $loadedAt = $snapshot->version - count($transitions);
+        $updated = $this->connection->update(
+            'UPDATE orders SET status = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
+            [$snapshot->status->value, $snapshot->version, $transitions[array_key_last($transitions)]->at->format(DATE_RFC3339_EXTENDED), $snapshot->id->toString(), $loadedAt],
+        );
+        if ($updated !== 1) {
+            throw OrderChangedMeanwhile::withId($snapshot->id->toString(), $loadedAt);
+        }
+        $this->recordTransitions($snapshot->id, $transitions);
+    }
+
+    public function nextExpired(DateTimeImmutable $now): ?Order
+    {
+        $row = $this->connection->selectOne(<<<'SQL'
+            SELECT id FROM orders
+             WHERE status = 'pending_payment' AND reservation_expires_at <= ?
+             ORDER BY reservation_expires_at
+             LIMIT 1
+             FOR UPDATE SKIP LOCKED
+            SQL, [$now->format(DATE_RFC3339_EXTENDED)]);
+
+        return $row === null ? null : $this->get(OrderId::fromString((string) $row->id));
     }
 
     public function get(OrderId $id): Order
@@ -131,6 +159,18 @@ final readonly class PostgresOrders implements ForStoringOrders
             self::instant((string) $row->reservation_expires_at),
             (int) $row->version,
         ));
+    }
+
+    /** @param list<StatusTransition> $transitions */
+    private function recordTransitions(OrderId $id, array $transitions): void
+    {
+        $this->connection->table('order_status_transitions')->insert(array_map(static fn(StatusTransition $transition): array => [
+            'order_id' => $id->toString(),
+            'from_status' => $transition->from?->value,
+            'to_status' => $transition->to->value,
+            'reason' => $transition->reason,
+            'occurred_at' => $transition->at->format(DATE_RFC3339_EXTENDED),
+        ], $transitions));
     }
 
     private static function instant(string $timestamptz): DateTimeImmutable

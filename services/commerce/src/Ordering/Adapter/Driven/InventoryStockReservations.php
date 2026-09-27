@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Adapter\Driven;
 
+use Commerce\Inventory\Application\Port\Driving\ForReleasingStock;
 use Commerce\Inventory\Application\Port\Driving\ForReservingStock as Inventory;
 use Commerce\Inventory\Application\StockItem;
 use Commerce\Inventory\Application\StockRequest;
@@ -23,7 +24,7 @@ use DateTimeImmutable;
  */
 final readonly class InventoryStockReservations implements ForReservingStock
 {
-    public function __construct(private Inventory $inventory) {}
+    public function __construct(private Inventory $inventory, private ForReleasingStock $releases) {}
 
     public function requiredIsolation(): Isolation
     {
@@ -39,5 +40,10 @@ final readonly class InventoryStockReservations implements ForReservingStock
         $reserved = $this->inventory->reserve(new StockRequest($order->toString(), $items, $destination->state->value, $until));
 
         return FulfillmentCenterCode::of($reserved->fulfillmentCenter);
+    }
+
+    public function release(OrderId $order): void
+    {
+        $this->releases->release($order->toString());
     }
 }

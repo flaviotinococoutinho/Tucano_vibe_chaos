@@ -29,4 +29,20 @@ final readonly class PostgresReservations implements ForRecordingReservations
             'created_at' => $now,
         ], $items));
     }
+
+    public function release(string $orderId): void
+    {
+        // One statement: the reservations change state and the units go back together, or neither happens.
+        $this->connection->affectingStatement(<<<'SQL'
+            WITH released AS (
+                UPDATE stock_reservations SET status = 'released'
+                 WHERE order_id = ? AND status = 'active'
+             RETURNING sku, fulfillment_center, quantity
+            )
+            UPDATE stock_items AS stock
+               SET reserved = stock.reserved - released.quantity, updated_at = now()
+              FROM released
+             WHERE stock.sku = released.sku AND stock.fulfillment_center = released.fulfillment_center
+            SQL, [$orderId]);
+    }
 }

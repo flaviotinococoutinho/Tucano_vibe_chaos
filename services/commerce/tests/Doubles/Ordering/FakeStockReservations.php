@@ -19,6 +19,9 @@ final class FakeStockReservations implements ForReservingStock
     /** @var list<string> */
     public private(set) array $reservedFor = [];
 
+    /** @var list<string> */
+    public private(set) array $releasedFor = [];
+
     private ?InsufficientStock $shortage = null;
 
     public function __construct(private readonly string $center) {}
@@ -41,5 +44,10 @@ final class FakeStockReservations implements ForReservingStock
         $this->reservedFor[] = $order->toString();
 
         return FulfillmentCenterCode::of($this->center);
+    }
+
+    public function release(OrderId $order): void
+    {
+        $this->releasedFor[] = $order->toString();
     }
 }
