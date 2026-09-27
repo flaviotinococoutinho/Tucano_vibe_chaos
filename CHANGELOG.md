@@ -10,6 +10,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Workers do commerce: relay da outbox (com pausa por flag de caos) e o consumidor `commerce.catalog-sync`, que mantém a cópia local do catálogo por versão (UC-ORD-06).
 - Laboratório de overselling: estratégias de reserva `atomic`, `pessimistic`, `optimistic`, `serializable` e `naive`, escolhidas pela flag `inventory.reservation-strategy` ou, no laboratório, pelo header `X-Inventory-Strategy`, com teste de corrida entre processos.
 - Expiração de pedidos não pagos (UC-ORD-03): worker `commerce-order-expiry` com `FOR UPDATE SKIP LOCKED`, liberação do estoque (UC-INV-03), histórico de transições gravado a partir do agregado e `OrderCancelled` na outbox com contrato em JSON Schema.
+- Produtos no catálogo (UC-CAT-01 a 04): API `/v1/products`, cache-aside com jitter, cache negativo e lock contra stampede, concorrência otimista com `If-Match`, snapshot no tópico compactado depois do commit (dual write consciente) e `catalog:republish`, que o job de migração roda a cada subida.
 
 ### Fixed
 
