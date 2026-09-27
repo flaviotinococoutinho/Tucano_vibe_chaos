@@ -15,11 +15,17 @@ Mapa da documentação do projeto. A ordem abaixo também é uma **trilha de est
 - [Eventos](architecture/events.md): tópicos, CloudEvents, outbox, inbox e DLQ.
 - [Identificadores](architecture/identifiers.md): UUIDv7 e Snowflake.
 - [Máquinas de estado](architecture/state-machines.md): pedido, pagamento e remessa.
+- [Topologia local](architecture/deployment.md): redes, proxies de caos, listeners do Kafka e memória.
+- [Feature flags](architecture/feature-flags.md): flags privadas por ambiente com OpenFeature e flagd.
 
-## 3. Casos de uso
+## 3. Operação
+
+- [Ambiente local](operations/local-environment.md): subir a stack, endereços, comandos e problemas comuns.
+
+## 4. Casos de uso
 
 - [Lista ator-objetivo e fichas](use-cases/README.md), no formato de Alistair Cockburn.
 
-## 4. Decisões
+## 5. Decisões
 
 - [ADRs](adr/README.md): o porquê de cada escolha, com alternativas e consequências.

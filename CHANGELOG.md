@@ -4,6 +4,12 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Stack local em Docker Compose: PostgreSQL 18, MySQL 8.4, MongoDB 8, Redis 8, Kafka 3.9 com ZooKeeper, Floci, Mailpit, Toxiproxy, flagd e Kong 3.9.
+- Feature flags privadas por ambiente (local, staging e production) com OpenFeature e flagd.
+- Comandos `make` para operar a stack e job de CI que valida compose, configuração do Kong, flags e scripts.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
