@@ -10,6 +10,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Feature flags privadas por ambiente (local, staging e production) com OpenFeature e flagd.
 - Comandos `make` para operar a stack e job de CI que valida compose, configuração do Kong, flags e scripts.
 
+### Changed
+
+- Documentação revisada: tom direto, primeira pessoa, pontuação simples, tipos de dados precisos e direções corrigidas no context map.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
