@@ -13,6 +13,7 @@ use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
+use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
 
 /**
@@ -23,6 +24,11 @@ use DateTimeImmutable;
 final readonly class InventoryStockReservations implements ForReservingStock
 {
     public function __construct(private Inventory $inventory) {}
+
+    public function requiredIsolation(): Isolation
+    {
+        return $this->inventory->requiredIsolation();
+    }
 
     public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode
     {

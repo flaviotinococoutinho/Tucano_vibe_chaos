@@ -44,7 +44,6 @@
         "pessimistic": "pessimistic",
         "optimistic": "optimistic",
         "serializable": "serializable",
-        "redis": "redis",
         "naive": "naive"
       },
       "defaultVariant": "atomic"

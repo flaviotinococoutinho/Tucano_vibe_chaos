@@ -39,7 +39,7 @@
     },
     "inventory.reservation-strategy": {
       "state": "ENABLED",
-      "variants": { "atomic": "atomic", "pessimistic": "pessimistic", "redis": "redis" },
+      "variants": { "atomic": "atomic", "pessimistic": "pessimistic" },
       "defaultVariant": "atomic"
     },
     "logistics.own-fleet-dispatch": {

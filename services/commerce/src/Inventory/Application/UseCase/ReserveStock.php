@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Commerce\Inventory\Application\UseCase;
 
+use Commerce\Inventory\Application\Port\Driven\ForChoosingStrategy;
 use Commerce\Inventory\Application\Port\Driven\ForFindingFulfillmentCenters;
 use Commerce\Inventory\Application\Port\Driven\ForHoldingStock;
 use Commerce\Inventory\Application\Port\Driven\ForRecordingReservations;
@@ -12,6 +13,7 @@ use Commerce\Inventory\Application\ReservedStock;
 use Commerce\Inventory\Application\StockRequest;
 use Commerce\Inventory\Domain\FulfillmentCenter;
 use Commerce\Inventory\Domain\InsufficientStock;
+use Commerce\Shared\Application\Isolation;
 use Commerce\Shared\Application\Port\Driven\ForRunningTransactions;
 use Tucano\SharedKernel\Documentation\UseCase;
 
@@ -23,7 +25,13 @@ final readonly class ReserveStock implements ForReservingStock
         private ForFindingFulfillmentCenters $centers,
         private ForHoldingStock $stock,
         private ForRecordingReservations $reservations,
+        private ForChoosingStrategy $strategies,
     ) {}
+
+    public function requiredIsolation(): Isolation
+    {
+        return $this->strategies->current()->isolation();
+    }
 
     public function reserve(StockRequest $request): ReservedStock
     {

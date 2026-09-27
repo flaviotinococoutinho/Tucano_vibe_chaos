@@ -10,6 +10,7 @@ use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLines;
+use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
 
 /** Holds everything in one center, until the test says the stock ran out. */
@@ -21,6 +22,11 @@ final class FakeStockReservations implements ForReservingStock
     private ?InsufficientStock $shortage = null;
 
     public function __construct(private readonly string $center) {}
+
+    public function requiredIsolation(): Isolation
+    {
+        return Isolation::ReadCommitted;
+    }
 
     public function runOutOf(string $sku): void
     {
