@@ -162,6 +162,43 @@ services:
         condition: service_healthy
     networks: [backend]
 
+  # ------------------------------------------------------------------ local aws
+
+  floci:
+    <<: *service
+    image: floci/floci:2.1.0-compat
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_SERVICES_SES_SMTP_HOST: mailpit
+      FLOCI_SERVICES_SES_SMTP_PORT: "1025"
+    volumes:
+      - floci-data:/app/data
+      - ./infra/floci/ready.d:/etc/floci/init/ready.d:ro
+      - ./infra/floci/dynamodb:/etc/floci/dynamodb:ro
+      - ./infra/floci/healthcheck.sh:/usr/local/bin/ready-check.sh:ro
+    ports:
+      - "127.0.0.1:4566:4566"
+    depends_on:
+      mailpit:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "/usr/local/bin/ready-check.sh"]
+    mem_limit: 256m
+    networks: [backend]
+
+  mailpit:
+    <<: *service
+    image: axllent/mailpit:v1.31.3
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:8025:8025"
+    mem_limit: 64m
+    networks: [backend]
+
 networks:
   backend:
 
@@ -172,3 +209,4 @@ volumes:
   redis-data:
   zookeeper-data:
   kafka-data:
+  floci-data:
