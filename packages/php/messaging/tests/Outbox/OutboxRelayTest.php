@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tucano\Messaging\Tests\Outbox;
 
 use PDO;
+use PDOException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tucano\Messaging\Kafka\DeliveryFailed;
 use Tucano\Messaging\Kafka\InMemoryProducer;
+use Tucano\Messaging\Kafka\LostConnection;
 use Tucano\Messaging\Outbox\OutboxRelay;
 use Tucano\Messaging\Outbox\OutboxWriter;
 use Tucano\Messaging\Tests\Doubles\Events;
@@ -37,7 +39,7 @@ final class OutboxRelayTest extends TestCase
         (new OutboxWriter($this->connection))->append('commerce.orders.v1', Events::orderPaid());
         $this->connection->rollBack();
 
-        self::assertSame(0, (new OutboxRelay($this->connection, $this->kafka))->relayBatch());
+        self::assertSame(0, (new OutboxRelay(fn(): PDO => $this->connection, $this->kafka))->relayBatch());
     }
 
     #[Test]
@@ -45,7 +47,7 @@ final class OutboxRelayTest extends TestCase
     {
         $event = Events::orderPaid();
         (new OutboxWriter($this->connection))->append('commerce.orders.v1', $event);
-        $relay = new OutboxRelay($this->connection, $this->kafka);
+        $relay = new OutboxRelay(fn(): PDO => $this->connection, $this->kafka);
 
         self::assertSame(1, $relay->relayBatch());
         self::assertSame(0, $relay->relayBatch());
@@ -57,7 +59,7 @@ final class OutboxRelayTest extends TestCase
     public function when_kafka_is_down_the_events_wait_for_the_next_run(): void
     {
         (new OutboxWriter($this->connection))->append('commerce.orders.v1', Events::orderPaid());
-        $relay = new OutboxRelay($this->connection, $this->kafka);
+        $relay = new OutboxRelay(fn(): PDO => $this->connection, $this->kafka);
         $this->kafka->failWith('all brokers down');
 
         try {
@@ -69,6 +71,31 @@ final class OutboxRelayTest extends TestCase
 
         $this->kafka->recover();
         self::assertSame(1, $relay->relayBatch());
+    }
+
+    #[Test]
+    public function a_connection_the_database_dropped_is_replaced_for_the_next_batch(): void
+    {
+        $opened = [];
+        $relay = new OutboxRelay(static function () use (&$opened): PDO {
+            return $opened[] = Postgres::open();
+        }, $this->kafka);
+        self::assertSame(0, $relay->relayBatch());
+        // The database drops the relay's connection, as a restart or a failover would.
+        $statement = $opened[0]->query('SELECT pg_backend_pid()');
+        self::assertNotFalse($statement);
+        $this->connection->query(sprintf('SELECT pg_terminate_backend(%d)', (int) $statement->fetchColumn()));
+        (new OutboxWriter($this->connection))->append('commerce.orders.v1', Events::orderPaid());
+
+        try {
+            $relay->relayBatch();
+            self::fail('The batch on the dropped connection should fail.');
+        } catch (PDOException $lost) {
+            self::assertTrue(LostConnection::causedBy($lost), $lost->getMessage());
+        }
+
+        self::assertSame(1, $relay->relayBatch());
+        self::assertCount(2, $opened);
     }
 
     private function pendingWithOneFailedAttempt(): int

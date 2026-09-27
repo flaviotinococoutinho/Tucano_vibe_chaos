@@ -79,7 +79,8 @@ Quando algo dá errado, a categoria do erro de domínio decide o destino da mens
 | evento ilegível (fora do contrato) | `dlq.logistics.order-intake` na hora, sem retry |
 | produto ainda sem snapshot (`Unavailable`) | retry com backoff por até meio minuto, porque a cópia do catálogo pode estar chegando junto (os dois workers sobem ao mesmo tempo); se persistir, DLQ |
 | nenhuma transportadora serve, CD desconhecido, remessa que já saiu do CD | DLQ na hora, com um warning no log, porque uma pessoa precisa olhar |
-| banco ou outra falha de infraestrutura | retry com backoff; se persistir, DLQ |
+| conexão com o banco perdida | retry sem limite: a partição espera o banco voltar, e cada tentativa sai em warning no log |
+| outra falha inesperada | retry com backoff; se persistir, DLQ |
 
 O correlation id do pedido segue para o log e para o evento publicado, e o `causationid` do evento novo é o id do evento de pedido que o causou.
 

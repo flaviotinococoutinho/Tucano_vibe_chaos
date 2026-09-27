@@ -40,7 +40,7 @@
 - 2a. Evento já processado: o sistema ignora e confirma o offset.
 - 3a. O pedido ainda não tem remessa (o `order.paid` dele foi para a DLQ, por exemplo): não há nada a cancelar, mas o sistema registra o pedido em `cancelled_orders`. Se alguém reprocessar aquele `order.paid` depois, ele chega fora de ordem e não despacha um pedido cancelado (UC-SHP-01, extensão 1b).
 - 4a. A remessa já saiu do CD (`picked_up` em diante): a máquina de estados recusa com `TransitionNotAllowed` e nada muda. O sistema registra um warning e manda a mensagem direto para `dlq.logistics.order-intake`, sem retry, porque uma pessoa precisa trazer os volumes de volta.
-- \*a. O banco falha: a transação volta inteira, inclusive a marca na inbox. A mensagem entra em retry e, se o problema persistir, vai para a DLQ.
+- \*a. O banco cai: a transação volta inteira, inclusive a marca na inbox. A mensagem espera o banco voltar, sem ir para a DLQ, e a partição espera com ela.
 
 ## Variações de tecnologia
 
