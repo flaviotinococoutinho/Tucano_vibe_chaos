@@ -24,6 +24,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 ### Fixed
 
 - Dependência muda não prende mais o PHP-FPM: timeouts de conexão e leitura em PostgreSQL, MySQL, Redis e MongoDB, `request_terminate_timeout` no FPM e health check sem o retry da query. Com um banco em blackhole, o readiness responde 503 em 2 a 4 s, e não mais 504 depois de 30 s.
+- O 405 dos serviços PHP volta com o header `Allow`: o problem details descartava os headers da exceção HTTP.
 
 ## [0.2.0] - 2026-09-27
 

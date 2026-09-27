@@ -64,6 +64,15 @@ final class ProblemDetailsTest extends TestCase
     }
 
     #[Test]
+    public function a_wrong_method_says_which_ones_are_allowed(): void
+    {
+        $this->postJson('/health/live')
+            ->assertMethodNotAllowed()
+            ->assertHeader('Allow', 'GET, HEAD')
+            ->assertHeader('Content-Type', 'application/problem+json');
+    }
+
+    #[Test]
     public function unexpected_errors_do_not_leak_internals(): void
     {
         config(['app.debug' => false]);
