@@ -120,6 +120,9 @@ x-logistics: &logistics
     # Floci plays S3 (the label bucket) and SQS (the label queue).
     AWS_ENDPOINT: http://toxiproxy:14566
     SQS_PREFIX: http://toxiproxy:14566/000000000000
+    # CarrierFake, the carriers of the lab, and the secret of their webhooks.
+    CARRIERS_URL: http://toxiproxy:14002
+    CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
   depends_on:
     postgres:
       condition: service_healthy
@@ -585,6 +588,20 @@ services:
         condition: service_completed_successfully
       floci:
         condition: service_healthy
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # With the label ready, the carrier is asked to come (UC-SHP-04).
+  logistics-pickup-bookings:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:book-pickups"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
       toxiproxy:
         condition: service_started
     mem_limit: 128m

@@ -44,6 +44,13 @@ O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
 | `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |
+| `tucano.logistics.shipment.picked_up` | [`logistics.shipment.picked_up.schema.json`](../../contracts/events/logistics.shipment.picked_up.schema.json) |
+| `tucano.logistics.shipment.in_transit` | [`logistics.shipment.in_transit.schema.json`](../../contracts/events/logistics.shipment.in_transit.schema.json) |
+| `tucano.logistics.shipment.out_for_delivery` | [`logistics.shipment.out_for_delivery.schema.json`](../../contracts/events/logistics.shipment.out_for_delivery.schema.json) |
+| `tucano.logistics.shipment.delivered` | [`logistics.shipment.delivered.schema.json`](../../contracts/events/logistics.shipment.delivered.schema.json) |
+| `tucano.logistics.shipment.delivery_failed` | [`logistics.shipment.delivery_failed.schema.json`](../../contracts/events/logistics.shipment.delivery_failed.schema.json) |
+| `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
+| `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
 ## Tópicos
 
@@ -68,6 +75,7 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 | `logistics.catalog-sync` | `catalog.products.v1` | atualiza peso e dimensões usados na escolha da transportadora |
 | `logistics.order-intake` | `commerce.orders.v1` | cria a remessa em `order.paid` e a cancela em `order.cancelled` |
 | `logistics.label-requests` | `logistics.shipments.v1` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
+| `logistics.pickup-bookings` | `logistics.shipments.v1` | agenda a coleta na transportadora de cada remessa pronta |
 | `commerce.shipment-sync` | `logistics.shipments.v1` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
 | `commerce.order-projector` | `commerce.orders.v1` | mantém o read model de pedidos no MongoDB |
 | `logistics.timeline-projector` | `logistics.shipments.v1` | mantém a linha do tempo no MongoDB e o lookup público no DynamoDB |

@@ -126,6 +126,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v1`; roda com `SNOWFLAKE_WORKER_ID=12` |
 | `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v1` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
+| `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
 
 ## A etiqueta
 
@@ -151,6 +152,24 @@ sequenceDiagram
 - O job tenta três vezes (espera 5 s e depois 20 s), com timeout de 30 s, abaixo da visibilidade de 60 s da fila. Esgotadas as tentativas, ele fica em `failed_jobs`, e o `php artisan queue:retry all` o devolve à fila. Um worker que morre no meio não registra nada; depois de três entregas, o SQS move a mensagem para `label-jobs-dlq`.
 - A flag `chaos.logistics.label-failure-rate` faz parte das gravações falhar. O experimento está no [laboratório da fila de etiquetas](../../docs/labs/label-queue.md).
 
+## A jornada até a porta
+
+Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierFake, que faz o papel de todas as transportadoras do laboratório. Daí em diante quem conta a jornada é a transportadora, por webhook assinado (`POST /v1/webhooks/carriers`, com `Carrier-Signature`), e cada evento vira um passo da máquina de estados:
+
+| Evento da transportadora | Passo da remessa | Caso de uso |
+|---|---|---|
+| `parcel.picked_up` | `picked_up` | [UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md) |
+| `parcel.hub_scanned` | `in_transit`, com o hub no histórico | [UC-SHP-05](../../docs/use-cases/UC-SHP-05-record-hub-scan.md) |
+| `parcel.out_for_delivery` | `out_for_delivery`, com o número da visita | [UC-SHP-06](../../docs/use-cases/UC-SHP-06-dispatch-for-delivery.md) |
+| `parcel.delivered` | `delivered`, com o comprovante em `delivery_attempts` | [UC-SHP-07](../../docs/use-cases/UC-SHP-07-record-delivery-outcome.md) |
+| `parcel.delivery_failed` | `delivery_failed`, com o motivo em `delivery_attempts` | [UC-SHP-07](../../docs/use-cases/UC-SHP-07-record-delivery-outcome.md) |
+| `parcel.returning` e `parcel.returned` | `returning` e `returned` | [UC-SHP-08](../../docs/use-cases/UC-SHP-08-return-to-sender.md) |
+
+- Os cinco casos de uso dividem o `ShipmentProgress`: numa transação só, a marca na inbox, a remessa travada pelo código de rastreio, o passo pelos guards, o histórico, a visita e o evento na outbox. Um passo recusado desfaz tudo, inclusive a marca na inbox.
+- A transportadora manda os eventos de uma remessa um de cada vez. Um evento que chega antes da vez dele (porque o anterior se perdeu ou atrasou) recebe `409`, e a transportadora reenvia depois.
+- Quem recebeu a encomenda fica em `delivery_attempts`; os eventos publicados não levam o nome nem o documento.
+- Um evento que a transportadora dá como perdido ainda trava a jornada naquele passo. A conciliação com a transportadora é o próximo passo desta parte.
+
 ## Eventos publicados
 
 | Evento | Contrato do `data` |
@@ -158,8 +177,15 @@ sequenceDiagram
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
 | `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |
+| `tucano.logistics.shipment.picked_up` | [`logistics.shipment.picked_up.schema.json`](../../contracts/events/logistics.shipment.picked_up.schema.json) |
+| `tucano.logistics.shipment.in_transit` | [`logistics.shipment.in_transit.schema.json`](../../contracts/events/logistics.shipment.in_transit.schema.json) |
+| `tucano.logistics.shipment.out_for_delivery` | [`logistics.shipment.out_for_delivery.schema.json`](../../contracts/events/logistics.shipment.out_for_delivery.schema.json) |
+| `tucano.logistics.shipment.delivered` | [`logistics.shipment.delivered.schema.json`](../../contracts/events/logistics.shipment.delivered.schema.json) |
+| `tucano.logistics.shipment.delivery_failed` | [`logistics.shipment.delivery_failed.schema.json`](../../contracts/events/logistics.shipment.delivery_failed.schema.json) |
+| `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
+| `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
-O `ShipmentCreated` leva o destino só com cidade, estado e CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa da rua nem do nome de quem recebe, então esses dados ficam no banco da logística. Os outros eventos da máquina já existem no domínio e ganham contrato quando os casos de uso deles entrarem.
+O `ShipmentCreated` leva o destino só com cidade, estado e CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato.
 
 ## Rodando
 

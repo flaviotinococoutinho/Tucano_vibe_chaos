@@ -18,6 +18,7 @@ use Logistics\Shipping\Domain\Parcel\Parcel;
 use Logistics\Shipping\Domain\Parcel\Parcels;
 use Logistics\Shipping\Domain\Parcel\Weight;
 use Logistics\Shipping\Domain\Shipment\CarrierCode;
+use Logistics\Shipping\Domain\Shipment\DeliveryAttempt;
 use Logistics\Shipping\Domain\Shipment\DeliveryAttempts;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
@@ -31,6 +32,7 @@ use Logistics\Shipping\Domain\Shipment\StatusTransition;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
+use Ramsey\Uuid\Uuid;
 use stdClass;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 
@@ -90,8 +92,13 @@ final readonly class PostgresShipments implements ForStoringShipments
         return $this->lockedWhere('s.id = ?', $shipment->toString());
     }
 
-    /** @param 's.order_id = ?'|'s.id = ?' $condition */
-    private function lockedWhere(string $condition, string $value): ?Shipment
+    public function withTrackingCode(TrackingCode $trackingCode): ?Shipment
+    {
+        return $this->lockedWhere('s.tracking_code = ?', $trackingCode->snowflake->toInt());
+    }
+
+    /** @param 's.order_id = ?'|'s.id = ?'|'s.tracking_code = ?' $condition */
+    private function lockedWhere(string $condition, int|string $value): ?Shipment
     {
         $row = $this->connection->selectOne(<<<SQL
             SELECT s.*, (
@@ -133,6 +140,7 @@ final readonly class PostgresShipments implements ForStoringShipments
             throw ShipmentChangedMeanwhile::withId($snapshot->reference->id->toString(), $loadedAt);
         }
         $this->recordTransitions($snapshot->reference->id, $transitions);
+        $this->recordVisits($snapshot->reference->id, $shipment->releaseVisits());
     }
 
     private function snapshotOf(stdClass $row): ShipmentSnapshot
@@ -187,6 +195,29 @@ final readonly class PostgresShipments implements ForStoringShipments
             'location' => $transition->location,
             'occurred_at' => $transition->at->format(self::TIMESTAMP),
         ], $transitions));
+    }
+
+    /**
+     * The proof of delivery lives here, next to the reason of every failed visit;
+     * the proof_of_delivery CHECK refuses a delivered visit without a receiver.
+     *
+     * @param list<DeliveryAttempt> $visits
+     */
+    private function recordVisits(ShipmentId $shipment, array $visits): void
+    {
+        if ($visits === []) {
+            return;
+        }
+        $this->connection->table('delivery_attempts')->insert(array_map(static fn(DeliveryAttempt $visit): array => [
+            'id' => Uuid::uuid7()->toString(),
+            'shipment_id' => $shipment->toString(),
+            'attempt_number' => $visit->number,
+            'outcome' => $visit->outcome->value,
+            'reason' => $visit->failure?->value,
+            'receiver_name' => $visit->proof?->receiverName,
+            'receiver_document' => $visit->proof?->receiverDocument,
+            'occurred_at' => $visit->at->format(self::TIMESTAMP),
+        ], $visits));
     }
 
     /** @return list<array<string, int|string>> */
