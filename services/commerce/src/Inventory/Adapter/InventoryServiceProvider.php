@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Commerce\Inventory\Adapter;
 
-use Commerce\Inventory\Adapter\Driven\AtomicStockHolder;
+use Commerce\Inventory\Adapter\Driven\FlaggedStrategies;
 use Commerce\Inventory\Adapter\Driven\PostgresFulfillmentCenters;
 use Commerce\Inventory\Adapter\Driven\PostgresReservations;
+use Commerce\Inventory\Adapter\Driven\StrategicStockHolder;
+use Commerce\Inventory\Application\Port\Driven\ForChoosingStrategy;
 use Commerce\Inventory\Application\Port\Driven\ForFindingFulfillmentCenters;
 use Commerce\Inventory\Application\Port\Driven\ForHoldingStock;
 use Commerce\Inventory\Application\Port\Driven\ForRecordingReservations;
@@ -20,7 +22,8 @@ final class InventoryServiceProvider extends ServiceProvider
     /** @var array<class-string, class-string> */
     public array $bindings = [
         ForReservingStock::class => ReserveStock::class,
-        ForHoldingStock::class => AtomicStockHolder::class,
+        ForHoldingStock::class => StrategicStockHolder::class,
+        ForChoosingStrategy::class => FlaggedStrategies::class,
         ForRecordingReservations::class => PostgresReservations::class,
         ForFindingFulfillmentCenters::class => PostgresFulfillmentCenters::class,
     ];

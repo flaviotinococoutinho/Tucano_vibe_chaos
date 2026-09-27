@@ -46,27 +46,30 @@ final readonly class PlaceOrder implements ForPlacingOrders
     public function placeOrder(PlaceOrderCommand $command): PlacedOrder
     {
         // Key, stock, order and event commit together, or nothing does.
-        return $this->transactions->run(function () use ($command): PlacedOrder {
-            $stored = $this->requests->recall(self::SCOPE, $command->idempotencyKey, $command->fingerprint());
-            if ($stored !== null) {
-                return new PlacedOrder(OrderDetails::fromStored($stored), Outcome::Replayed);
-            }
+        return $this->transactions->run(fn(): PlacedOrder => $this->place($command), $this->stock->requiredIsolation());
+    }
 
-            $lines = $this->pricedLines($command->items);
-            $id = OrderId::generate();
-            $placedAt = $this->clock->now();
-            $expiresAt = $this->reservationWindow->endsAt($placedAt);
-            $center = $this->stock->reserve($id, $lines, $command->address, $expiresAt);
+    private function place(PlaceOrderCommand $command): PlacedOrder
+    {
+        $stored = $this->requests->recall(self::SCOPE, $command->idempotencyKey, $command->fingerprint());
+        if ($stored !== null) {
+            return new PlacedOrder(OrderDetails::fromStored($stored), Outcome::Replayed);
+        }
 
-            $order = Order::place($id, $this->numbers->next(), $command->customer, $command->address, $lines, $center, $placedAt, $expiresAt);
-            $this->orders->add($order);
-            $this->events->publish(...$order->releaseEvents());
+        $lines = $this->pricedLines($command->items);
+        $id = OrderId::generate();
+        $placedAt = $this->clock->now();
+        $expiresAt = $this->reservationWindow->endsAt($placedAt);
+        $center = $this->stock->reserve($id, $lines, $command->address, $expiresAt);
 
-            $details = OrderDetails::of($order->toSnapshot());
-            $this->requests->remember(self::SCOPE, $command->idempotencyKey, $details->toArray());
+        $order = Order::place($id, $this->numbers->next(), $command->customer, $command->address, $lines, $center, $placedAt, $expiresAt);
+        $this->orders->add($order);
+        $this->events->publish(...$order->releaseEvents());
 
-            return new PlacedOrder($details, Outcome::Placed);
-        });
+        $details = OrderDetails::of($order->toSnapshot());
+        $this->requests->remember(self::SCOPE, $command->idempotencyKey, $details->toArray());
+
+        return new PlacedOrder($details, Outcome::Placed);
     }
 
     /**
