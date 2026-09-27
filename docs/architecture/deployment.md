@@ -55,6 +55,21 @@ Separei duas redes para o laboratório se parecer com uma rede de verdade:
 - **backend** é a rede interna, com os serviços e as dependências.
 - Kong, BFF e Toxiproxy ficam nas duas. O Kong é a porta de entrada, e o Toxiproxy faz o papel do proxy de saída quando um serviço chama um parceiro.
 
+## Runtime PHP
+
+Os serviços PHP partem de uma imagem base própria (`infra/php-base`), construída uma vez por versão com `make base`:
+
+| Imagem | Usada por | O que tem |
+|---|---|---|
+| `chaos-playground/php-base:8.4` | commerce, logistics, tracking | PHP-FPM 8.4 no Alpine com apcu, bcmath, intl, mongodb, opcache, pcntl, pdo_mysql, pdo_pgsql, rdkafka, redis, sockets e zip |
+| `chaos-playground/php-base:8.3` | catalog (Lumen) | as mesmas extensões sobre o PHP 8.3 |
+
+Compilar essas extensões leva uns 5 minutos por versão. Com a base separada, isso acontece uma vez só, e os serviços compartilham as camadas no disco.
+
+Na frente dos apps FPM fica um nginx só, com uma porta por app (`8081` catalog, `8082` commerce, `8083` logistics). Ele não tem o código: todo request vai para o `public/index.php` do app via FastCGI. O `fastcgi_pass` usa variável e o resolver do Docker (`127.0.0.11`), porque com o nome fixo o nginx nem sobe quando um app está fora e ainda guarda o IP antigo depois de um restart. Com a variável, ele responde 502 enquanto o app está fora e volta sozinho quando o container sobe de novo.
+
+O FPM roda com `pm.max_children = 6`: cada processo filho atende um request por vez (shared-nothing), então isso é o teto de concorrência e também de memória por container.
+
 ## Toxiproxy no meio do caminho
 
 As aplicações não falam direto com as dependências: toda conexão passa por um proxy do Toxiproxy. Assim dá para injetar latência, cortar a conexão ou limitar banda de um par serviço/dependência sem reiniciar nada, e o blast radius de cada experimento fica pequeno.

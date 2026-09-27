@@ -270,6 +270,23 @@ services:
     mem_limit: 256m
     networks: [edge, backend]
 
+  # ------------------------------------------------------------- php runtime
+
+  nginx:
+    <<: *service
+    image: nginx:stable-alpine
+    volumes:
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8082:8082"
+      - "127.0.0.1:8083:8083"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/nginx-health"]
+    mem_limit: 64m
+    networks: [backend]
+
   # ---------------------------------------------------------- tools (profile)
 
   kafka-ui:

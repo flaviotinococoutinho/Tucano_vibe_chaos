@@ -40,6 +40,8 @@ jobs:
         run: docker compose --profile tools config --quiet
       - name: Validate Kong declarative config
         run: docker run --rm -e KONG_DATABASE=off -v "$PWD/infra/kong:/kong:ro" kong:3.9.3 kong config parse /kong/kong.yml
+      - name: Validate nginx config
+        run: docker run --rm -v "$PWD/infra/nginx/conf.d:/etc/nginx/conf.d:ro" nginx:stable-alpine nginx -t
       - name: Validate feature flag definitions
         run: pipx run check-jsonschema --schemafile https://flagd.dev/schema/v0/flags.json infra/flags/environments/*.flagd.json
       - name: Lint shell scripts
