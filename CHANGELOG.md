@@ -4,6 +4,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
 ### Added
 
 - Pedidos no commerce: `POST /v1/orders` (UC-ORD-01) com idempotência na mesma transação do pedido, reserva de estoque por CD com savepoint (UC-INV-01), `OrderPlaced` na outbox com contrato em JSON Schema, e `GET /v1/orders/{id}` (UC-ORD-05).
@@ -80,7 +82,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...develop
+[0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/flaviotinococoutinho/chaos_playground/releases/tag/v0.1.0
