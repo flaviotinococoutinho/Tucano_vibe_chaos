@@ -159,6 +159,7 @@ Uso medido com a stack parada (sem tráfego), numa VM de 4 GB:
 | toxiproxy | 4 MB | 64 MB |
 | catalog, commerce, logistics (cada) | 15 a 25 MB | 256 MB |
 | bff, partners-sim (cada) | 33 MB | 96 MB |
+| tracking (Swoole, 2 workers) | 20 MB | 128 MB |
 | nginx | 5 MB | 64 MB |
 | **total** | **cerca de 1,3 GB** | |
 
