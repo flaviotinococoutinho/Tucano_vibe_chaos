@@ -47,6 +47,17 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
 
+  contracts:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'contracts')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Event schemas are valid JSON Schema
+        run: pipx run check-jsonschema --check-metaschema contracts/events/*.schema.json
+      - name: HTTP contracts
+        run: npx -y @redocly/cli@2.54.3 lint contracts/http/*.openapi.yaml
+
   shared-kernel:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'shared-kernel')
@@ -350,7 +361,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
+    needs: [changes, compose, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results
