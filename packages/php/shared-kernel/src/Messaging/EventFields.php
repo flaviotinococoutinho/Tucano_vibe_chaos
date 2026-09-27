@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Logistics\Shared\Adapter\Driving\Kafka;
+namespace Tucano\SharedKernel\Messaging;
 
 use InvalidArgumentException;
 use Ramsey\Uuid\Uuid;

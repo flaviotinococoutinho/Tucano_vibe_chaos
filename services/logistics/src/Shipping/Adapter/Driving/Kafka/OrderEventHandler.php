@@ -7,7 +7,6 @@ namespace Logistics\Shipping\Adapter\Driving\Kafka;
 use Closure;
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
-use Logistics\Shared\Adapter\Driving\Kafka\IncomingEvents;
 use Logistics\Shipping\Application\CancellationOutcome;
 use Logistics\Shipping\Application\CancelledOrder;
 use Logistics\Shipping\Application\CreatedShipment;
@@ -17,6 +16,7 @@ use Logistics\Shipping\Application\Port\Driving\ForCreatingShipments;
 use Logistics\Shipping\Application\ShipmentSkipped;
 use Psr\Log\LoggerInterface;
 use Throwable;
+use Tucano\Messaging\Kafka\IncomingEvent;
 use Tucano\Messaging\Kafka\MessageHandler;
 use Tucano\Messaging\Kafka\PermanentFailure;
 use Tucano\Messaging\Kafka\ReceivedMessage;
@@ -47,7 +47,7 @@ final readonly class OrderEventHandler implements MessageHandler
 
     public function handle(ReceivedMessage $message): void
     {
-        $event = IncomingEvents::read($message);
+        $event = IncomingEvent::read($message);
         if ($event->type !== self::PAID && $event->type !== self::CANCELLED) {
             return;
         }
@@ -110,7 +110,7 @@ final readonly class OrderEventHandler implements MessageHandler
         try {
             return $translation();
         } catch (InvalidArgumentException|DomainError|ValueError $invalid) {
-            throw IncomingEvents::unreadable($message, $invalid);
+            throw IncomingEvent::unreadable($message, $invalid);
         }
     }
 

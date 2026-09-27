@@ -10,15 +10,13 @@ use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
-use JsonException;
 use Psr\Log\LoggerInterface;
-use Throwable;
+use Tucano\Messaging\Kafka\IncomingEvent;
 use Tucano\Messaging\Kafka\MessageHandler;
-use Tucano\Messaging\Kafka\PermanentFailure;
 use Tucano\Messaging\Kafka\ReceivedMessage;
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Messaging\CloudEvent;
-use Tucano\SharedKernel\Messaging\InvalidCloudEvent;
+use Tucano\SharedKernel\Messaging\EventFields;
 use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
 use ValueError;
@@ -40,7 +38,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
             // A tombstone. The catalog never deletes products today, so there is nothing to remove.
             return;
         }
-        $event = $this->read($message);
+        $event = IncomingEvent::read($message);
         if ($event->type !== self::TYPE) {
             return;
         }
@@ -55,59 +53,23 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
         ]);
     }
 
-    private function read(ReceivedMessage $message): CloudEvent
-    {
-        try {
-            return CloudEvent::fromJson($message->payload);
-        } catch (InvalidCloudEvent|JsonException $invalid) {
-            throw self::unreadable($message, $invalid);
-        }
-    }
-
     /** A malformed snapshot will never become valid: straight to the dead letter topic, no retries. */
     private function snapshotOf(CloudEvent $event, ReceivedMessage $message): CatalogSnapshot
     {
         try {
-            $data = $event->data;
-            $price = $data['price'] ?? null;
-            if (!is_array($price)) {
-                throw new InvalidArgumentException('The snapshot has no price.');
-            }
+            $data = new EventFields($event->data);
+            $price = $data->object('price');
 
             return new CatalogSnapshot(
-                self::text($data, 'productId'),
-                Sku::of(self::text($data, 'sku')),
-                self::text($data, 'name'),
-                Money::of(self::integer($price, 'amount'), Currency::fromCode(self::text($price, 'currency'))),
-                ProductStatus::from(self::text($data, 'status')),
-                self::integer($data, 'version'),
+                $data->text('productId'),
+                Sku::of($data->text('sku')),
+                $data->text('name'),
+                Money::of($price->integer('amount'), Currency::fromCode($price->text('currency'))),
+                ProductStatus::from($data->text('status')),
+                $data->integer('version'),
             );
         } catch (InvalidArgumentException|DomainError|ValueError $invalid) {
-            throw self::unreadable($message, $invalid);
+            throw IncomingEvent::unreadable($message, $invalid);
         }
-    }
-
-    /** @param array<mixed> $fields */
-    private static function text(array $fields, string $name): string
-    {
-        $value = $fields[$name] ?? null;
-
-        return is_string($value) && $value !== '' ? $value : throw new InvalidArgumentException(sprintf('The snapshot has no %s.', $name));
-    }
-
-    /** @param array<mixed> $fields */
-    private static function integer(array $fields, string $name): int
-    {
-        $value = $fields[$name] ?? null;
-
-        return is_int($value) ? $value : throw new InvalidArgumentException(sprintf('The snapshot has no integer %s.', $name));
-    }
-
-    private static function unreadable(ReceivedMessage $message, Throwable $reason): PermanentFailure
-    {
-        return new PermanentFailure(
-            sprintf('Unreadable catalog snapshot at %s[%d]@%d: %s', $message->topic, $message->partition, $message->offset, $reason->getMessage()),
-            previous: $reason,
-        );
     }
 }

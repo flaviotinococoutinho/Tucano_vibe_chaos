@@ -20,6 +20,11 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - `GET /payfake/v1/charges?reference=` no PayFake, para achar a cobrança cujo id se perdeu junto com a resposta.
 - Remessas na logística: o consumidor `logistics.order-intake` cria a remessa do pedido pago (UC-SHP-01) e cancela a do pedido cancelado (UC-SHP-09), com inbox e outbox na mesma transação; escolha de transportadora por uma corrente de regras (UC-SHP-02); cópia de peso e dimensões do catálogo (UC-SHP-11); a máquina de estados completa com seis guards; e `ShipmentCreated` e `ShipmentCancelled` em `logistics.shipments.v1`, com contrato em JSON Schema.
 
+### Changed
+
+- A leitura de CloudEvents nos consumidores ficou num lugar só: `IncomingEvent` no pacote de mensageria e `EventFields` no shared kernel. Um `time` que não é data agora torna o evento ilegível, e ele vai direto para a DLQ em vez de gastar as tentativas.
+- O Ordering não conhece mais os erros do Inventory: o adapter traduz a recusa em `StockNotReserved`, com a mesma mensagem e categoria, como o Shipping já faz com o CarrierSelection.
+
 ### Fixed
 
 - Os logs da librdkafka saem pelo logger do serviço, em JSON, e não mais em texto puro no stderr.

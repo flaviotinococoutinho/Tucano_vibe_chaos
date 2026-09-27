@@ -46,6 +46,7 @@ src/Shipping/
 - Casos de uso têm nome de ação (`PlaceOrder`, `ConfirmDelivery`); eventos ficam no passado (`OrderPlaced`, `ShipmentDelivered`).
 - Todo caso de uso carrega `#[UseCase('UC-XXX-00')]` e tem ficha em `docs/use-cases/`. Um teste de arquitetura garante isso.
 - O domínio não conhece framework, banco nem HTTP; o Deptrac quebra o build se alguém tentar.
+- Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Assim, se o outro pacote virar um serviço, só o adapter muda.
 - Nada de `Manager`, `Helper`, `Util` ou abreviações.
 
 ### Object Calisthenics no domínio

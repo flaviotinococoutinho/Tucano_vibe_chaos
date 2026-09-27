@@ -6,6 +6,7 @@ A mecânica de mensageria que commerce, logistics e catalog compartilham. É inf
 |---|---|
 | `RdKafkaProducer` | producer idempotente (`enable.idempotence`, `acks=all`, `lz4`), que só considera entregue depois do `flush()` |
 | `RdKafkaConsumer` | consumer at-least-once: commit manual do offset depois do handler, retry com backoff e DLQ em `dlq.<grupo>`; um `SIGTERM` no meio das tentativas não confirma nada |
+| `IncomingEvent` | o primeiro passo de todo handler: o registro vira `CloudEvent`, ou uma `PermanentFailure` com a posição no tópico quando não é um |
 | `RetryPolicy` | backoff exponencial com full jitter; `PermanentFailure` vai direto para a DLQ, conexão perdida com o banco (`LostConnection`) tenta sem limite, e o resto tem tentativas contadas |
 | `OutboxWriter` | grava o CloudEvent em `outbox_messages` usando a conexão (e a transação) de quem chama |
 | `OutboxRelay` e `OutboxRelayWorker` | polling publisher com `FOR UPDATE SKIP LOCKED`; marca como publicado só depois do ack do Kafka, e abre uma conexão nova depois de um lote que falhou |

@@ -7,6 +7,7 @@ namespace Tests\Doubles\Ordering;
 use Commerce\Inventory\Domain\InsufficientStock;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
 use Commerce\Ordering\Domain\Address\ShippingAddress;
+use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLines;
@@ -25,7 +26,7 @@ final class FakeStockReservations implements ForReservingStock
     /** @var list<string> */
     public private(set) array $committedFor = [];
 
-    private ?InsufficientStock $shortage = null;
+    private ?StockNotReserved $shortage = null;
 
     public function __construct(private readonly string $center) {}
 
@@ -36,7 +37,8 @@ final class FakeStockReservations implements ForReservingStock
 
     public function runOutOf(string $sku): void
     {
-        $this->shortage = InsufficientStock::in([$this->center => [$sku]]);
+        // What the real adapter throws: Inventory's refusal, translated.
+        $this->shortage = StockNotReserved::because(InsufficientStock::in([$this->center => [$sku]]));
     }
 
     public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode

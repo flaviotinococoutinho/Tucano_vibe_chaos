@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tucano\SharedKernel\Messaging;
 
+use DateMalformedStringException;
 use DateTimeImmutable;
 use DateTimeZone;
 use Tucano\SharedKernel\Domain\DomainEvent;
@@ -68,11 +69,21 @@ final readonly class CloudEvent
             self::text($payload, 'source'),
             self::text($payload, 'type'),
             self::text($payload, 'subject'),
-            new DateTimeImmutable(self::text($payload, 'time')),
+            self::instant(self::text($payload, 'time')),
             self::text($payload, 'correlationid'),
             is_string($causationId) ? $causationId : null,
             $data,
         );
+    }
+
+    /** A time that is not an instant makes the event invalid, like any other broken attribute. */
+    private static function instant(string $time): DateTimeImmutable
+    {
+        try {
+            return new DateTimeImmutable($time);
+        } catch (DateMalformedStringException) {
+            throw InvalidCloudEvent::malformed('time', $time);
+        }
     }
 
     public static function fromJson(string $json): self
