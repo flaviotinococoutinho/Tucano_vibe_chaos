@@ -199,7 +199,79 @@ services:
     mem_limit: 64m
     networks: [backend]
 
+  # -------------------------------------------------------- chaos and flags
+
+  toxiproxy:
+    <<: *service
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./infra/toxiproxy/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "127.0.0.1:8474:8474"
+    mem_limit: 64m
+    networks: [edge, backend]
+
+  flags-init:
+    <<: *job
+    image: alpine:3
+    network_mode: none
+    # flagd serves a single runtime copy of the environment file. The chaos panel edits
+    # that copy in place, and every `make up` starts again from the versioned file.
+    command:
+      - sh
+      - -c
+      - cp /environments/${APP_ENV:-local}.flagd.json /runtime/flags.flagd.json && chmod 0666 /runtime/flags.flagd.json
+    volumes:
+      - ./infra/flags/environments:/environments:ro
+      - flag-runtime:/runtime
+
+  flagd:
+    <<: *service
+    image: ghcr.io/open-feature/flagd:v0.17.0
+    command: ["start", "--uri", "file:/flags/runtime/flags.flagd.json"]
+    volumes:
+      - flag-runtime:/flags/runtime:ro
+    ports:
+      - "127.0.0.1:8013:8013"
+      - "127.0.0.1:8016:8016"
+    depends_on:
+      flags-init:
+        condition: service_completed_successfully
+    mem_limit: 64m
+    networks: [backend]
+
+  # ----------------------------------------------------------------------- edge
+
+  kong:
+    <<: *service
+    image: kong:3.9.3
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+      KONG_STATUS_LISTEN: 0.0.0.0:8100
+      KONG_NGINX_WORKER_PROCESSES: "1"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    volumes:
+      - ./infra/kong/kong.yml:/kong/kong.yml:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "kong", "health"]
+    mem_limit: 256m
+    networks: [edge, backend]
+
 networks:
+  edge:
   backend:
 
 volumes:
@@ -210,3 +282,4 @@ volumes:
   zookeeper-data:
   kafka-data:
   floci-data:
+  flag-runtime:

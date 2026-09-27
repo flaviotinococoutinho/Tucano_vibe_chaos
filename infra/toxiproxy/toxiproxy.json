@@ -1,0 +1,13 @@
+[
+  { "name": "commerce-postgres", "listen": "0.0.0.0:15432", "upstream": "postgres:5432", "enabled": true },
+  { "name": "logistics-postgres", "listen": "0.0.0.0:15433", "upstream": "postgres:5432", "enabled": true },
+  { "name": "catalog-mysql", "listen": "0.0.0.0:13306", "upstream": "mysql:3306", "enabled": true },
+  { "name": "mongo", "listen": "0.0.0.0:17017", "upstream": "mongo:27017", "enabled": true },
+  { "name": "redis", "listen": "0.0.0.0:16379", "upstream": "redis:6379", "enabled": true },
+  { "name": "kafka", "listen": "0.0.0.0:19092", "upstream": "kafka:19093", "enabled": true },
+  { "name": "floci", "listen": "0.0.0.0:14566", "upstream": "floci:4566", "enabled": true },
+  { "name": "flagd", "listen": "0.0.0.0:18013", "upstream": "flagd:8013", "enabled": true },
+  { "name": "payfake", "listen": "0.0.0.0:14001", "upstream": "partners-sim:4000", "enabled": true },
+  { "name": "carriers", "listen": "0.0.0.0:14002", "upstream": "partners-sim:4000", "enabled": true },
+  { "name": "tracking", "listen": "0.0.0.0:19501", "upstream": "tracking:9501", "enabled": true }
+]
