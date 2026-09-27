@@ -3,8 +3,8 @@
 # array, so each CI job can skip itself when its area is untouched.
 set -euo pipefail
 
-ALL_AREAS="docs compose contracts shared-kernel feature-flags messaging catalog commerce logistics tracking bff partners-sim web"
-PHP_AREAS="shared-kernel feature-flags messaging catalog commerce logistics tracking"
+ALL_AREAS="docs compose contracts shared-kernel feature-flags messaging read-models catalog commerce logistics tracking bff partners-sim web"
+PHP_AREAS="shared-kernel feature-flags messaging read-models catalog commerce logistics tracking"
 
 changed_files() {
   if [[ "${EVENT:-}" == "pull_request" ]]; then

@@ -150,6 +150,33 @@ jobs:
         run: timeout 60 bash -c 'until (echo > /dev/tcp/127.0.0.1/9092) 2>/dev/null; do sleep 2; done'
       - run: composer check
 
+  read-models:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'read-models')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/read-models
+    services:
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      READ_MODELS_MONGO_URI: mongodb://127.0.0.1:27017
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mongodb
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   commerce:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'commerce')
@@ -170,12 +197,16 @@ jobs:
         image: redis:8-alpine
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, pdo_pgsql, redis
+          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
@@ -201,12 +232,16 @@ jobs:
         image: redis:8-alpine
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, pdo_pgsql, redis
+          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
@@ -216,7 +251,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, messaging, commerce, logistics]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, commerce, logistics]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results
