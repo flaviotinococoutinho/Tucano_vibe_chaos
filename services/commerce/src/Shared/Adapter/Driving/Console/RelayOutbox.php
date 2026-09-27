@@ -6,6 +6,7 @@ namespace Commerce\Shared\Adapter\Driving\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Connection;
+use PDO;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Tucano\FeatureFlags\FeatureFlags;
@@ -25,7 +26,13 @@ final class RelayOutbox extends Command
     public function handle(Connection $database, Producer $producer, FeatureFlags $flags, LoggerInterface $logger): int
     {
         $worker = new OutboxRelayWorker(
-            new OutboxRelay($database->getPdo(), $producer),
+            // A new connection each time the relay asks, which it does again after a failed
+            // batch: a restart or a failover of the database leaves the old one dead.
+            new OutboxRelay(static function () use ($database): PDO {
+                $database->reconnect();
+
+                return $database->getPdo();
+            }, $producer),
             $logger,
             static fn(): bool => $flags->enabled('chaos.commerce.outbox-relay-paused'),
         );

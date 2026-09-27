@@ -82,12 +82,12 @@ flowchart LR
   consumer --> inbox{"id já está<br/>na inbox?"}
   inbox -- sim --> skip["ignora e confirma offset"]
   inbox -- não --> handle["efeito + inbox<br/>na mesma transação"] --> commit["confirma offset"]
-  handle -- "falhou N vezes" --> dlq[("dlq.consumer-group")]
+  handle -- "recusa ou tentativas esgotadas" --> dlq[("dlq.consumer-group")]
 ```
 
 - **Produção**: o caso de uso grava o estado e o evento na mesma transação (Transactional Outbox). O relay publica com `acks=all` e produtor idempotente e só então marca a mensagem como publicada. Se o relay cair no meio, a mensagem é publicada de novo: a entrega é at-least-once.
 - **Consumo**: cada consumidor registra o `id` do evento na tabela de inbox junto com o efeito. Evento repetido é ignorado; o offset só é confirmado depois do processamento.
-- **Falhas**: retry com backoff exponencial e jitter. Esgotadas as tentativas, a mensagem vai para `dlq.<consumer-group>` com o erro nos headers, e o consumidor segue em frente em vez de travar a partição.
+- **Falhas**: cada tipo tem sua resposta, sempre com backoff exponencial e jitter. Mensagem ilegível ou recusa do domínio (`PermanentFailure`) vai direto para `dlq.<consumer-group>`, com o erro nos headers. Conexão perdida com o banco tenta sem limite: a partição espera o banco voltar, porque desistir mandaria uma mensagem boa para a DLQ, e a seguinte falharia igual. Qualquer outra falha tem tentativas contadas e, esgotadas, vai para a DLQ. Um `SIGTERM` no meio das tentativas não confirma o offset, e a mensagem volta depois do restart.
 
 ## Evolução de schema
 

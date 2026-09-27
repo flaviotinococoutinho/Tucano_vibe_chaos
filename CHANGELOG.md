@@ -23,6 +23,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 ### Fixed
 
 - Os logs da librdkafka saem pelo logger do serviço, em JSON, e não mais em texto puro no stderr.
+- O relay da outbox abre uma conexão nova depois de um lote que falhou. Antes, uma queda do banco deixava o relay preso num PDO morto, e os eventos paravam de sair até alguém reiniciar o worker.
+- Consumidores Kafka: conexão perdida com o banco espera o banco voltar em vez de mandar a mensagem para a DLQ, e um `SIGTERM` no meio das tentativas não confirma o offset. Os dois experimentos estão no laboratório de banco fora do ar.
 
 ## [0.3.0] - 2026-09-27
 
