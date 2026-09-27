@@ -43,7 +43,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | UC-NTF-01 | subfunção | Commerce | notificar o cliente | Notifications |
 | [UC-SHP-01](UC-SHP-01-create-shipment.md) | subfunção | Commerce | criar a remessa de um pedido pago | Shipping |
 | [UC-SHP-02](UC-SHP-02-choose-carrier.md) | subfunção | Logistics | escolher a transportadora | Carrier Selection |
-| UC-SHP-03 | subfunção | Fila de etiquetas | gerar a etiqueta | Labels |
+| [UC-SHP-03](UC-SHP-03-generate-label.md) | subfunção | Fila de etiquetas | gerar a etiqueta | Shipping |
 | UC-SHP-04 | usuário | Transportadora | registrar a coleta | Shipping |
 | UC-SHP-05 | usuário | Transportadora | registrar passagem por hub | Shipping |
 | UC-SHP-06 | usuário | Operador logístico | despachar para entrega | Shipping |

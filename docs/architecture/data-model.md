@@ -229,6 +229,14 @@ As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`.
 | `tracking_lookup` | `trackingCode` (partição) | página pública de rastreio: uma leitura por código, sem tocar nos bancos dos serviços |
 | `notification_log` | `pk` (partição) e `sk` (ordenação) | registro das notificações enviadas, para o mesmo evento não gerar dois e-mails |
 
+## Objetos (S3 no Floci)
+
+| Bucket | Chave | O que guarda |
+|---|---|---|
+| `tucano-labels` | `labels/<código de rastreio>.zpl` | a etiqueta da remessa em ZPL (`text/plain; charset=utf-8`); o job que tenta de novo sobrescreve o mesmo objeto, então nunca existem duas etiquetas da mesma remessa |
+
+A chave do objeto fica em `shipments.label_object_key`. Os eventos não a carregam: onde a etiqueta mora é assunto da logística.
+
 ## Regras que moram no banco
 
 O código também garante tudo isso, mas o banco é a última linha de defesa contra bug, concorrência e `UPDATE` feito na mão. Cada regra tem um teste de integração em `tests/Integration/SchemaConstraintsTest.php` do serviço.

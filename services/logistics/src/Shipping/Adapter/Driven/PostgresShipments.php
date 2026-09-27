@@ -82,7 +82,18 @@ final readonly class PostgresShipments implements ForStoringShipments
 
     public function forOrder(OrderId $order): ?Shipment
     {
-        $row = $this->connection->selectOne(<<<'SQL'
+        return $this->lockedWhere('s.order_id = ?', $order->toString());
+    }
+
+    public function withId(ShipmentId $shipment): ?Shipment
+    {
+        return $this->lockedWhere('s.id = ?', $shipment->toString());
+    }
+
+    /** @param 's.order_id = ?'|'s.id = ?' $condition */
+    private function lockedWhere(string $condition, string $value): ?Shipment
+    {
+        $row = $this->connection->selectOne(<<<SQL
             SELECT s.*, (
                 SELECT t.reason FROM shipment_transitions AS t
                  WHERE t.shipment_id = s.id AND t.to_status = 'delivery_failed'
@@ -90,9 +101,9 @@ final readonly class PostgresShipments implements ForStoringShipments
                  LIMIT 1
             ) AS last_failure
               FROM shipments AS s
-             WHERE s.order_id = ?
+             WHERE {$condition}
                FOR UPDATE OF s
-            SQL, [$order->toString()]);
+            SQL, [$value]);
 
         return $row === null ? null : Shipment::fromSnapshot($this->snapshotOf($row));
     }

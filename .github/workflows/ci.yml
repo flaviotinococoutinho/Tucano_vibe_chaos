@@ -281,6 +281,11 @@ jobs:
         image: mongo:8.0
         ports: ["27017:27017"]
         options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
+      # The local AWS, for the label bucket; the test creates the bucket itself.
+      floci:
+        image: floci/floci:2.1.0-compat
+        ports: ["4566:4566"]
+        options: --health-cmd "bash -c '</dev/tcp/127.0.0.1/4566'" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -291,6 +296,8 @@ jobs:
           coverage: none
       - run: composer install --no-interaction --no-progress
       - run: composer check
+        env:
+          FLOCI_ENDPOINT: http://127.0.0.1:4566
 
   tracking:
     needs: changes

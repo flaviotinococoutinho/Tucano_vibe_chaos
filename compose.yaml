@@ -117,6 +117,9 @@ x-logistics: &logistics
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: logistics_read
     KAFKA_BROKERS: toxiproxy:19092
+    # Floci plays S3 (the label bucket) and SQS (the label queue).
+    AWS_ENDPOINT: http://toxiproxy:14566
+    SQS_PREFIX: http://toxiproxy:14566/000000000000
   depends_on:
     postgres:
       condition: service_healthy
@@ -564,6 +567,40 @@ services:
         condition: service_completed_successfully
       kafka-init:
         condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
+  # Kafka is the log, SQS the work queue: this bridge turns every ShipmentCreated into a label job.
+  logistics-label-requests:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:request-labels"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # Laravel's queue worker on label-jobs. It finishes the current job on SIGTERM, and
+  # --max-time recycles it every hour; the restart policy brings it back.
+  logistics-label-worker:
+    <<: [*service, *logistics]
+    # --quiet: the job logs its outcome in JSON, like every other line of the stack.
+    command: ["php", "artisan", "queue:work", "sqs", "--queue=label-jobs", "--sleep=3", "--max-time=3600", "--quiet"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
       toxiproxy:
         condition: service_started
       flagd:
