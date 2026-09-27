@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "eef0f0c8d44a826008c1b0e7361bb43c",
+    "content-hash": "52f9d3179ba5f3558fb7b529553fa32f",
     "packages": [
         {
             "name": "brick/math",
@@ -2039,6 +2039,79 @@
                 }
             ],
             "time": "2026-03-08T20:05:35+00:00"
+        },
+        {
+            "name": "mongodb/mongodb",
+            "version": "2.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mongodb/mongo-php-library",
+                "reference": "1fbdc2ffff18a1ad6d92043b40060e4f546982ff"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mongodb/mongo-php-library/zipball/1fbdc2ffff18a1ad6d92043b40060e4f546982ff",
+                "reference": "1fbdc2ffff18a1ad6d92043b40060e4f546982ff",
+                "shasum": ""
+            },
+            "require": {
+                "composer-runtime-api": "^2.0",
+                "ext-mongodb": "^2.4",
+                "php": "^8.1",
+                "psr/log": "^1.1.4|^2|^3",
+                "symfony/polyfill-php85": "^1.33"
+            },
+            "replace": {
+                "mongodb/builder": "*"
+            },
+            "require-dev": {
+                "doctrine/coding-standard": "^12.0",
+                "phpunit/phpunit": "^10.5.35",
+                "rector/rector": "~2.5.9",
+                "squizlabs/php_codesniffer": "^3.7",
+                "vimeo/psalm": "~6.14.2"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
+                "psr-4": {
+                    "MongoDB\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Braun",
+                    "email": "andreas.braun@mongodb.com"
+                },
+                {
+                    "name": "Jeremy Mikola",
+                    "email": "jmikola@gmail.com"
+                },
+                {
+                    "name": "Jérôme Tamarelle",
+                    "email": "jerome.tamarelle@mongodb.com"
+                }
+            ],
+            "description": "MongoDB driver library",
+            "homepage": "https://jira.mongodb.org/browse/PHPLIB",
+            "keywords": [
+                "database",
+                "driver",
+                "mongodb",
+                "persistence"
+            ],
+            "time": "2026-09-10T15:46:23+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -6245,6 +6318,59 @@
             }
         },
         {
+            "name": "tucano/read-models",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/php/read-models",
+                "reference": "3e6a8a23e336c3983df849ae1b27edc5ef52c2d4"
+            },
+            "require": {
+                "ext-mongodb": "*",
+                "mongodb/mongodb": "^2.4",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.32",
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^12.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tucano\\ReadModels\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tucano\\ReadModels\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "lint": [
+                    "pint --test"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "test": [
+                    "phpunit"
+                ],
+                "check": [
+                    "@lint",
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "MongoDB read model helpers for the Tucano PHP services: schema migrations and version-aware upserts.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "tucano/shared-kernel",
             "version": "dev-main",
             "dist": {
@@ -9738,6 +9864,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "tucano/feature-flags": 20,
+        "tucano/read-models": 20,
         "tucano/shared-kernel": 20
     },
     "prefer-stable": true,

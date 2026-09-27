@@ -13,6 +13,10 @@
         {
             "type": "path",
             "url": "../../packages/php/feature-flags"
+        },
+        {
+            "type": "path",
+            "url": "../../packages/php/read-models"
         }
     ],
     "require": {
@@ -20,6 +24,7 @@
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "tucano/feature-flags": "*@dev",
+        "tucano/read-models": "*@dev",
         "tucano/shared-kernel": "*@dev"
     },
     "require-dev": {

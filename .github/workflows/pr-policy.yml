@@ -42,3 +42,8 @@ jobs:
             || fail "PR title must follow Conventional Commits, e.g. 'feat(logistics): add carrier selection chain'."
 
           echo "ok: $HEAD_REF -> $BASE_REF"
+
+      # Lives here on purpose: a broken ci.yml cannot run to report itself.
+      - uses: actions/checkout@v7
+      - name: Lint workflows
+        run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12 -color

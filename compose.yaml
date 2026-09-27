@@ -40,8 +40,12 @@ x-commerce: &commerce
     FLAGD_PORT: "18013"
     SNOWFLAKE_DATACENTER_ID: "1"
     SNOWFLAKE_WORKER_ID: "1"
+    MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
+    MONGO_DATABASE: commerce_read
   depends_on:
     postgres:
+      condition: service_healthy
+    mongo:
       condition: service_healthy
     redis:
       condition: service_healthy
@@ -73,8 +77,12 @@ x-logistics: &logistics
     FLAGD_PORT: "18013"
     SNOWFLAKE_DATACENTER_ID: "1"
     SNOWFLAKE_WORKER_ID: "11"
+    MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
+    MONGO_DATABASE: logistics_read
   depends_on:
     postgres:
+      condition: service_healthy
+    mongo:
       condition: service_healthy
     redis:
       condition: service_healthy
@@ -357,8 +365,8 @@ services:
 
   commerce-migrate:
     <<: [*job, *commerce]
-    # Runs once before the API starts, like a Kubernetes Job; seeding only inserts what is missing.
-    command: ["php", "artisan", "migrate", "--force", "--seed"]
+    # Runs once before the API starts, like a Kubernetes Job: SQL schema and seeds, then the read models.
+    command: ["sh", "-c", "php artisan migrate --force --seed && php artisan mongo:migrate"]
 
   commerce:
     <<: [*service, *commerce]
@@ -378,8 +386,8 @@ services:
 
   logistics-migrate:
     <<: [*job, *logistics]
-    # Runs once before the API starts, like a Kubernetes Job; seeding only inserts what is missing.
-    command: ["php", "artisan", "migrate", "--force", "--seed"]
+    # Runs once before the API starts, like a Kubernetes Job: SQL schema and seeds, then the read models.
+    command: ["sh", "-c", "php artisan migrate --force --seed && php artisan mongo:migrate"]
 
   logistics:
     <<: [*service, *logistics]

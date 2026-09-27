@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check kong-reload check
+.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags proxies php packages-check kong-reload check lint-workflows
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -70,6 +70,9 @@ flags: ## Evaluate every feature flag (key=<targeting key>)
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
 
+lint-workflows: ## Validate the GitHub Actions workflows with actionlint
+	docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
+
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
 
@@ -79,7 +82,7 @@ php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.
 		-w /app/$(dir) chaos-playground/php-base:$(PHP) sh -c '$(c)'
 
 packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
-	@for package in shared-kernel feature-flags messaging; do \
+	@for package in shared-kernel feature-flags messaging read-models; do \
 		for version in 8.3 8.4; do \
 			echo "== $$package on PHP $$version"; \
 			$(MAKE) --no-print-directory php PHP=$$version dir=packages/php/$$package c="composer install -q && composer check" || exit 1; \
@@ -87,8 +90,10 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 	done
 
 # Hostnames the PHP services use when their tests run inside the compose network.
-check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis
-check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis
+check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
+	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test
+check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
+	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=logistics_read_test
 
 check: ## Lint, analyse and test one PHP service against the running stack (s=commerce)
 	@scripts/test-databases.sh
