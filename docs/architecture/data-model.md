@@ -16,8 +16,49 @@ Cada serviço é dono do seu schema, e as migrations ficam no próprio serviço 
 | e-mail | `varchar(254)` | limite prático da RFC 5321 |
 | SKU | `varchar(32)` | tamanho variável com limite real |
 | estado de máquina | `varchar(24)` com `CHECK (status IN (...))` | mais fácil de evoluir que um `ENUM` nativo do PostgreSQL, que exige `ALTER TYPE` |
+| estado no MySQL | `ENUM(...)` | acrescentar valor no fim da lista é só metadado no MySQL 8, e o valor ocupa 1 byte |
 | datas | `timestamptz` | sempre com fuso; a aplicação grava em UTC |
 | coordenadas | `numeric(9,6)` | precisão de uns 10 cm, com `CHECK` de faixa |
+
+## Catalog (MySQL, banco `catalog`)
+
+```mermaid
+erDiagram
+  categories ||--o{ products : "agrupa"
+
+  categories {
+    binary(16) id PK "UUIDv7"
+    varchar(64) slug UK
+    varchar(80) name
+  }
+  products {
+    binary(16) id PK "UUIDv7"
+    char(36) id_text "virtual: BIN_TO_UUID(id)"
+    varchar(32) sku UK
+    varchar(160) name
+    binary(16) category_id FK
+    enum status "draft, active, discontinued"
+    bigint price_cents
+    char(3) currency
+    int weight_grams
+    int length_mm
+    int width_mm
+    int height_mm
+    bigint version
+  }
+```
+
+O catálogo fica no MySQL de propósito, para contrastar com o PostgreSQL dos outros serviços:
+
+- **UUID em `BINARY(16)`**: o MySQL não tem tipo `uuid`. Gravo os 16 bytes e leio com `BIN_TO_UUID`. O `id_text` é uma coluna gerada `VIRTUAL`: calculada na leitura, sem ocupar disco, só para consulta à mão.
+- **Índice clusterizado**: no InnoDB a tabela é a própria árvore B+ da chave primária. Com UUIDv4, cada insert cai num ponto aleatório da árvore e divide páginas; com UUIDv7, que cresce com o tempo, o insert vai sempre para o fim, como num auto increment. O `swap_flag` do `UUID_TO_BIN` existe para reordenar o UUIDv1, e o v7 não precisa dele.
+- **`ENUM` no status**: aqui cabe, pelo motivo da tabela de tipos. Rascunho (`draft`) nunca sai do catálogo.
+- **`CHECK` com `REGEXP_LIKE`**: o MySQL só passou a validar `CHECK` na 8.0.16; antes aceitava a sintaxe e ignorava. O `'c'` no fim força a comparação com maiúsculas, porque a collation `utf8mb4_0900_ai_ci` não diferencia maiúsculas nem acentos.
+- **`DATETIME(6)` em UTC**: a sessão roda com `time_zone = '+00:00'`, então o `CURRENT_TIMESTAMP(6)` grava UTC. `DATETIME` não converte fuso; `TIMESTAMP` converteria, mas só vai até 2038.
+- **`version`**: sobe a cada mudança. Quem copia o produto (os `product_snapshots` do commerce e do logistics) ignora versão mais velha do que a que já tem.
+- **Erro com código do driver**: o MySQL devolve SQLSTATE genérico (`HY000`, `23000`) para quase tudo. Os testes conferem o código: `3819` (CHECK), `1062` (duplicata), `1452` (chave estrangeira) e `1265` (valor fora do `ENUM` em modo strict).
+
+O catálogo não tem outbox: a publicação no tópico compactado é o dual write consciente do [ADR 0008](../adr/0008-transactional-outbox.md).
 
 ## Commerce (PostgreSQL, banco `commerce`)
 
@@ -170,9 +211,22 @@ O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_r
 
 O campo `version` guarda a última mudança aplicada. A projeção só escreve se a mudança for mais nova (`VersionedDocuments`), e assim evento repetido ou fora de ordem não volta o documento para trás.
 
+## Redis
+
+Um Redis só para a stack inteira. Cada serviço usa o próprio nome como prefixo das chaves (`catalog-`, `commerce-`, `logistics-`), e o cache do framework fica no banco lógico `1`, separado do `0`: um `cache:clear` não apaga nada além de cache.
+
+## DynamoDB (Floci)
+
+As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`. As duas são pagas por requisição e têm TTL no atributo `expiresAt`: o DynamoDB apaga o item vencido sozinho, sem job de limpeza.
+
+| Tabela | Chave | Para quê |
+|---|---|---|
+| `tracking_lookup` | `trackingCode` (partição) | página pública de rastreio: uma leitura por código, sem tocar nos bancos dos serviços |
+| `notification_log` | `pk` (partição) e `sk` (ordenação) | registro das notificações enviadas, para o mesmo evento não gerar dois e-mails |
+
 ## Regras que moram no banco
 
-O código também garante tudo isso, mas o banco é a última linha de defesa contra bug, concorrência e `UPDATE` feito na mão. Cada regra tem um teste de integração em `tests/Integration/SchemaConstraintsTest.php`.
+O código também garante tudo isso, mas o banco é a última linha de defesa contra bug, concorrência e `UPDATE` feito na mão. Cada regra tem um teste de integração em `tests/Integration/SchemaConstraintsTest.php` do serviço.
 
 | Regra | Como | Onde |
 |---|---|---|
@@ -183,6 +237,8 @@ O código também garante tudo isso, mas o banco é a última linha de defesa co
 | no máximo três tentativas | `CHECK (attempt_number BETWEEN 1 AND 3)` + `UNIQUE (shipment_id, attempt_number)` | `delivery_attempts` |
 | entrega exige quem recebeu | `CHECK (outcome <> 'delivered' OR receiver_name IS NOT NULL)` | `delivery_attempts` |
 | mesma chave de idempotência uma vez por escopo | `PRIMARY KEY (scope, key)` | `idempotency_keys` |
+| SKU no formato do catálogo, uma vez só | `CHECK (REGEXP_LIKE(sku, ...))` + `UNIQUE (sku)` | `products` (MySQL) |
+| produto com peso e medidas | `CHECK (weight_grams > 0 AND ...)` | `products` (MySQL) |
 
 Os índices parciais também servem à performance: o job que expira pedidos lê só `WHERE status = 'pending_payment'`, e o relay da outbox lê só `WHERE published_at IS NULL`. O índice fica do tamanho do trabalho pendente, não do histórico inteiro.
 
@@ -190,6 +246,8 @@ Os índices parciais também servem à performance: o job que expira pedidos lê
 
 Cada serviço tem um job `<serviço>-migrate` no compose, que roda `php artisan migrate --force --seed` e depois `php artisan mongo:migrate` uma vez antes da API subir (o mesmo papel de um Job no Kubernetes). Com várias réplicas da API, isso evita duas migrations concorrentes.
 
-Os seeders são idempotentes: dados de referência (CDs, transportadoras) usam `upsert`, e o estoque usa `insertOrIgnore`, para que um novo `make up` nunca zere estoque ou reservas que os pedidos já movimentaram.
+Os seeders são idempotentes: dados de referência (CDs, transportadoras, categorias) usam `upsert`, e o estoque usa `insertOrIgnore`, para que um novo `make up` nunca zere estoque ou reservas que os pedidos já movimentaram.
 
-Os testes rodam contra os bancos `commerce_test` e `logistics_test` (`scripts/test-databases.sh`), porque o `RefreshDatabase` recria o schema e apagaria os dados da stack.
+No PostgreSQL o `insertOrIgnore` vira `ON CONFLICT DO NOTHING`, que só ignora conflito de chave. No MySQL ele vira `INSERT IGNORE`, que também transforma erro de `CHECK` e de tipo em warning e segue em frente. Por isso os produtos do catálogo entram com um `upsert` que não altera nada numa SKU conhecida.
+
+Os testes rodam contra os bancos `catalog_test`, `commerce_test` e `logistics_test` (`scripts/test-databases.sh`), porque o `RefreshDatabase` recria o schema e apagaria os dados da stack.
