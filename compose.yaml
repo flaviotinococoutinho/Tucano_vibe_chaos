@@ -560,6 +560,13 @@ services:
       APP_ENV: ${APP_ENV:-local}
       PORT: "4000"
       LOG_LEVEL: info
+      PAYFAKE_WEBHOOK_URL: http://kong:8000/api/commerce/v1/webhooks/payfake
+      PAYFAKE_WEBHOOK_SECRET: whsec_local_payfake
+      PAYFAKE_PROCESSING_MIN_MS: "300"
+      PAYFAKE_PROCESSING_MAX_MS: "1500"
+    # The chaos controls of PayFake, from the host.
+    ports:
+      - "127.0.0.1:4000:4000"
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:4000/health/ready"]

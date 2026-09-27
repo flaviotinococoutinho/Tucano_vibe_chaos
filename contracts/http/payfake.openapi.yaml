@@ -1,0 +1,738 @@
+openapi: 3.1.0
+info:
+  title: PayFake
+  version: 1.0.0
+  summary: The payment provider of the Tucano lab, simulated by partners-sim.
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    PayFake plays the PSP. It speaks its own vocabulary (charge, refund, event), and commerce
+    translates it into `Payment` at the border of the Payments context (anticorruption layer).
+    Inside the stack, commerce calls it through Toxiproxy, so the PSP can be degraded on its own.
+
+    ## Lifecycle
+
+    A charge is accepted as `processing` and settles after a processing delay (300 to 1500 ms
+    by default): `succeeded` or `failed`, with a `failureCode`. A succeeded charge can be
+    refunded once, in full: it becomes `refunded` at once, with its refund `processing` until the
+    refund settles as `succeeded`. Each settlement is reported by webhook.
+
+    ## Magic card tokens
+
+    | Token | Result |
+    |---|---|
+    | `tok_decline` | `failed` with `card_declined` |
+    | `tok_insufficient` | `failed` with `insufficient_funds` |
+    | any other `tok_*` | `succeeded`, unless the chaos decline rate says otherwise |
+
+    ## Idempotency
+
+    Every POST requires an `Idempotency-Key` (400 without it). The same key with the same body
+    answers what the first request answered, with `Idempotent-Replayed: true`, even after the
+    charge moved on. The same key with another body is refused with 422. Keys are scoped by
+    operation, and for refunds the charge id is part of the body that is compared. Only
+    successful answers are kept, so a request that failed can be retried with its key. PayFake
+    keeps keys and charges in memory for 24 hours, and at most the 20000 most recent ones.
+
+    ## Webhooks and their signature
+
+    Every webhook is a POST with a JSON body and these headers:
+
+    - `PayFake-Signature: t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 keyed with the
+      shared secret over `<t>.<raw body>`.
+    - `X-Correlation-Id`: the id of the request that created the charge or the refund.
+
+    To verify: split the header on commas, read `t` and every `v1`; refuse a `t` more than 300
+    seconds away from your clock; compute the HMAC of `t`, a dot and the raw body exactly as it
+    arrived; compare it with each `v1` in constant time and accept on the first match. Several
+    `v1` values may come during a secret rotation.
+
+    Test vector: secret `whsec_local_payfake`, `t=1790510400`, body
+    `{"id":"evt_01J8Z5W3Q4X9M2N7B8C6D5E4F3","type":"charge.succeeded"}` gives
+    `v1=0605457e458dd9fea675921d4df5754d4330d115baa8c60beb64f86dc29f4061`.
+
+    Delivery is at least once. Any answer outside 2xx (redirects included), a network error or
+    no answer within 5 seconds is retried after 1, 2, 4, 8 and 16 seconds: six attempts in all,
+    then PayFake gives up and the merchant has to reconcile with `GET /payfake/v1/charges/{chargeId}`.
+    Retries and duplicates carry the same event `id`, so the receiver deduplicates by it. Each
+    attempt is signed again with a fresh `t`.
+
+    ## Errors
+
+    Errors are RFC 9457 problem details (`application/problem+json`), the same shape every Tucano
+    service uses. Validation failures add `errors`, the messages per field.
+servers:
+  - url: http://toxiproxy:14001
+    description: Inside the stack, the way commerce calls it (through Toxiproxy)
+  - url: http://localhost:4000
+    description: From the host
+# Unlike a real PSP, PayFake takes no API key: it only exists inside the lab.
+security: []
+tags:
+  - name: charges
+    description: Card charges, created as processing and settled by webhook.
+  - name: refunds
+    description: Full refunds of succeeded charges.
+  - name: chaos
+    description: Lab controls, not part of a real PSP. Changed at runtime and kept in memory.
+paths:
+  /payfake/v1/charges:
+    post:
+      tags: [charges]
+      operationId: createCharge
+      summary: Create a charge
+      description: |
+        Accepts the charge as `processing`. The result comes later by webhook
+        (`charge.succeeded` or `charge.failed`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeRequest'
+            example:
+              amount:
+                value: 18990
+                currency: BRL
+              cardToken: tok_visa
+              reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+      responses:
+        '201':
+          description: The charge, as it was when it was accepted.
+          headers:
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingCharge'
+              example:
+                id: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                status: processing
+                amount:
+                  value: 18990
+                  currency: BRL
+                reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                createdAt: '2026-09-27T12:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/MissingIdempotencyKey'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+        '500':
+          description: |
+            The chaos error rate hit this charge creation. It fails before the charge exists and
+            keeps nothing under the key, so retrying with the same key is safe. A replay never
+            fails this way.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /payfake/v1/charges/{chargeId}:
+    get:
+      tags: [charges]
+      operationId: getCharge
+      summary: Read a charge as it is now
+      description: What reconciliation reads when a webhook never came.
+      parameters:
+        - $ref: '#/components/parameters/ChargeId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The charge in its current state.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Charge'
+              example:
+                id: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                status: failed
+                failureCode: insufficient_funds
+                amount:
+                  value: 18990
+                  currency: BRL
+                reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                createdAt: '2026-09-27T12:00:00.000Z'
+        '404':
+          $ref: '#/components/responses/ChargeNotFound'
+  /payfake/v1/charges/{chargeId}/refunds:
+    post:
+      tags: [refunds]
+      operationId: refundCharge
+      summary: Refund a succeeded charge in full
+      description: |
+        Accepts the refund as `processing`, and the charge becomes `refunded` at once. The result
+        comes later by webhook (`refund.succeeded`).
+      parameters:
+        - $ref: '#/components/parameters/ChargeId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+            example:
+              amount:
+                value: 18990
+                currency: BRL
+      responses:
+        '201':
+          description: The refund, as it was when it was accepted.
+          headers:
+            Idempotent-Replayed:
+              $ref: '#/components/headers/IdempotentReplayed'
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+              example:
+                id: re_01M3HBNT8XEN7BHPFGC5GB4CJ5
+                chargeId: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                status: processing
+                amount:
+                  value: 18990
+                  currency: BRL
+                createdAt: '2026-09-27T12:05:00.000Z'
+        '400':
+          $ref: '#/components/responses/MissingIdempotencyKey'
+        '404':
+          $ref: '#/components/responses/ChargeNotFound'
+        '409':
+          description: The charge is not `succeeded` (still processing, failed or already refunded).
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: Charge ch_01M3HBNT8TE1R8SV13STYN9CXP is processing and cannot be refunded.
+                instance: /payfake/v1/charges/ch_01M3HBNT8TE1R8SV13STYN9CXP/refunds
+                correlationId: '4f1c2b7e-9d7a-4b8c-9e3f-1a2b3c4d5e6f#12'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+  /_chaos/payfake:
+    get:
+      tags: [chaos]
+      operationId: getChaos
+      summary: Read the chaos settings
+      responses:
+        '200':
+          description: The settings in force.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+    put:
+      tags: [chaos]
+      operationId: setChaos
+      summary: Replace the chaos settings
+      description: |
+        A knob left out goes back to its calm value, so each PUT describes the whole experiment.
+        Every chaos decision is logged at info with the charge id (the reference, for the 500s
+        that come before the charge exists).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChaosSettings'
+            example:
+              latencyMs:
+                min: 200
+                max: 800
+              errorRate: 0.1
+              webhooks:
+                duplicateRate: 0.2
+      responses:
+        '200':
+          description: The settings now in force, every knob filled in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
+    delete:
+      tags: [chaos]
+      operationId: resetChaos
+      summary: Go back to calm
+      responses:
+        '200':
+          description: The calm settings, every knob at zero.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosSettings'
+webhooks:
+  charge.succeeded:
+    post:
+      operationId: chargeSucceeded
+      summary: A charge was approved
+      parameters:
+        - $ref: '#/components/parameters/PayFakeSignature'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeSucceededEvent'
+            example:
+              id: evt_01M3HBNT8XEN7BHPFP3E6P118G
+              type: charge.succeeded
+              createdAt: '2026-09-27T12:00:00.900Z'
+              data:
+                chargeId: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                amount:
+                  value: 18990
+                  currency: BRL
+      responses:
+        '2XX':
+          $ref: '#/components/responses/WebhookReceived'
+  charge.failed:
+    post:
+      operationId: chargeFailed
+      summary: A charge was refused
+      parameters:
+        - $ref: '#/components/parameters/PayFakeSignature'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeFailedEvent'
+            example:
+              id: evt_01M3HBNT8XEN7BHPFP3E6P118G
+              type: charge.failed
+              createdAt: '2026-09-27T12:00:00.900Z'
+              data:
+                chargeId: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                amount:
+                  value: 18990
+                  currency: BRL
+                failureCode: card_declined
+      responses:
+        '2XX':
+          $ref: '#/components/responses/WebhookReceived'
+  refund.succeeded:
+    post:
+      operationId: refundSucceeded
+      summary: A refund went through
+      parameters:
+        - $ref: '#/components/parameters/PayFakeSignature'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundSucceededEvent'
+            example:
+              id: evt_01M3HBNT8XEN7BHPFP3E6P118G
+              type: refund.succeeded
+              createdAt: '2026-09-27T12:05:00.900Z'
+              data:
+                chargeId: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                amount:
+                  value: 18990
+                  currency: BRL
+      responses:
+        '2XX':
+          $ref: '#/components/responses/WebhookReceived'
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Commerce sends the payment id, so one payment is charged at most once.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+      example: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Echoed back on the response. PayFake creates a UUIDv7 when it is missing.
+      schema:
+        type: string
+      example: '4f1c2b7e-9d7a-4b8c-9e3f-1a2b3c4d5e6f#12'
+    ChargeId:
+      name: chargeId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: ch_01M3HBNT8TE1R8SV13STYN9CXP
+    PayFakeSignature:
+      name: PayFake-Signature
+      in: header
+      required: true
+      description: '`t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">`, see the API description.'
+      schema:
+        type: string
+        pattern: '^t=\d+(,\s*v1=[0-9a-f]{64})+$'
+      example: t=1790510400,v1=0605457e458dd9fea675921d4df5754d4330d115baa8c60beb64f86dc29f4061
+  headers:
+    IdempotentReplayed:
+      description: Present only when the answer is a replay of an earlier request with the same key.
+      schema:
+        type: string
+        const: 'true'
+    CorrelationId:
+      description: The correlation id of the request, received or created.
+      schema:
+        type: string
+  responses:
+    MissingIdempotencyKey:
+      description: The `Idempotency-Key` header is missing, blank or longer than 255 characters.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            detail: The Idempotency-Key header is required.
+            instance: /payfake/v1/charges
+            correlationId: '4f1c2b7e-9d7a-4b8c-9e3f-1a2b3c4d5e6f#12'
+    ChargeNotFound:
+      description: No charge with this id, or it is older than the retention.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: Charge ch_01M3HBNT8TE1R8SV13STYN9CXP does not exist.
+            instance: /payfake/v1/charges/ch_01M3HBNT8TE1R8SV13STYN9CXP
+            correlationId: '4f1c2b7e-9d7a-4b8c-9e3f-1a2b3c4d5e6f#12'
+    UnprocessableRequest:
+      description: |
+        The body breaks the schema (`errors` lists the messages per field), the key was already
+        used with another body, or a refund is not for the full amount.
+      headers:
+        X-Correlation-Id:
+          $ref: '#/components/headers/CorrelationId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Unprocessable Content
+            status: 422
+            detail: body/amount/currency must match pattern "^[A-Z]{3}$"
+            instance: /payfake/v1/charges
+            correlationId: '4f1c2b7e-9d7a-4b8c-9e3f-1a2b3c4d5e6f#12'
+            errors:
+              amount.currency:
+                - must match pattern "^[A-Z]{3}$"
+    WebhookReceived:
+      description: |
+        The receiver took the event. Anything else, or no answer within 5 seconds, is retried.
+  schemas:
+    Money:
+      type: object
+      description: An amount in the smallest unit of its currency (centavos for BRL).
+      additionalProperties: false
+      required: [value, currency]
+      properties:
+        value:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 code.
+    ChargeRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, cardToken, reference]
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        cardToken:
+          type: string
+          pattern: '^tok_\w{1,60}$'
+          description: '`tok_decline` and `tok_insufficient` fail on purpose; any other token pays.'
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The merchant's own id for the payment, sent back in every webhook.
+    RefundRequest:
+      type: object
+      additionalProperties: false
+      required: [amount]
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+          description: Must equal the charge amount, since only full refunds exist.
+    FailureCode:
+      type: string
+      enum: [card_declined, insufficient_funds]
+    ChargeId:
+      type: string
+      pattern: '^ch_[0-9A-HJKMNP-TV-Z]{26}$'
+      description: '`ch_` and a UUIDv7 in Crockford Base32, so ids sort by creation time.'
+    ChargeFacts:
+      type: object
+      required: [id, status, amount, reference, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/ChargeId'
+        status:
+          type: string
+          enum: [processing, succeeded, failed, refunded]
+        amount:
+          $ref: '#/components/schemas/Money'
+        reference:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ProcessingCharge:
+      allOf:
+        - $ref: '#/components/schemas/ChargeFacts'
+        - type: object
+          properties:
+            status:
+              const: processing
+    SucceededCharge:
+      allOf:
+        - $ref: '#/components/schemas/ChargeFacts'
+        - type: object
+          properties:
+            status:
+              const: succeeded
+    FailedCharge:
+      allOf:
+        - $ref: '#/components/schemas/ChargeFacts'
+        - type: object
+          required: [failureCode]
+          properties:
+            status:
+              const: failed
+            failureCode:
+              $ref: '#/components/schemas/FailureCode'
+    RefundedCharge:
+      allOf:
+        - $ref: '#/components/schemas/ChargeFacts'
+        - type: object
+          required: [refund]
+          properties:
+            status:
+              const: refunded
+            refund:
+              $ref: '#/components/schemas/Refund'
+    Charge:
+      description: |
+        Exactly one of four states, each with only its own data: a failed charge has a
+        `failureCode`, a refunded one has its `refund`.
+      oneOf:
+        - $ref: '#/components/schemas/ProcessingCharge'
+        - $ref: '#/components/schemas/SucceededCharge'
+        - $ref: '#/components/schemas/FailedCharge'
+        - $ref: '#/components/schemas/RefundedCharge'
+      discriminator:
+        propertyName: status
+        mapping:
+          processing: '#/components/schemas/ProcessingCharge'
+          succeeded: '#/components/schemas/SucceededCharge'
+          failed: '#/components/schemas/FailedCharge'
+          refunded: '#/components/schemas/RefundedCharge'
+    Refund:
+      type: object
+      required: [id, chargeId, status, amount, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: '^re_[0-9A-HJKMNP-TV-Z]{26}$'
+        chargeId:
+          $ref: '#/components/schemas/ChargeId'
+        status:
+          type: string
+          enum: [processing, succeeded]
+        amount:
+          $ref: '#/components/schemas/Money'
+        createdAt:
+          type: string
+          format: date-time
+    EventData:
+      type: object
+      required: [chargeId, reference, amount]
+      properties:
+        chargeId:
+          $ref: '#/components/schemas/ChargeId'
+        reference:
+          type: string
+          description: The reference the merchant sent with the charge.
+        amount:
+          $ref: '#/components/schemas/Money'
+    Event:
+      type: object
+      required: [id, type, createdAt, data]
+      properties:
+        id:
+          type: string
+          pattern: '^evt_[0-9A-HJKMNP-TV-Z]{26}$'
+          description: The same in every retry and duplicate. Deduplicate by it.
+        type:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ChargeSucceededEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            type:
+              const: charge.succeeded
+            data:
+              $ref: '#/components/schemas/EventData'
+    ChargeFailedEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            type:
+              const: charge.failed
+            data:
+              allOf:
+                - $ref: '#/components/schemas/EventData'
+                - type: object
+                  required: [failureCode]
+                  properties:
+                    failureCode:
+                      $ref: '#/components/schemas/FailureCode'
+    RefundSucceededEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            type:
+              const: refund.succeeded
+            data:
+              $ref: '#/components/schemas/EventData'
+              description: The amount is the refund's, which is the charge's for a full refund.
+    Rate:
+      type: number
+      minimum: 0
+      maximum: 1
+      default: 0
+    ChaosSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        latencyMs:
+          type: object
+          description: |
+            Delay drawn between `min` and `max` before PayFake answers a charge creation, a read
+            or a refund.
+          additionalProperties: false
+          required: [min, max]
+          default:
+            min: 0
+            max: 0
+          properties:
+            min:
+              type: integer
+              minimum: 0
+              maximum: 30000
+            max:
+              type: integer
+              minimum: 0
+              maximum: 30000
+              description: At least `min`.
+        errorRate:
+          $ref: '#/components/schemas/Rate'
+          description: |
+            Share of charge creations answered with 500, before the charge exists. Replays are
+            never hit.
+        timeoutRate:
+          $ref: '#/components/schemas/Rate'
+          description: |
+            Share of answers to charge creation, replays included, held until the client gives
+            up (30 seconds at most). The charge exists, so a retry with the same key gets it.
+        declineRate:
+          $ref: '#/components/schemas/Rate'
+          description: Share of charges with any other token that fail with `card_declined`.
+        webhooks:
+          type: object
+          additionalProperties: false
+          default: {}
+          properties:
+            dropRate:
+              $ref: '#/components/schemas/Rate'
+              description: Share of webhooks never sent. Only reconciliation finds these.
+            duplicateRate:
+              $ref: '#/components/schemas/Rate'
+              description: Share of webhooks sent twice, with the same event id.
+            delayMs:
+              type: integer
+              minimum: 0
+              maximum: 600000
+              default: 0
+              description: Wait before the first attempt of every webhook.
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status, detail, instance, correlationId]
+      properties:
+        type:
+          const: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        correlationId:
+          type: string
+        errors:
+          type: object
+          description: Only on validation failures, the messages for each field.
+          additionalProperties:
+            type: array
+            items:
+              type: string

@@ -137,7 +137,7 @@ sequenceDiagram
   C->>W: paga
   W->>CM: POST /v1/orders/{id}/payments
   CM->>PSP: cobra (Idempotency-Key)
-  PSP-->>CM: webhook payment.succeeded
+  PSP-->>CM: webhook charge.succeeded
   CM->>K: OrderPaid (via outbox)
   K->>LG: OrderPaid
   LG->>LG: cria a remessa, escolhe a transportadora e gera a etiqueta
