@@ -8,6 +8,8 @@ namespace Commerce\Payments\Domain;
 enum PaymentStatus: string
 {
     case Pending = 'pending';
+    /** Tucano gave up waiting: no charge at the provider, and the order stopped waiting too. */
+    case Abandoned = 'abandoned';
     case Captured = 'captured';
     case Failed = 'failed';
     case RefundRequested = 'refund_requested';
@@ -17,7 +19,9 @@ enum PaymentStatus: string
     public function next(): array
     {
         return match ($this) {
-            self::Pending => [self::Captured, self::Failed],
+            self::Pending => [self::Captured, self::Failed, self::Abandoned],
+            // Giving up was a guess; when the provider speaks after all, its word wins.
+            self::Abandoned => [self::RefundRequested, self::Failed],
             self::Captured => [self::RefundRequested],
             self::RefundRequested => [self::Refunded],
             self::Failed, self::Refunded => [],

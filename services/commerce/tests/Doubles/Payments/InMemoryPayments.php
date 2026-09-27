@@ -9,6 +9,7 @@ use Commerce\Payments\Domain\Payment;
 use Commerce\Payments\Domain\PaymentId;
 use Commerce\Payments\Domain\PaymentNotFound;
 use Commerce\Payments\Domain\PaymentStatus;
+use DateTimeImmutable;
 
 final class InMemoryPayments implements ForStoringPayments
 {
@@ -40,6 +41,26 @@ final class InMemoryPayments implements ForStoringPayments
     public function find(PaymentId $id): ?Payment
     {
         return $this->payments[$id->toString()] ?? null;
+    }
+
+    public function claimUnsettled(DateTimeImmutable $untouchedSince, DateTimeImmutable $now): ?Payment
+    {
+        $due = array_filter(
+            $this->payments,
+            static fn(Payment $payment): bool => $payment->updatedAt <= $untouchedSince && (
+                in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::RefundRequested], true)
+                || ($payment->status === PaymentStatus::Abandoned && $payment->chargeId !== null)
+            ),
+        );
+        usort($due, static fn(Payment $a, Payment $b): int => $a->updatedAt <=> $b->updatedAt);
+        $oldest = $due[0] ?? null;
+        if ($oldest === null) {
+            return null;
+        }
+        $touched = Payment::restore($oldest->id, $oldest->orderId, $oldest->amount, $oldest->status, $oldest->chargeId, $oldest->failureReason, $oldest->createdAt, $now);
+        $this->save($touched);
+
+        return $touched;
     }
 
     public function count(): int

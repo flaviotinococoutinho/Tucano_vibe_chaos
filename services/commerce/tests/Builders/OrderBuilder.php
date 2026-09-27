@@ -28,6 +28,9 @@ use Tucano\SharedKernel\Money\Money;
 /** Test data builder: sensible defaults, change only what the test is about. */
 final class OrderBuilder
 {
+    /** Each order built gets its own number, like the next sequence of the same millisecond. */
+    private static int $sequence = 0;
+
     /** @var list<OrderLine> */
     private array $lines;
 
@@ -67,7 +70,7 @@ final class OrderBuilder
     {
         return Order::place(
             OrderId::generate(),
-            new OrderNumber(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), 0)),
+            new OrderNumber(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), self::$sequence++ % 4096)),
             new Customer(CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
             new ShippingAddress('Avenida Paulista', '1000', 'Apto 12', 'Bela Vista', 'São Paulo', BrazilianState::SP, PostalCode::of('01310-100')),
             OrderLines::of(...$this->lines),

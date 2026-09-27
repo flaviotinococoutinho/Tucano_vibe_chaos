@@ -22,11 +22,12 @@ use Tucano\SharedKernel\Time\Clock;
  * One transaction for everything an outcome changes: the inbox entry, the
  * payment, the order, the stock and the event in the outbox. A failure anywhere
  * rolls it all back, the webhook answers 5xx, and the provider sends it again.
+ * Outcomes come pushed by webhook or pulled by the reconciliation (UC-PAY-03).
  */
 #[UseCase('UC-PAY-02')]
 final readonly class SettlePayment implements ForSettlingPayments
 {
-    private const string INBOX = 'payments.payfake-webhook';
+    private const string INBOX = 'payments.provider-outcomes';
 
     public function __construct(
         private ForRunningTransactions $transactions,
@@ -63,9 +64,26 @@ final readonly class SettlePayment implements ForSettlingPayments
 
     private function captured(Payment $payment, DateTimeImmutable $now): SettleResult
     {
-        if ($payment->status !== PaymentStatus::Pending) {
-            return SettleResult::AlreadySettled;
-        }
+        return match ($payment->status) {
+            PaymentStatus::Pending => $this->pay($payment, $now),
+            // Given up after its order stopped waiting (UC-PAY-03): money that came anyway goes back (UC-PAY-04).
+            PaymentStatus::Abandoned => $this->giveBack($payment, $now),
+            default => SettleResult::AlreadySettled,
+        };
+    }
+
+    private function failed(Payment $payment, string $reason, DateTimeImmutable $now): SettleResult
+    {
+        return match ($payment->status) {
+            PaymentStatus::Pending => $this->decline($payment, $reason, $now),
+            // Its order was cancelled already; only the provider's word is recorded.
+            PaymentStatus::Abandoned => $this->recordFailure($payment, $reason, $now),
+            default => SettleResult::AlreadySettled,
+        };
+    }
+
+    private function pay(Payment $payment, DateTimeImmutable $now): SettleResult
+    {
         $payment->capture($now);
         if (!$this->orders->markPaid($payment->orderId, $now)) {
             // The reservation ran out before the money arrived: the money goes back (UC-PAY-04).
@@ -75,13 +93,24 @@ final readonly class SettlePayment implements ForSettlingPayments
         return SettleResult::Applied;
     }
 
-    private function failed(Payment $payment, string $reason, DateTimeImmutable $now): SettleResult
+    private function giveBack(Payment $payment, DateTimeImmutable $now): SettleResult
     {
-        if ($payment->status !== PaymentStatus::Pending) {
-            return SettleResult::AlreadySettled;
-        }
+        $payment->requestRefund($now);
+
+        return SettleResult::Applied;
+    }
+
+    private function decline(Payment $payment, string $reason, DateTimeImmutable $now): SettleResult
+    {
         $payment->fail($reason, $now);
         $this->orders->cancelDeclined($payment->orderId, $now);
+
+        return SettleResult::Applied;
+    }
+
+    private function recordFailure(Payment $payment, string $reason, DateTimeImmutable $now): SettleResult
+    {
+        $payment->fail($reason, $now);
 
         return SettleResult::Applied;
     }

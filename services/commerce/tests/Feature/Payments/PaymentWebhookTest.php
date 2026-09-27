@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Payments;
 
 use Commerce\Ordering\Application\Port\Driving\ForExpiringOrders;
-use Commerce\Payments\Application\Port\Driven\ForChargingCards;
-use Database\Seeders\FulfillmentCenterSeeder;
-use Database\Seeders\StockSeeder;
+use Commerce\Payments\Application\Port\Driving\ForReconcilingPayments;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,49 +14,23 @@ use Opis\JsonSchema\Validator;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use stdClass;
-use Tests\Doubles\Payments\FakeCardGateway;
 use Tests\TestCase;
-use Tucano\SharedKernel\Time\Clock;
-use Tucano\SharedKernel\Time\FrozenClock;
 
 #[Group('integration')]
 final class PaymentWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    use PaysForAnOrder;
+
     private const string SECRET = 'whsec_local_payfake';
-
-    private FrozenClock $clock;
-
-    private string $orderId;
-
-    private string $paymentId;
 
     private string $chargeId;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->clock = new FrozenClock('2026-09-27T12:00:00Z');
-        $this->app->instance(Clock::class, $this->clock);
-        $this->app->instance(ForChargingCards::class, new FakeCardGateway());
-        $this->seed([FulfillmentCenterSeeder::class, StockSeeder::class]);
-        DB::table('product_snapshots')->insert([
-            'product_id' => (string) Str::uuid7(),
-            'sku' => 'LAB-CONSOLE-001',
-            'name' => 'Console portátil edição limitada',
-            'price_cents' => 299990,
-            'currency' => 'BRL',
-            'status' => 'active',
-            'catalog_version' => 1,
-        ]);
-        $this->orderId = (string) $this->postJson('/v1/orders', [
-            'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
-            'shippingAddress' => ['street' => 'Avenida Paulista', 'number' => '1000', 'district' => 'Bela Vista', 'city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310-100'],
-            'items' => [['sku' => 'LAB-CONSOLE-001', 'quantity' => 2]],
-        ], ['Idempotency-Key' => (string) Str::uuid7()])->assertCreated()->json('orderId');
-        $this->paymentId = (string) $this->postJson("/v1/orders/{$this->orderId}/payments", ['cardToken' => 'tok_visa'], ['Idempotency-Key' => (string) Str::uuid7()])
-            ->assertAccepted()->json('paymentId');
+        $this->placeAndPayAnOrder();
         $this->chargeId = (string) DB::table('payments')->where('id', $this->paymentId)->value('provider_charge_id');
     }
 
@@ -112,6 +84,22 @@ final class PaymentWebhookTest extends TestCase
     }
 
     #[Test]
+    public function money_that_arrives_after_tucano_gave_up_goes_back(): void
+    {
+        // The answer with the charge id was lost, the order expired, and the reconciliation found no charge.
+        DB::table('payments')->where('id', $this->paymentId)->update(['provider_charge_id' => null]);
+        $this->clock->moveTo('2026-09-27T12:16:00Z');
+        $this->app->make(ForExpiringOrders::class)->expireNext();
+        $this->app->make(ForReconcilingPayments::class)->reconcileNext();
+        self::assertSame('abandoned', $this->paymentStatus());
+
+        $this->webhook('charge.succeeded')->assertOk()->assertJsonPath('result', 'applied');
+
+        self::assertSame(['refund_requested', 'cancelled'], [$this->paymentStatus(), $this->orderStatus()]);
+        self::assertSame($this->chargeId, DB::table('payments')->where('id', $this->paymentId)->value('provider_charge_id'));
+    }
+
+    #[Test]
     public function a_webhook_signed_with_another_secret_is_refused(): void
     {
         $this->webhook('charge.succeeded', secret: 'whsec_someone_else')
@@ -153,24 +141,6 @@ final class PaymentWebhookTest extends TestCase
             'HTTP_ACCEPT' => 'application/json',
             'HTTP_PAYFAKE_SIGNATURE' => $signature,
         ], $body);
-    }
-
-    private function paymentStatus(): string
-    {
-        return (string) DB::table('payments')->where('id', $this->paymentId)->value('status');
-    }
-
-    private function orderStatus(): string
-    {
-        return (string) DB::table('orders')->where('id', $this->orderId)->value('status');
-    }
-
-    /** @return array{int, int} on hand and reserved of LAB-CONSOLE-001 in GRU1 */
-    private function stock(): array
-    {
-        $row = DB::table('stock_items')->where(['sku' => 'LAB-CONSOLE-001', 'fulfillment_center' => 'GRU1'])->first(['on_hand', 'reserved']);
-
-        return [(int) $row?->on_hand, (int) $row?->reserved];
     }
 
     private function assertOrderPaidMatchesItsContract(): void

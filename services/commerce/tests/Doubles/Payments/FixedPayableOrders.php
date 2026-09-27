@@ -20,4 +20,9 @@ final readonly class FixedPayableOrders implements ForFindingPayableOrders
 
         return new PayableOrder($orderId, $amount);
     }
+
+    public function awaitsPayment(string $orderId): bool
+    {
+        return isset($this->amountsDue[$orderId]);
+    }
 }

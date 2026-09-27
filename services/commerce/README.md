@@ -37,6 +37,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 |---|---|---|
 | `commerce-outbox-relay` | `php artisan commerce:relay-outbox` | publica a outbox no Kafka com `FOR UPDATE SKIP LOCKED`; a flag `chaos.commerce.outbox-relay-paused` pausa a publicação sem derrubar o processo, e os eventos se acumulam na outbox até a flag voltar |
 | `commerce-order-expiry` | `php artisan commerce:expire-orders` | cancela pedidos não pagos com a reserva vencida e devolve o estoque ([UC-ORD-03](../../docs/use-cases/UC-ORD-03-expire-unpaid-orders.md)); várias cópias dividem o trabalho com `SKIP LOCKED` |
+| `commerce-payment-reconciler` | `php artisan commerce:reconcile-payments` | pergunta ao PSP pelos pagamentos sem desfecho há 60 s e aplica a resposta ([UC-PAY-03](../../docs/use-cases/UC-PAY-03-reconcile-payments.md)): webhook perdido, cobrança que nunca chegou ao PSP e estorno do dinheiro que chegou tarde ([UC-PAY-04](../../docs/use-cases/UC-PAY-04-refund-payment.md)) |
 | `commerce-catalog-sync` | `php artisan commerce:sync-catalog` | mantém `product_snapshots` a partir de `catalog.products.v1` ([UC-ORD-06](../../docs/use-cases/UC-ORD-06-sync-catalog.md)); snapshot ilegível vai para `dlq.commerce.catalog-sync` |
 
 ## Rodando
