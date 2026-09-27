@@ -13,6 +13,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Schema MySQL do catálogo com DDL explícito (UUIDv7 em `BINARY(16)`, `ENUM`, `CHECK` com `REGEXP_LIKE`), seeders idempotentes com os produtos do estoque, job `catalog-migrate` e testes das constraints.
 - Modelo de dados com o uso do Redis e as tabelas do DynamoDB.
 - Serviços `bff` e `partners-sim` (Node 24, Fastify 5, TypeScript sem build): health checks, erros RFC 9457, correlation id e logs JSON. O bff fica no Kong em `/bff`; o simulador fica só na rede `edge`, e os serviços chegam nele pelo Toxiproxy.
+- Serviço `tracking` (Swoole 6.2, PHP 8.4): servidor HTTP e WebSocket de longa duração com health checks, erros RFC 9457, correlation id no contexto da corrotina e graceful shutdown, exposto pelo Kong em `/api/tracking`.
 - `make check s=<serviço>` também para os serviços Node.
 - Read models no MongoDB: pacote `tucano/read-models` (migrations com `$jsonSchema` e upsert por versão), coleções `order_views` e `shipment_timelines` criadas no job de migração.
 - Pacote `tucano/messaging`: producer idempotente, consumer at-least-once com retry e DLQ, relay da outbox com `SKIP LOCKED` e inbox, testado contra PostgreSQL e Kafka reais.

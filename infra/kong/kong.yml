@@ -36,3 +36,10 @@ services:
       - name: logistics-api
         paths: [/api/logistics]
         strip_path: true
+
+  - name: tracking
+    url: http://tracking:9501
+    routes:
+      - name: tracking-api
+        paths: [/api/tracking]
+        strip_path: true

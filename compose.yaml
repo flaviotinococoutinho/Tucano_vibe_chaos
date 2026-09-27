@@ -456,6 +456,34 @@ services:
       test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
     mem_limit: 256m
 
+  tracking:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/tracking/Dockerfile
+    image: chaos-playground/tracking
+    environment:
+      APP_NAME: tracking
+      APP_ENV: ${APP_ENV:-local}
+      LOG_LEVEL: info
+      SWOOLE_WORKERS: "2"
+      REDIS_HOST: toxiproxy
+      REDIS_PORT: "16379"
+      FLAGD_HOST: toxiproxy
+      FLAGD_PORT: "18013"
+    depends_on:
+      redis:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:9501/health/ready"]
+    mem_limit: 128m
+    networks: [backend]
+
   bff:
     <<: *service
     build:

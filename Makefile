@@ -92,6 +92,9 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 # Hostnames the PHP services use when their tests run inside the compose network.
 check-env-catalog := -e DB_HOST=mysql -e DB_DATABASE=catalog_test -e REDIS_HOST=redis
 check-php-catalog := 8.3
+check-env-tracking := -e REDIS_HOST=redis
+# Swoole exists only in the service image (make up builds it).
+check-image-tracking := chaos-playground/tracking
 check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
 	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test
 check-env-logistics := -e DB_HOST=postgres -e DB_DATABASE=logistics_test -e REDIS_HOST=redis \
@@ -103,7 +106,7 @@ ifneq ($(wildcard services/$(s)/package.json),)
 		-w /app/services/$(s) node:24-alpine sh -c 'npm ci --no-audit --no-fund && npm run check'
 else
 	@scripts/test-databases.sh
-	docker run --rm --network chaos-playground_backend -v "$(CURDIR)":/app \
-		-v chaos-playground-composer-cache:/tmp/composer/cache $(check-env-$(s)) \
-		-w /app/services/$(s) chaos-playground/php-base:$(or $(check-php-$(s)),$(PHP)) sh -c 'composer install -q && composer check'
+	docker run --rm --user root --network chaos-playground_backend -v "$(CURDIR)":/app \
+		-v chaos-playground-composer-cache:/tmp/composer/cache $(check-env-$(s)) -w /app/services/$(s) \
+		$(or $(check-image-$(s)),chaos-playground/php-base:$(or $(check-php-$(s)),$(PHP))) sh -c 'composer install -q && composer check'
 endif
