@@ -29,6 +29,7 @@ O endereço nasceu com os campos de um formulário: `street`, `number`, `distric
 - Uma consulta por UF no SQL lê o primeiro item da lista (`ship_divisions -> 0 ->> 'code'`), que o CHECK garante ser o estado.
 - A migração separa o `street` gravado em tipo e nome pelos tipos conhecidos (Rua, Avenida, Rodovia, Estrada, Travessa, Alameda, Praça e as abreviações comuns). O que não começa com um deles fica como `Rua` com o texto inteiro no nome. O `district` antigo vira bairro, e o `city` vira município.
 - Os tópicos `.v1` e `.v2` convivem por um tempo. A leitura da `.v1` sai quando o lag dela zerar em todos os consumer groups.
+- A migração troca as colunas numa release só, com o serviço parado por instantes, o que o laboratório aceita. Sem janela de manutenção, eu faria expand e contract: colunas novas, escrita nas duas formas, backfill, leitura da nova e só depois o drop das antigas.
 
 ## Alternativas consideradas
 
