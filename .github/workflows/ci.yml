@@ -66,11 +66,40 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
+  feature-flags:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'feature-flags')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/feature-flags
+    env:
+      FLAGD_HOST: localhost
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start flagd with the local flag file
+        working-directory: .
+        run: >
+          docker run -d --name flagd -p 8013:8013
+          -v "$PWD/infra/flags/environments:/flags:ro"
+          ghcr.io/open-feature/flagd:v0.17.0 start --uri file:/flags/local.flagd.json
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: apcu
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel]
+    needs: [changes, compose, shared-kernel, feature-flags]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

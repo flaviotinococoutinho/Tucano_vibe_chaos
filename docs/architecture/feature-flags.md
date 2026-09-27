@@ -63,6 +63,20 @@ As chaves seguem o formato `<área>.<nome>` em kebab-case. O rollout percentual 
 
 A diferença é intencional e rende conversa de entrevista. No PHP-FPM cada request começa do zero, então não há onde manter uma cópia viva das regras; o custo é uma chamada de rede por avaliação, que o cache resolve. No Node o processo é longo, e a avaliação in-process fica em microssegundos.
 
+## No código PHP
+
+Os serviços PHP usam o pacote `tucano/feature-flags` (`packages/php/feature-flags`). O código de negócio só enxerga a interface `FeatureFlags`, e a montagem é uma cadeia de decorators:
+
+```text
+ProductionGuard -> CachedFlags -> OpenFeatureFlags -> flagd
+```
+
+- `ProductionGuard` devolve o fallback para `chaos.*` e `labs.*` em produção, sem consultar o servidor.
+- `CachedFlags` guarda cada avaliação por 2 segundos, em APCu no PHP-FPM e na memória do processo em CLI e Swoole.
+- `OpenFeatureFlags` traduz a chamada para o cliente OpenFeature, que fala HTTP com o flagd com timeout de 300 ms.
+
+Ambiente desconhecido é tratado como produção (`Environment::fromName('testing')` devolve `Production`): na dúvida, o default mais restritivo.
+
 ## Overrides em runtime e uma pegadinha do flagd
 
 O painel de caos precisa ligar e desligar flags na hora, sem deploy. A primeira ideia foi carregar duas fontes no flagd (o arquivo do ambiente e um arquivo de overrides por cima), já que o flagd mescla fontes e a última vence. Testando, apareceu um comportamento do flagd v0.17.0: quando uma chave sai da fonte de maior prioridade, a flag some do servidor, mesmo existindo na fonte base, e passa a responder `FLAG_NOT_FOUND` até o flagd reiniciar.
