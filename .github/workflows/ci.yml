@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      areas: ${{ steps.diff.outputs.areas }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Detect changed areas
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          scripts/ci/changed-areas.sh | tee -a "$GITHUB_OUTPUT"
+
+  # Single required check for branch protection: it passes when every job
+  # above either succeeded or was skipped because its area didn't change.
+  ci-ok:
+    if: always()
+    needs: [changes]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify job results
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
+            exit 1
+          fi
