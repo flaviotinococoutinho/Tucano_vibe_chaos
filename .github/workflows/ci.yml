@@ -97,6 +97,59 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
+  messaging:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'messaging')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/messaging
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: messaging
+          POSTGRES_PASSWORD: messaging
+          POSTGRES_DB: messaging
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U messaging" --health-interval 5s --health-timeout 3s --health-retries 20
+      kafka:
+        # KRaft single node that auto-creates topics: enough to test the client code.
+        image: apache/kafka:3.9.2
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_NUM_PARTITIONS: 1
+        ports: ["9092:9092"]
+    env:
+      MESSAGING_PG_DSN: pgsql:host=127.0.0.1;dbname=messaging
+      MESSAGING_PG_USER: messaging
+      MESSAGING_PG_PASSWORD: messaging
+      MESSAGING_KAFKA_BROKERS: localhost:9092
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pcntl, pdo_pgsql, posix, rdkafka
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - name: Wait for Kafka
+        run: timeout 60 bash -c 'until (echo > /dev/tcp/127.0.0.1/9092) 2>/dev/null; do sleep 2; done'
+      - run: composer check
+
   commerce:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'commerce')
@@ -163,7 +216,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel, feature-flags, commerce, logistics]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, commerce, logistics]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results
