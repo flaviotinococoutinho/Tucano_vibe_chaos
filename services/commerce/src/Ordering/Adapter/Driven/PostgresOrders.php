@@ -118,6 +118,13 @@ final readonly class PostgresOrders implements ForStoringOrders
         return $row === null ? null : $this->get(OrderId::fromString((string) $row->id));
     }
 
+    public function lock(OrderId $id): Order
+    {
+        $this->connection->select('SELECT 1 FROM orders WHERE id = ? FOR UPDATE', [$id->toString()]);
+
+        return $this->get($id);
+    }
+
     public function get(OrderId $id): Order
     {
         $row = $this->connection->table('orders')->where('id', $id->toString())->first();

@@ -22,4 +22,6 @@ interface ForReservingStock
     public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode;
 
     public function release(OrderId $order): void;
+
+    public function commit(OrderId $order): void;
 }
