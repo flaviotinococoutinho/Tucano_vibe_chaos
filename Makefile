@@ -90,7 +90,7 @@ packages-check: ## Lint, analyse and test the PHP packages on PHP 8.3 and 8.4
 	done
 
 # Hostnames the PHP services use when their tests run inside the compose network.
-check-env-catalog := -e DB_HOST=mysql -e REDIS_HOST=redis
+check-env-catalog := -e DB_HOST=mysql -e DB_DATABASE=catalog_test -e REDIS_HOST=redis
 check-php-catalog := 8.3
 check-env-commerce := -e DB_HOST=postgres -e DB_DATABASE=commerce_test -e REDIS_HOST=redis \
 	-e MONGO_URI=mongodb://mongo:27017/?directConnection=true -e MONGO_DATABASE=commerce_read_test

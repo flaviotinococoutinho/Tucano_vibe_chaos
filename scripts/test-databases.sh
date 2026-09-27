@@ -12,3 +12,7 @@ for service in commerce logistics; do
     "${compose[@]}" exec -T postgres psql -U postgres -d "${service}_test" -qc "ALTER SCHEMA public OWNER TO ${service}"
   fi
 done
+
+# MYSQL_PWD instead of -p keeps the password off the process list.
+"${compose[@]}" exec -T -e MYSQL_PWD=root mysql mysql -uroot \
+  -e "CREATE DATABASE IF NOT EXISTS catalog_test; GRANT ALL PRIVILEGES ON catalog_test.* TO 'catalog'@'%';"
