@@ -112,6 +112,56 @@ services:
     mem_limit: 128m
     networks: [backend]
 
+  # ------------------------------------------------------------------ messaging
+
+  zookeeper:
+    <<: *service
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/bin/zookeeper-server-start.sh", "/etc/kafka/zookeeper.properties"]
+    environment:
+      KAFKA_HEAP_OPTS: -Xms64m -Xmx64m
+    volumes:
+      - ./infra/zookeeper/zookeeper.properties:/etc/kafka/zookeeper.properties:ro
+      - zookeeper-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:2181:2181"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep -q imok"]
+    mem_limit: 192m
+    networks: [backend]
+
+  kafka:
+    <<: *service
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/bin/kafka-server-start.sh", "/etc/kafka/server.properties"]
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - ./infra/kafka/server.properties:/etc/kafka/server.properties:ro
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:29092:29092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+    mem_limit: 640m
+    networks: [backend]
+
+  kafka-init:
+    <<: *job
+    image: apache/kafka:3.9.2
+    command: ["/opt/kafka/scripts/create-topics.sh"]
+    volumes:
+      - ./infra/kafka/create-topics.sh:/opt/kafka/scripts/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks: [backend]
+
 networks:
   backend:
 
@@ -120,3 +170,5 @@ volumes:
   mysql-data:
   mongo-data:
   redis-data:
+  zookeeper-data:
+  kafka-data:
