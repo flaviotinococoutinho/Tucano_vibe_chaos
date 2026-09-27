@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   CHARGE,
   CHARGE_ID,
+  findCharges,
   getCharge,
   type LogLine,
   payfakeApp,
@@ -106,5 +107,52 @@ describe('charges', () => {
       assert.equal(response.statusCode, 422, JSON.stringify(body));
       assert.partialDeepStrictEqual(response.json(), { title: 'Unprocessable Content', errors });
     }
+  });
+});
+
+describe('charges by reference', () => {
+  it('finds the charge of a merchant reference, for a merchant that lost the id', async (t) => {
+    const app = payfakeApp();
+    t.after(() => app.close());
+    const { id } = (await postCharge(app)).json();
+
+    const response = await findCharges(app, CHARGE.reference);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      response.json().data.map((charge: { id: string }) => charge.id),
+      [id],
+    );
+  });
+
+  it('finds a charge by the longest reference a charge accepts', async (t) => {
+    const app = payfakeApp();
+    t.after(() => app.close());
+    const reference = 'r'.repeat(128);
+    const { id } = (await postCharge(app, { body: { ...CHARGE, reference } })).json();
+
+    const response = await findCharges(app, reference);
+
+    assert.equal(response.json().data[0]?.id, id);
+  });
+
+  it('answers an empty list for a reference it never saw', async (t) => {
+    const app = payfakeApp();
+    t.after(() => app.close());
+
+    const response = await findCharges(app, 'unknown');
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { data: [] });
+  });
+
+  it('needs the reference', async (t) => {
+    const app = payfakeApp();
+    t.after(() => app.close());
+
+    const response = await app.inject({ method: 'GET', url: '/payfake/v1/charges' });
+
+    assert.equal(response.statusCode, 422);
+    assert.ok(response.json().errors.reference);
   });
 });

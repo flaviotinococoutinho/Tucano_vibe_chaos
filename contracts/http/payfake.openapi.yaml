@@ -54,7 +54,9 @@ info:
 
     Delivery is at least once. Any answer outside 2xx (redirects included), a network error or
     no answer within 5 seconds is retried after 1, 2, 4, 8 and 16 seconds: six attempts in all,
-    then PayFake gives up and the merchant has to reconcile with `GET /payfake/v1/charges/{chargeId}`.
+    then PayFake gives up and the merchant has to reconcile: `GET /payfake/v1/charges/{chargeId}`
+    when it has the charge id, `GET /payfake/v1/charges?reference=` when the answer that carried
+    the id was lost.
     Retries and duplicates carry the same event `id`, so the receiver deduplicates by it. Each
     attempt is signed again with a fresh `t`.
 
@@ -136,6 +138,54 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+    get:
+      tags: [charges]
+      operationId: findCharges
+      summary: Find the charge of a merchant reference
+      description: |
+        For a merchant that never got the charge id: the creation timed out, or the answer was
+        lost on the way back. The list holds at most one charge, the latest made with the
+        reference, and is empty when there is none or it is older than the retention.
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          description: The reference sent with the charge.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+          example: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The charges made with the reference.
+          headers:
+            X-Correlation-Id:
+              $ref: '#/components/headers/CorrelationId'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 1
+                    items:
+                      $ref: '#/components/schemas/Charge'
+              example:
+                data:
+                  - id: ch_01M3HBNT8TE1R8SV13STYN9CXP
+                    status: succeeded
+                    amount:
+                      value: 18990
+                      currency: BRL
+                    reference: 01926f3a-8c1e-7b2d-9f4a-3c5e6d7f8a9b
+                    createdAt: '2026-09-27T12:00:00.000Z'
+        '422':
+          $ref: '#/components/responses/UnprocessableRequest'
   /payfake/v1/charges/{chargeId}:
     get:
       tags: [charges]

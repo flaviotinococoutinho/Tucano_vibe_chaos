@@ -70,6 +70,14 @@ export function getCharge(app: FastifyInstance, id: string): Promise<LightMyRequ
   return app.inject({ method: 'GET', url: `/payfake/v1/charges/${id}` });
 }
 
+/** The lookup a merchant makes when it lost the id of a charge but kept its own reference. */
+export function findCharges(
+  app: FastifyInstance,
+  reference: string,
+): Promise<LightMyRequestResponse> {
+  return app.inject({ method: 'GET', url: '/payfake/v1/charges', query: { reference } });
+}
+
 export function putChaos(app: FastifyInstance, settings: object): Promise<LightMyRequestResponse> {
   return app.inject({ method: 'PUT', url: '/_chaos/payfake', payload: settings });
 }

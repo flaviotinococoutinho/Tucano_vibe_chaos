@@ -50,6 +50,8 @@ export type PayFakeOptions = {
  */
 export class PayFake {
   private readonly charges: ExpiringMap<Charge>;
+  /** The merchant's reference of each charge, so reconciliation can find a charge whose id it never got. */
+  private readonly chargeIdsByReference: ExpiringMap<string>;
   private readonly clock: Clock;
   private readonly random: Random;
   private readonly chaos: Chaos;
@@ -59,6 +61,7 @@ export class PayFake {
 
   constructor({ clock, random, chaos, webhooks, processingDelayMs, signal }: PayFakeOptions) {
     this.charges = new ExpiringMap(clock, RETENTION);
+    this.chargeIdsByReference = new ExpiringMap(clock, RETENTION);
     this.clock = clock;
     this.random = random;
     this.chaos = chaos;
@@ -76,6 +79,7 @@ export class PayFake {
       createdAt: this.timestamp(),
     };
     this.charges.set(charge.id, charge);
+    this.chargeIdsByReference.set(reference, charge.id);
     origin.log.info({ chargeId: charge.id, reference }, 'charge created');
     this.afterProcessing(origin, () => this.settleCharge(charge.id, cardToken, origin));
 
@@ -89,6 +93,13 @@ export class PayFake {
     }
 
     return charge;
+  }
+
+  /** The charge made for a merchant reference, if there is one. */
+  chargeFor(reference: string): Charge | undefined {
+    const id = this.chargeIdsByReference.get(reference);
+
+    return id === undefined ? undefined : this.charges.get(id);
   }
 
   refund(chargeId: string, amount: Money, origin: Origin): Refund {

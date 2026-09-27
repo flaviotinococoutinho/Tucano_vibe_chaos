@@ -7,7 +7,12 @@ import { Chaos, type ChaosSettings, InjectedFailure } from './chaos.ts';
 import type { Charge, Money, Refund } from './charge.ts';
 import { IdempotencyKeys, idempotencyKeyOf } from './idempotency.ts';
 import { type ChargeRequest, PayFake, RETENTION } from './payfake.ts';
-import { chaosSettingsSchema, chargeRequestSchema, refundRequestSchema } from './schemas.ts';
+import {
+  chaosSettingsSchema,
+  chargeLookupSchema,
+  chargeRequestSchema,
+  refundRequestSchema,
+} from './schemas.ts';
 import { type Origin, Webhooks } from './webhooks.ts';
 
 /** The longest the timeout rate holds an answer, for a client that never gives up. */
@@ -110,6 +115,18 @@ export const payfakeRoutes: FastifyPluginAsync<PayFakeRoutesOptions> = async (
       }
 
       return created(reply, charge, replayed);
+    },
+  );
+
+  // Like a real PSP's search by metadata: reconciliation finds a charge even when the
+  // answer that carried its id was lost to a timeout.
+  app.get<{ Querystring: { reference: string } }>(
+    '/payfake/v1/charges',
+    { schema: { querystring: chargeLookupSchema } },
+    async (request) => {
+      const charge = payfake.chargeFor(request.query.reference);
+
+      return { data: charge === undefined ? [] : [charge] };
     },
   );
 
