@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Adapter\Driven;
 
+use Commerce\Ordering\Application\CatalogSnapshot;
 use Commerce\Ordering\Application\Port\Driven\ForFindingProducts;
+use Commerce\Ordering\Application\Port\Driven\ForStoringCatalogCopies;
 use Commerce\Ordering\Domain\Product\CatalogProduct;
 use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
@@ -12,8 +14,8 @@ use Illuminate\Database\ConnectionInterface;
 use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
 
-/** Reads product_snapshots, the copy of catalog.products.v1 kept by the catalog-sync consumer. */
-final readonly class PostgresCatalogSnapshots implements ForFindingProducts
+/** product_snapshots: the copy of catalog.products.v1 that checkout reads and the catalog-sync consumer writes. */
+final readonly class PostgresCatalogSnapshots implements ForFindingProducts, ForStoringCatalogCopies
 {
     public function __construct(private ConnectionInterface $connection) {}
 
@@ -34,5 +36,27 @@ final readonly class PostgresCatalogSnapshots implements ForFindingProducts
         }
 
         return $products;
+    }
+
+    public function saveIfNewer(CatalogSnapshot $snapshot): bool
+    {
+        // One statement: the version check and the write cannot interleave with another consumer.
+        return $this->connection->affectingStatement(<<<'SQL'
+            INSERT INTO product_snapshots (product_id, sku, name, price_cents, currency, status, catalog_version, synced_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, now())
+            ON CONFLICT (product_id) DO UPDATE
+                SET sku = EXCLUDED.sku, name = EXCLUDED.name, price_cents = EXCLUDED.price_cents,
+                    currency = EXCLUDED.currency, status = EXCLUDED.status,
+                    catalog_version = EXCLUDED.catalog_version, synced_at = EXCLUDED.synced_at
+                WHERE product_snapshots.catalog_version < EXCLUDED.catalog_version
+            SQL, [
+            $snapshot->productId,
+            (string) $snapshot->sku,
+            $snapshot->name,
+            $snapshot->price->cents(),
+            $snapshot->price->currency()->code(),
+            $snapshot->status->value,
+            $snapshot->version,
+        ]) === 1;
     }
 }
