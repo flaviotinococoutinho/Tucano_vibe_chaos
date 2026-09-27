@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Doubles\Ordering;
+
+use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
+use Commerce\Ordering\Domain\Error\OrderNotFound;
+use Commerce\Ordering\Domain\Order\Order;
+use Commerce\Ordering\Domain\Order\OrderId;
+
+final class InMemoryOrders implements ForStoringOrders
+{
+    /** @var array<string, Order> */
+    private array $orders = [];
+
+    public function add(Order $order): void
+    {
+        $this->orders[$order->id()->toString()] = $order;
+    }
+
+    public function get(OrderId $id): Order
+    {
+        return $this->orders[$id->toString()] ?? throw OrderNotFound::withId($id->toString());
+    }
+
+    public function count(): int
+    {
+        return count($this->orders);
+    }
+}
