@@ -7,6 +7,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 ### Added
 
 - Pedidos no commerce: `POST /v1/orders` (UC-ORD-01) com idempotência na mesma transação do pedido, reserva de estoque por CD com savepoint (UC-INV-01), `OrderPlaced` na outbox com contrato em JSON Schema, e `GET /v1/orders/{id}` (UC-ORD-05).
+- Workers do commerce: relay da outbox (com pausa por flag de caos) e o consumidor `commerce.catalog-sync`, que mantém a cópia local do catálogo por versão (UC-ORD-06).
 
 ## [0.3.0] - 2026-09-27
 
