@@ -20,6 +20,10 @@ O Laravel serve de framework de entrega: roteamento, container de injeção, fil
 |---|---|---|
 | `GET /health/live` | `/api/commerce/health/live` | o processo está de pé |
 | `GET /health/ready` | `/api/commerce/health/ready` | PostgreSQL e Redis respondem, com a latência de cada um |
+| `POST /v1/orders` | `/api/commerce/v1/orders` | faz um pedido ([UC-ORD-01](../../docs/use-cases/UC-ORD-01-place-order.md)): confere o catálogo local, reserva o estoque ([UC-INV-01](../../docs/use-cases/UC-INV-01-reserve-stock.md)) e grava `OrderPlaced` na outbox; exige `Idempotency-Key` |
+| `GET /v1/orders/{orderId}` | `/api/commerce/v1/orders/{orderId}` | consulta um pedido ([UC-ORD-05](../../docs/use-cases/UC-ORD-05-view-orders.md)) |
+
+O `POST /v1/orders` responde `201` com o pedido e um `Location` relativo (`orders/{id}`), que resolve certo tanto direto no serviço quanto atrás do prefixo `/api/commerce` do Kong. Repetir o request com a mesma `Idempotency-Key` devolve a mesma resposta com `Idempotent-Replayed: true`; a mesma chave com outro corpo recebe `422`.
 
 Todo erro sai como `application/problem+json` (RFC 9457) com o `correlationId` do request. Erros de domínio viram status pela categoria (`NotFound` 404, `Conflict` 409, `InvalidInput` 422, `Forbidden` 403, `Unavailable` 503) e não vão para o log de erro, porque são respostas esperadas, não incidentes.
 

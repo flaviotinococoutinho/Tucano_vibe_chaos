@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Commerce\Inventory\Application\Port\Driven;
+
+use Commerce\Inventory\Application\StockItem;
+use DateTimeImmutable;
+
+interface ForRecordingReservations
+{
+    /** @param non-empty-list<StockItem> $items */
+    public function record(string $orderId, string $fulfillmentCenter, array $items, DateTimeImmutable $expiresAt): void;
+}
