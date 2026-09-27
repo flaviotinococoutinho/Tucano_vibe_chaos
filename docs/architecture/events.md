@@ -41,6 +41,8 @@ O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../
 | `tucano.commerce.order.placed` | [`commerce.order.placed.schema.json`](../../contracts/events/commerce.order.placed.schema.json) |
 | `tucano.commerce.order.paid` | [`commerce.order.paid.schema.json`](../../contracts/events/commerce.order.paid.schema.json) |
 | `tucano.commerce.order.cancelled` | [`commerce.order.cancelled.schema.json`](../../contracts/events/commerce.order.cancelled.schema.json) |
+| `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
+| `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
 
 ## Tópicos
 

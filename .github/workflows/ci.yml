@@ -286,14 +286,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
+          extensions: apcu, bcmath, intl, mongodb, pcntl, pdo_pgsql, posix, rdkafka, redis
           ini-values: apc.enable_cli=1
           coverage: none
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
-  # Single required check for branch protection: it passes when every job
-  # above either succeeded or was skipped because its area didn't change.
   tracking:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'tracking')
@@ -359,6 +357,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check
 
+  # Single required check for branch protection: it passes when every job
+  # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
     needs: [changes, compose, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]

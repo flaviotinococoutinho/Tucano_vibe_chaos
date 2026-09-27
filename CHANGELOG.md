@@ -18,6 +18,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Job `contracts` no CI: os JSON Schemas de eventos são validados contra o metaschema e os contratos HTTP passam pelo lint do Redocly.
 - Conciliação de pagamentos (UC-PAY-03) e estorno (UC-PAY-04): worker `commerce-payment-reconciler`, que pergunta ao PayFake pelos pagamentos sem desfecho há 60 s e aplica a resposta pelo mesmo caminho do webhook; estado `abandoned` para a cobrança que nunca chegou ao PSP, com a palavra tardia do PSP ainda aceita; estorno com o id do pagamento como `Idempotency-Key`; e o laboratório com o experimento.
 - `GET /payfake/v1/charges?reference=` no PayFake, para achar a cobrança cujo id se perdeu junto com a resposta.
+- Remessas na logística: o consumidor `logistics.order-intake` cria a remessa do pedido pago (UC-SHP-01) e cancela a do pedido cancelado (UC-SHP-09), com inbox e outbox na mesma transação; escolha de transportadora por uma corrente de regras (UC-SHP-02); cópia de peso e dimensões do catálogo (UC-SHP-11); a máquina de estados completa com seis guards; e `ShipmentCreated` e `ShipmentCancelled` em `logistics.shipments.v1`, com contrato em JSON Schema.
 
 ### Fixed
 

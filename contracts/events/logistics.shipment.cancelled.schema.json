@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/logistics.shipment.cancelled.schema.json",
+  "title": "tucano.logistics.shipment.cancelled",
+  "description": "The data of a ShipmentCancelled event: the order was cancelled while the parcels were still in the fulfillment center. The cancellation time is the CloudEvent time.",
+  "type": "object",
+  "required": ["shipmentId", "trackingCode", "orderId", "previousStatus", "reason"],
+  "properties": {
+    "shipmentId": { "$ref": "#/$defs/uuidv7" },
+    "trackingCode": {
+      "type": "string",
+      "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$"
+    },
+    "orderId": { "$ref": "#/$defs/uuidv7" },
+    "previousStatus": {
+      "enum": ["created", "ready_for_pickup"],
+      "description": "Only a shipment that has not been picked up can be cancelled."
+    },
+    "reason": { "enum": ["order_cancelled"] }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

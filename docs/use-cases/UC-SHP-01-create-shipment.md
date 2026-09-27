@@ -23,7 +23,7 @@
 
 ## Garantias de sucesso
 
-- Remessa `created` com código de rastreio Snowflake, transportadora escolhida, etiqueta enfileirada e `ShipmentCreated` na outbox.
+- Remessa `created` com código de rastreio Snowflake, transportadora escolhida e `ShipmentCreated` na outbox, na mesma transação da inbox.
 
 ## Cenário principal de sucesso
 
@@ -31,13 +31,14 @@
 2. O sistema monta os volumes a partir do peso e das dimensões de cada produto.
 3. O sistema escolhe a transportadora pela corrente de regras (UC-SHP-02).
 4. O sistema gera o código de rastreio, cria a remessa em `created` e registra `ShipmentCreated` na outbox.
-5. O sistema enfileira a geração da etiqueta (UC-SHP-03).
+5. O relay publica o `ShipmentCreated` em `logistics.shipments.v1`, e é dele que a geração da etiqueta (UC-SHP-03) vai partir.
 
 ## Extensões
 
 - 1a. Evento já processado: o sistema ignora e confirma o offset.
-- 2a. Produto ainda sem snapshot: a mensagem entra em retry; se o problema persistir, vai para `dlq.logistics.order-intake`.
-- 5a. Fila de etiquetas indisponível: a remessa fica em `created` e uma varredura periódica reenfileira as etiquetas pendentes.
+- 1b. O cancelamento do pedido chegou antes (um `order.paid` reprocessado da DLQ, por exemplo): o pedido está em `cancelled_orders`, e o sistema marca o evento na inbox sem criar remessa. O Kafka mantém a ordem dos eventos de um pedido, mas o replay não; por isso a ordem de chegada não pode mudar o resultado.
+- 2a. Produto ainda sem snapshot: a mensagem entra em retry por cerca de 30 s (8 tentativas, de 500 ms até 10 s de espera), porque o pedido pode chegar antes da cópia do catálogo quando os dois workers sobem juntos. Se o problema persistir, ela vai para `dlq.logistics.order-intake`.
+- 3a. Nenhuma transportadora atende os volumes: recusa do domínio, que tentar de novo não resolve. A mensagem vai direto para a DLQ, com um warning no log para uma pessoa olhar.
 
 ## No código
 
