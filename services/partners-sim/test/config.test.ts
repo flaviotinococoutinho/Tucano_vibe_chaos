@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { loadConfig } from '../src/config.ts';
+
+describe('config', () => {
+  it('falls back to defaults that fit the compose stack', () => {
+    assert.deepEqual(loadConfig({}), {
+      serviceName: 'partners-sim',
+      environment: 'production',
+      host: '0.0.0.0',
+      port: 4000,
+      logLevel: 'info',
+    });
+  });
+
+  it('reads every value from the environment', () => {
+    const config = loadConfig({
+      SERVICE_NAME: 'partners-sim-canary',
+      APP_ENV: 'local',
+      HOST: '127.0.0.1',
+      PORT: '4100',
+      LOG_LEVEL: 'DEBUG',
+    });
+
+    assert.deepEqual(config, {
+      serviceName: 'partners-sim-canary',
+      environment: 'local',
+      host: '127.0.0.1',
+      port: 4100,
+      logLevel: 'debug',
+    });
+  });
+
+  it('treats an empty variable as unset', () => {
+    assert.deepEqual(loadConfig({ PORT: '', APP_ENV: ' ' }), loadConfig({}));
+  });
+
+  it('runs an unknown environment as production, like the PHP services', () => {
+    assert.equal(loadConfig({ APP_ENV: 'qa' }).environment, 'production');
+  });
+
+  it('refuses values it cannot run with and names each one', () => {
+    assert.throws(() => loadConfig({ PORT: '70000', LOG_LEVEL: 'loud' }), {
+      name: 'InvalidConfig',
+      service: 'partners-sim',
+      message:
+        'Invalid configuration: PORT must be an integer from 1 to 65535, got "70000"; ' +
+        'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, got "loud".',
+    });
+  });
+});
