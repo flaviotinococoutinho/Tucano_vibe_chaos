@@ -27,6 +27,15 @@ O `POST /v1/orders` responde `201` com o pedido e um `Location` relativo (`order
 
 Todo erro sai como `application/problem+json` (RFC 9457) com o `correlationId` do request. Erros de domínio viram status pela categoria (`NotFound` 404, `Conflict` 409, `InvalidInput` 422, `Forbidden` 403, `Unavailable` 503) e não vão para o log de erro, porque são respostas esperadas, não incidentes.
 
+## Workers
+
+Os workers usam a mesma imagem da API, cada um com um comando de longa duração, e param com `SIGTERM` depois de terminar o que estão fazendo. O compose declara `stop_signal: SIGTERM` porque a imagem base herda o `SIGQUIT` do PHP-FPM.
+
+| Serviço no compose | Comando | O que faz |
+|---|---|---|
+| `commerce-outbox-relay` | `php artisan commerce:relay-outbox` | publica a outbox no Kafka com `FOR UPDATE SKIP LOCKED`; a flag `chaos.commerce.outbox-relay-paused` pausa a publicação sem derrubar o processo, e os eventos se acumulam na outbox até a flag voltar |
+| `commerce-catalog-sync` | `php artisan commerce:sync-catalog` | mantém `product_snapshots` a partir de `catalog.products.v1` ([UC-ORD-06](../../docs/use-cases/UC-ORD-06-sync-catalog.md)); snapshot ilegível vai para `dlq.commerce.catalog-sync` |
+
 ## Rodando
 
 ```bash

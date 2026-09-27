@@ -30,6 +30,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | UC-ORD-03 | subfunção | Relógio | expirar pedidos não pagos | Ordering |
 | UC-ORD-04 | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
 | [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
+| [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
 | [UC-INV-01](UC-INV-01-reserve-stock.md) | subfunção | Commerce | reservar estoque | Inventory |
 | UC-INV-02 | usuário | Operador logístico | repor estoque | Inventory |
 | [UC-PAY-01](UC-PAY-01-pay-order.md) | usuário | Cliente | pagar um pedido | Payments |
