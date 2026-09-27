@@ -1,0 +1,7 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    scanFiles:
+        - vendor/kwn/php-rdkafka-stubs/stubs/constants.php

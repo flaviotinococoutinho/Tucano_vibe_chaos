@@ -1,0 +1,44 @@
+{
+    "name": "tucano/messaging",
+    "description": "Kafka producer and consumer, transactional outbox relay and inbox for the Tucano PHP services.",
+    "type": "library",
+    "license": "MIT",
+    "repositories": [
+        { "type": "path", "url": "../shared-kernel" }
+    ],
+    "require": {
+        "php": "^8.3",
+        "ext-pdo": "*",
+        "ext-rdkafka": "*",
+        "psr/log": "^3.0",
+        "tucano/shared-kernel": "*@dev"
+    },
+    "require-dev": {
+        "kwn/php-rdkafka-stubs": "^3.0",
+        "laravel/pint": "^1.32",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^12.5"
+    },
+    "suggest": {
+        "ext-pcntl": "Lets workers stop gracefully on SIGTERM"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tucano\\Messaging\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tucano\\Messaging\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "check": ["@lint", "@analyse", "@test"]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
