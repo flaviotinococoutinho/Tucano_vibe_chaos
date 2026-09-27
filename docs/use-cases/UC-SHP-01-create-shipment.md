@@ -1,11 +1,11 @@
-# UC-SHP-01 · Criar a remessa de um pedido pago
+# UC-SHP-01: Criar a remessa de um pedido pago
 
 | | |
 |---|---|
 | **Nível** | subfunção |
 | **Ator principal** | Commerce (evento `tucano.commerce.order.paid`) |
 | **Escopo** | Logistics |
-| **Gatilho** | o evento de pedido pago chega ao grupo `logistics.order-intake` |
+| **Gatilho** | o evento de pedido pago chega ao consumer group `logistics.order-intake` |
 
 ## Partes interessadas e interesses
 
@@ -36,7 +36,7 @@
 ## Extensões
 
 - 1a. Evento já processado: o sistema ignora e confirma o offset.
-- 2a. Produto ainda sem snapshot: a mensagem volta para nova tentativa; se persistir, vai para `dlq.logistics.order-intake`.
+- 2a. Produto ainda sem snapshot: a mensagem entra em retry; se o problema persistir, vai para `dlq.logistics.order-intake`.
 - 5a. Fila de etiquetas indisponível: a remessa fica em `created` e uma varredura periódica reenfileira as etiquetas pendentes.
 
 ## No código

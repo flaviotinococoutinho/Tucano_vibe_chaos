@@ -1,4 +1,4 @@
-# UC-PAY-01 · Pagar um pedido
+# UC-PAY-01: Pagar um pedido
 
 | | |
 |---|---|
@@ -36,9 +36,9 @@
 
 ## Extensões
 
-- 2a. Circuit breaker aberto (PSP instável): o sistema responde 503 com `Retry-After`, sem chamar o PSP.
+- 2a. Circuit breaker aberto (PSP instável): o sistema responde `503` com `Retry-After`, sem chamar o PSP.
 - 2b. Timeout: o pagamento fica `pending`; uma nova tentativa do cliente reaproveita o mesmo pagamento e a mesma chave.
-- 4a. Webhook duplicado: ignorado pelo inbox.
+- 4a. Webhook duplicado: ignorado pela inbox.
 - 4b. Webhook perdido: a conciliação consulta o PSP (UC-PAY-03).
 - 5a. Pagamento recusado: pagamento `failed`, pedido `cancelled` e reserva liberada.
 - 5b. Pagamento aprovado depois de a reserva expirar: o pedido já está `cancelled`, então o sistema estorna (UC-PAY-04).

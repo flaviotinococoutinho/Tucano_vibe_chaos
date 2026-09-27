@@ -1,12 +1,12 @@
 # Como contribuir
 
-O projeto segue **Git Flow** com **Conventional Commits**. A regra de ouro é simples: o histórico precisa contar a evolução do sistema sem ruído, e nenhuma mudança entra sem passar pelo CI.
+O projeto segue **Git Flow** com **Conventional Commits**. O histórico precisa contar a evolução do sistema sem ruído, e nenhuma mudança entra sem passar pelo CI.
 
 ## Branches
 
 | Branch | Para quê | Nasce de | Volta para |
 |---|---|---|---|
-| `main` | o que foi liberado; cada merge vira uma tag `vX.Y.Z` | — | — |
+| `main` | o que foi liberado; cada merge vira uma tag `vX.Y.Z` | - | - |
 | `develop` | integração do que já está pronto | `main` | `main`, via `release/*` |
 | `feat/<escopo>` | funcionalidade nova | `develop` | `develop` |
 | `fix/<escopo>` | correção de algo que ainda não foi liberado | `develop` | `develop` |
@@ -42,7 +42,7 @@ gitGraph
 
 ## Commits
 
-Conventional Commits, curtos, em inglês e no imperativo. Corpo só quando ajuda de verdade.
+Conventional Commits, curtos, em inglês e no imperativo. Corpo só quando acrescenta contexto.
 
 ```text
 feat(logistics): add carrier selection chain
@@ -58,10 +58,10 @@ Tipos aceitos: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`, `ci`,
 - `main` e `develop` são protegidas: tudo entra por PR.
 - O título do PR segue Conventional Commits (o CI valida).
 - O check `ci-ok` precisa estar verde para o merge.
-- Usamos *merge commit* (equivalente ao `--no-ff` do Git Flow) para preservar a história de cada branch.
+- O merge é feito com merge commit (equivalente ao `--no-ff` do Git Flow) para preservar a história de cada branch.
 - A branch é apagada automaticamente depois do merge.
 
-O workflow `pr-policy` garante as regras de origem e destino:
+O workflow `pr-policy` valida origem e destino:
 
 | Destino | Origens permitidas |
 |---|---|
@@ -70,16 +70,16 @@ O workflow `pr-policy` garante as regras de origem e destino:
 
 ### Aprovação
 
-O GitHub não deixa ninguém aprovar o próprio PR. Enquanto o projeto tiver um único autor, o portão de qualidade é o CI obrigatório somado ao checklist de *definition of done* do template. Quando entrar mais alguém, as rulesets passam a exigir uma aprovação e a revisão do `CODEOWNERS`.
+O GitHub não permite aprovar o próprio PR. Enquanto eu for o único autor, o portão de qualidade é o CI obrigatório mais o checklist de definition of done do template. Quando entrar mais alguém, as rulesets passam a exigir uma aprovação e a revisão do `CODEOWNERS`.
 
 ## Versionamento e cadência
 
-- Versões seguem **SemVer**: `MAJOR.MINOR.PATCH`. Enquanto a API não estabiliza, trabalhamos na série `0.x`.
-- Cada entrega que cumpre o *definition of done* fecha uma release **minor** (`0.2.0`, `0.3.0`...). Assim a `develop` nunca acumula trabalho pronto e parado.
-- Correções de algo já liberado geram uma **patch** (`0.3.1`) via `hotfix/*`.
+- Versões seguem **SemVer**: `MAJOR.MINOR.PATCH`. Enquanto a API não estabiliza, as versões ficam na série `0.x`.
+- Cada entrega que cumpre o definition of done fecha uma release minor (`0.2.0`, `0.3.0`...), para a `develop` não acumular trabalho pronto e parado.
+- Correção de algo já liberado gera uma versão patch (`0.3.1`) via `hotfix/*`.
 - Tags `v*` são imutáveis: uma ruleset impede mover ou apagar uma tag publicada.
 - Ao publicar a tag, o workflow `release` cria a GitHub Release com a seção correspondente do `CHANGELOG.md`.
-- Branches são apagadas no merge. Localmente, `git fetch --prune` seguido de `git branch --merged develop | grep -vE '^\*|main|develop' | xargs -r git branch -d` mantém tudo limpo.
+- Branches são apagadas no merge. Localmente, `git fetch --prune` seguido de `git branch --merged develop | grep -vE '^\*|main|develop' | xargs -r git branch -d` remove as branches já integradas.
 
 ## Release
 
@@ -101,13 +101,13 @@ gh pr create --base develop --head main --title "chore: back-merge v0.2.0"
 
 ## Hotfix
 
-Mesmo fluxo da release, mas partindo da `main` e subindo só o *patch* (`v0.2.1`). Depois do merge, a `main` volta para a `develop` pelo back-merge.
+Mesmo fluxo da release, mas partindo da `main` e subindo só a versão patch (`v0.2.1`). Depois do merge, a `main` volta para a `develop` pelo back-merge.
 
 ## Definition of Done
 
 - testes passando, lint e análise estática sem erros;
 - documentação e diagramas atualizados quando a mudança mexe em arquitetura ou contratos;
 - ADR registrado para decisões que alguém vai questionar daqui a seis meses;
-- `CHANGELOG.md` atualizado na seção **Unreleased**.
+- `CHANGELOG.md` atualizado na seção `Unreleased`.
 
 As convenções de código estão em [`docs/engineering/conventions.md`](docs/engineering/conventions.md).
