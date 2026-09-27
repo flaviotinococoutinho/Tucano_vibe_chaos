@@ -27,12 +27,13 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | UC-CAT-04 | usuário | Administrador do catálogo | descontinuar um produto | Catalog |
 | [UC-ORD-01](UC-ORD-01-place-order.md) | usuário | Cliente | fazer um pedido | Ordering |
 | UC-ORD-02 | usuário | Cliente | cancelar um pedido | Ordering |
-| UC-ORD-03 | subfunção | Relógio | expirar pedidos não pagos | Ordering |
+| [UC-ORD-03](UC-ORD-03-expire-unpaid-orders.md) | subfunção | Relógio | expirar pedidos não pagos | Ordering |
 | UC-ORD-04 | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
 | [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
 | [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
 | [UC-INV-01](UC-INV-01-reserve-stock.md) | subfunção | Commerce | reservar estoque | Inventory |
 | UC-INV-02 | usuário | Operador logístico | repor estoque | Inventory |
+| [UC-INV-03](UC-INV-03-release-stock.md) | subfunção | Commerce | liberar a reserva de um pedido | Inventory |
 | [UC-PAY-01](UC-PAY-01-pay-order.md) | usuário | Cliente | pagar um pedido | Payments |
 | UC-PAY-02 | subfunção | PayFake | informar o resultado de um pagamento | Payments |
 | UC-PAY-03 | subfunção | Relógio | conciliar pagamentos pendentes | Payments |
