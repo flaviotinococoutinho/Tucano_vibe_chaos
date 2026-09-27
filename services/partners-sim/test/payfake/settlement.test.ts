@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { setImmediate } from 'node:timers/promises';
 import { systemClock } from '../../src/clock.ts';
-import { verify } from '../../src/payfake/signature.ts';
+import { verify } from '../../src/webhooks/signature.ts';
 import { InstantClock } from '../support/clock.ts';
 import {
   CHARGE,

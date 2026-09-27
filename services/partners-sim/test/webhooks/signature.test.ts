@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { sign, verify } from '../../src/payfake/signature.ts';
+import { sign, verify } from '../../src/webhooks/signature.ts';
 
 const SECRET = 'whsec_local_payfake';
 const BODY = '{"id":"evt_01J8Z5W3Q4X9M2N7B8C6D5E4F3","type":"charge.succeeded"}';

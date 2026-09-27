@@ -3,20 +3,23 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
 import type { PayFakeConfig } from '../config.ts';
+import { IdempotencyKeys, idempotencyKeyOf } from '../idempotency.ts';
+import { type Origin, Webhooks } from '../webhooks/sender.ts';
 import { Chaos, type ChaosSettings, InjectedFailure } from './chaos.ts';
 import type { Charge, Money, Refund } from './charge.ts';
-import { IdempotencyKeys, idempotencyKeyOf } from './idempotency.ts';
-import { type ChargeRequest, PayFake, RETENTION } from './payfake.ts';
+import { type ChargeRequest, PayFake, RETENTION, type WebhookEvent } from './payfake.ts';
 import {
   chaosSettingsSchema,
   chargeLookupSchema,
   chargeRequestSchema,
   refundRequestSchema,
 } from './schemas.ts';
-import { type Origin, Webhooks } from './webhooks.ts';
 
 /** The longest the timeout rate holds an answer, for a client that never gives up. */
 const HOLD_LIMIT_MS = 30_000;
+
+/** The header every PayFake webhook carries. */
+const SIGNATURE_HEADER = 'PayFake-Signature';
 
 export type PayFakeRoutesOptions = {
   readonly config: PayFakeConfig;
@@ -36,7 +39,13 @@ export const payfakeRoutes: FastifyPluginAsync<PayFakeRoutesOptions> = async (
 ) => {
   const shutdown = new AbortController();
   const chaos = new Chaos(random);
-  const webhooks = new Webhooks({ target: config.webhook, clock, chaos, signal: shutdown.signal });
+  const webhooks = new Webhooks<WebhookEvent['data']>({
+    target: config.webhook,
+    signatureHeader: SIGNATURE_HEADER,
+    clock,
+    plan: (log, event) => chaos.planWebhook(log, event.data.chargeId, event.id),
+    signal: shutdown.signal,
+  });
   const payfake = new PayFake({
     clock,
     random,

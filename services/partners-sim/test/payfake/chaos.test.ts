@@ -221,4 +221,62 @@ describe('chaos controls', () => {
     // Kept alive, the connection would hold the server open for Fastify's 72 s keep-alive.
     assert.equal(response.headers.get('connection'), 'close');
   });
+
+  it('drops a charge webhook at the drop rate, and logs the charge id', async (t) => {
+    const receiver = await WebhookReceiver.start();
+    t.after(() => receiver.close());
+    const logs: LogLine[] = [];
+    const app = payfakeApp({ webhookUrl: receiver.url, random: () => 0.4, logs });
+    t.after(() => app.close());
+    await putChaos(app, { webhooks: { dropRate: 0.5 } });
+
+    const { id } = (await postCharge(app)).json();
+    await eventually(() => chaosDecisions(logs).some((line) => line.chaos === 'webhook-drop'));
+
+    assert.partialDeepStrictEqual(chaosDecisions(logs), [
+      {
+        level: 'info',
+        chaos: 'webhook-drop',
+        chargeId: id,
+        message: 'chaos: dropping the webhook',
+      },
+    ]);
+    assert.equal(receiver.received.length, 0);
+  });
+
+  it('sends a charge webhook twice at the duplicate rate', async (t) => {
+    const receiver = await WebhookReceiver.start();
+    t.after(() => receiver.close());
+    const logs: LogLine[] = [];
+    const app = payfakeApp({ webhookUrl: receiver.url, random: () => 0.4, logs });
+    t.after(() => app.close());
+    await putChaos(app, { webhooks: { duplicateRate: 0.5 } });
+
+    const { id } = (await postCharge(app)).json();
+    await receiver.waitFor(2);
+
+    const [first, second] = receiver.received.map(({ body }) => JSON.parse(body).id);
+    assert.equal(first, second);
+    assert.partialDeepStrictEqual(chaosDecisions(logs), [
+      { chaos: 'webhook-duplicate', chargeId: id, message: 'chaos: sending the webhook twice' },
+    ]);
+  });
+
+  it('delays every charge webhook by the configured amount', async (t) => {
+    const receiver = await WebhookReceiver.start();
+    t.after(() => receiver.close());
+    const clock = new InstantClock();
+    const logs: LogLine[] = [];
+    const app = payfakeApp({ webhookUrl: receiver.url, clock, logs });
+    t.after(() => app.close());
+    await putChaos(app, { webhooks: { delayMs: 5_000 } });
+
+    const { id } = (await postCharge(app)).json();
+    await receiver.waitFor(1);
+
+    assert.ok(clock.sleeps.includes(5_000));
+    assert.partialDeepStrictEqual(chaosDecisions(logs), [
+      { chaos: 'webhook-delay', chargeId: id, delayMs: 5_000 },
+    ]);
+  });
 });

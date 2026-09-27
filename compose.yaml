@@ -668,7 +668,11 @@ services:
       PAYFAKE_WEBHOOK_SECRET: whsec_local_payfake
       PAYFAKE_PROCESSING_MIN_MS: "300"
       PAYFAKE_PROCESSING_MAX_MS: "1500"
-    # The chaos controls of PayFake, from the host.
+      CARRIERS_WEBHOOK_URL: http://kong:8000/api/logistics/v1/webhooks/carriers
+      CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
+      CARRIERS_STEP_MIN_MS: "1000"
+      CARRIERS_STEP_MAX_MS: "4000"
+    # The chaos controls of PayFake and CarrierFake, from the host.
     ports:
       - "127.0.0.1:4000:4000"
     healthcheck:

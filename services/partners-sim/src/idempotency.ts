@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
-import type { Clock } from '../clock.ts';
-import { ExpiringMap, type Retention } from '../expiring-map.ts';
-import { DomainError } from '../platform/domain-error.ts';
+import type { Clock } from './clock.ts';
+import { ExpiringMap, type Retention } from './expiring-map.ts';
+import { DomainError } from './platform/domain-error.ts';
 
 const HEADER = 'idempotency-key';
 const MAX_KEY_LENGTH = 255;
@@ -13,7 +13,8 @@ export type Remembered<T> = { readonly response: T; readonly replayed: boolean }
 
 /**
  * What each Idempotency-Key answered. Only successes are kept: after an error, the client
- * can retry with the same key and the request runs again.
+ * can retry with the same key and the request runs again. Shared by every simulator that
+ * takes a POST with an Idempotency-Key (PayFake's charges and refunds, CarrierFake's pickups).
  */
 export class IdempotencyKeys<T> {
   private readonly saved: ExpiringMap<Saved<T>>;

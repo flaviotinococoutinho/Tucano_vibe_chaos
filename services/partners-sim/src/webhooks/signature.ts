@@ -1,8 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/** The header every webhook carries. */
-export const SIGNATURE_HEADER = 'PayFake-Signature';
-
 /** How far the signed time may be from the receiver's clock: five minutes either way. */
 export const TOLERANCE_SECONDS = 300;
 
@@ -21,16 +18,19 @@ export type SignedWebhook = {
 
 /**
  * `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>">`. The time is inside the HMAC,
- * so a captured webhook cannot be sent again later with a fresh timestamp.
+ * so a captured webhook cannot be sent again later with a fresh timestamp. Every simulator
+ * signs this way; only the header it travels under changes (`PayFake-Signature`,
+ * `Carrier-Signature`...).
  */
 export function sign(secret: string, payload: string, timestamp: number): string {
   return `t=${timestamp},v1=${hmac(secret, timestamp, payload)}`;
 }
 
 /**
- * What a receiver does with the header, and what commerce mirrors in PHP: parse it, refuse a
- * time outside the tolerance, then compare the HMAC in constant time. The header may carry
- * several `v1` values, and one match is enough, which lets a secret rotate without downtime.
+ * What a receiver does with the header, and what commerce and logistics mirror in PHP: parse
+ * it, refuse a time outside the tolerance, then compare the HMAC in constant time. The header
+ * may carry several `v1` values, and one match is enough, which lets a secret rotate without
+ * downtime.
  */
 export function verify({
   secret,
