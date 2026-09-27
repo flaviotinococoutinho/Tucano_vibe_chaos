@@ -18,6 +18,7 @@ Cada decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0012](0012-acid-writes-base-reads.md) | Escrita ACID em SQL, leitura BASE em NoSQL | aceito |
 | [0013](0013-swoole-for-fleet-tracking.md) | Swoole para o tempo real da frota | aceito |
 | [0014](0014-node-for-bff-and-partners.md) | Node.js no BFF e no simulador de parceiros | aceito |
+| [0015](0015-feature-flags-openfeature-flagd.md) | Feature flags com OpenFeature e flagd | aceito |
 
 ## Modelo
 
