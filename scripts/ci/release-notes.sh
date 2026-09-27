@@ -8,6 +8,7 @@ version="${1:?usage: release-notes.sh <version>}"
 notes=$(awk -v version="$version" '
   index($0, "## [" version "]") == 1 { printing = 1; next }
   printing && /^## \[/ { exit }
+  printing && /^\[[^]]+\]: / { exit }
   printing { print }
 ' CHANGELOG.md)
 
