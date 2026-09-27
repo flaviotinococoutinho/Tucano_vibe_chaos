@@ -4,6 +4,10 @@ import type { Random } from '../../src/chance.ts';
 import type { Clock } from '../../src/clock.ts';
 import { loadConfig } from '../../src/config.ts';
 import { InstantClock } from './clock.ts';
+import { chaosDecisions, type LogLine } from './logs.ts';
+
+export type { LogLine };
+export { chaosDecisions };
 
 export const SECRET = 'whsec_test';
 
@@ -17,8 +21,6 @@ export const CHARGE = {
 } as const;
 
 export const CHARGE_ID = /^ch_[0-9A-HJKMNP-TV-Z]{26}$/;
-
-export type LogLine = Record<string, unknown>;
 
 export type PayFakeAppOptions = {
   readonly webhookUrl?: string;
@@ -80,9 +82,4 @@ export function findCharges(
 
 export function putChaos(app: FastifyInstance, settings: object): Promise<LightMyRequestResponse> {
   return app.inject({ method: 'PUT', url: '/_chaos/payfake', payload: settings });
-}
-
-/** The log lines of chaos decisions, the ones an experiment is followed by. */
-export function chaosDecisions(logs: readonly LogLine[]): LogLine[] {
-  return logs.filter((line) => typeof line.chaos === 'string');
 }

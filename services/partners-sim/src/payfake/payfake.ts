@@ -1,6 +1,8 @@
 import { between, type Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
 import { ExpiringMap, type Retention } from '../expiring-map.ts';
+import { newId } from '../ids.ts';
+import type { Origin, Webhooks } from '../webhooks/sender.ts';
 import type { Chaos } from './chaos.ts';
 import {
   type Charge,
@@ -13,8 +15,6 @@ import {
   sameMoney,
   transition,
 } from './charge.ts';
-import { newId } from './ids.ts';
-import type { Origin, WebhookEvent, Webhooks } from './webhooks.ts';
 
 /** How long PayFake remembers charges and Idempotency-Keys, and how many at most. */
 export const RETENTION: Retention = { ttlMs: 24 * 60 * 60 * 1000, maxEntries: 20_000 };
@@ -31,13 +31,26 @@ export type ChargeRequest = {
   readonly reference: string;
 };
 
+/** What a PayFake webhook carries; `Webhooks` only needs to know its `data` shape. */
+export type WebhookEvent = {
+  readonly id: string;
+  readonly type: 'charge.succeeded' | 'charge.failed' | 'refund.succeeded';
+  readonly createdAt: string;
+  readonly data: {
+    readonly chargeId: string;
+    readonly reference: string;
+    readonly amount: Money;
+    readonly failureCode?: FailureCode;
+  };
+};
+
 type Range = { readonly min: number; readonly max: number };
 
 export type PayFakeOptions = {
   readonly clock: Clock;
   readonly random: Random;
   readonly chaos: Chaos;
-  readonly webhooks: Webhooks;
+  readonly webhooks: Webhooks<WebhookEvent['data']>;
   /** How long a charge or a refund stays processing before it settles. */
   readonly processingDelayMs: Range;
   /** Aborts when the server shuts down, which cancels the settlements still waiting. */
@@ -55,7 +68,7 @@ export class PayFake {
   private readonly clock: Clock;
   private readonly random: Random;
   private readonly chaos: Chaos;
-  private readonly webhooks: Webhooks;
+  private readonly webhooks: Webhooks<WebhookEvent['data']>;
   private readonly processingDelayMs: Range;
   private readonly signal: AbortSignal;
 

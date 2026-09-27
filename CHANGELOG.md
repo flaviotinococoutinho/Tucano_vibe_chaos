@@ -9,6 +9,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Etiqueta da remessa (UC-SHP-03): a ponte `logistics-label-requests` transforma cada `ShipmentCreated` em job na fila `label-jobs` do SQS, e o worker gera a etiqueta em ZPL (com escape contra injeção de comandos da impressora), grava no bucket `tucano-labels` e move a remessa para `ready_for_pickup`, com `ShipmentReadyForPickup` na outbox e contrato em JSON Schema. O SDK da AWS entra podado para S3 e SQS.
 - `make flag` e `make flag-reset` trocam a variante de uma flag na cópia que o flagd observa, sem reiniciar nada.
 - Laboratório da fila de etiquetas, com a flag `chaos.logistics.label-failure-rate`, os retries do job, o `failed_jobs` e o replay do Kafka.
+- CarrierFake no `partners-sim`: as transportadoras do laboratório (frota própria e parceiros), com agendamento de coleta idempotente, a jornada da encomenda num relógio comprimido (coleta, hubs, saída para entrega, até três visitas, devolução), webhooks assinados em ordem, caos em tempo real e contrato OpenAPI. O envio de webhooks, a assinatura e as chaves de idempotência viraram módulos comuns ao PayFake e ao CarrierFake.
 
 ### Fixed
 

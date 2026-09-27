@@ -105,7 +105,7 @@ C4Container
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, cópia do catálogo, outbox |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | esqueleto rodando (health, erros) |
-| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | PayFake: cobranças, estornos, webhooks assinados e caos em tempo real |
+| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | PayFake (cobranças, estornos, webhooks assinados) e CarrierFake (coleta e jornada da encomenda até a entrega ou a devolução), os dois com caos em tempo real |
 | `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
 | `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |
 | `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |

@@ -4,10 +4,11 @@ const CROCKFORD_BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const LENGTH = 26;
 
 /**
- * Ids in the style PSPs hand out: a type prefix and 26 characters. The characters are a
- * UUIDv7 in Crockford's Base32, the alphabet of the tracking code, so ids sort by creation.
+ * Ids in the style PSPs and carriers hand out: a type prefix and 26 characters. The
+ * characters are a UUIDv7 in Crockford's Base32, the alphabet of the tracking code, so ids
+ * sort by creation. Shared by every simulator, each with its own prefixes (`ch`, `pk`, `evt`...).
  */
-export function newId(prefix: 'ch' | 're' | 'evt'): string {
+export function newId(prefix: string): string {
   let bits = BigInt(`0x${uuidv7().replaceAll('-', '')}`);
   let encoded = '';
   for (let index = 0; index < LENGTH; index += 1) {

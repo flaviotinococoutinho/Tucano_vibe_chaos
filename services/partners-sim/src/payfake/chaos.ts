@@ -1,5 +1,10 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { between, happens, type Random } from '../chance.ts';
+import {
+  CALM_WEBHOOKS,
+  planWebhook as planWebhookDelivery,
+  type WebhookPlan,
+} from '../webhooks/chaos-plan.ts';
 
 export type ChaosSettings = {
   readonly latencyMs: { readonly min: number; readonly max: number };
@@ -22,12 +27,8 @@ export const CALM: ChaosSettings = {
   errorRate: 0,
   timeoutRate: 0,
   declineRate: 0,
-  webhooks: { dropRate: 0, duplicateRate: 0, delayMs: 0 },
+  webhooks: CALM_WEBHOOKS,
 };
-
-export type WebhookPlan =
-  | { readonly fate: 'dropped' }
-  | { readonly fate: 'sent'; readonly copies: 1 | 2; readonly delayMs: number };
 
 type Decision = Record<string, unknown>;
 
@@ -92,18 +93,7 @@ export class Chaos {
   }
 
   planWebhook(log: FastifyBaseLogger, chargeId: string, eventId: string): WebhookPlan {
-    const { dropRate, duplicateRate, delayMs } = this.current.webhooks;
-    const context = { chargeId, eventId };
-    if (this.roll(log, dropRate, { chaos: 'webhook-drop', ...context }, 'dropping the webhook')) {
-      return { fate: 'dropped' };
-    }
-    const twice = { chaos: 'webhook-duplicate', ...context };
-    const copies = this.roll(log, duplicateRate, twice, 'sending the webhook twice') ? 2 : 1;
-    if (delayMs > 0) {
-      log.info({ chaos: 'webhook-delay', ...context, delayMs }, 'chaos: delaying the webhook');
-    }
-
-    return { fate: 'sent', copies, delayMs };
+    return planWebhookDelivery(this.random, this.current.webhooks, log, { chargeId, eventId });
   }
 
   private roll(log: FastifyBaseLogger, rate: number, decision: Decision, what: string): boolean {

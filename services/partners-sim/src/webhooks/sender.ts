@@ -1,26 +1,20 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Clock } from '../clock.ts';
 import { CORRELATION_ID_HEADER } from '../platform/correlation-id.ts';
-import type { Chaos } from './chaos.ts';
-import type { FailureCode, Money } from './charge.ts';
-import { SIGNATURE_HEADER, sign } from './signature.ts';
+import type { WebhookPlan } from './chaos-plan.ts';
+import { sign } from './signature.ts';
 
-export type WebhookEvent = {
+export type WebhookEvent<TData = unknown> = {
   readonly id: string;
-  readonly type: 'charge.succeeded' | 'charge.failed' | 'refund.succeeded';
+  readonly type: string;
   readonly createdAt: string;
-  readonly data: {
-    readonly chargeId: string;
-    readonly reference: string;
-    readonly amount: Money;
-    readonly failureCode?: FailureCode;
-  };
+  readonly data: TData;
 };
 
 /** The request that started the work a webhook reports: its logger and its correlation id. */
 export type Origin = { readonly log: FastifyBaseLogger; readonly correlationId: string };
 
-type WebhookTarget = { readonly url: string; readonly secret: string };
+export type WebhookTarget = { readonly url: string; readonly secret: string };
 
 /** Waits before each retry. After the first attempt fails, five more come within 31 seconds. */
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
@@ -29,31 +23,45 @@ const ATTEMPT_TIMEOUT_MS = 5_000;
 
 export type Delivery = { readonly outcome: 'delivered' | 'abandoned'; readonly attempts: number };
 
-export type WebhooksOptions = {
+/** Decides the fate of an event before it is sent: the chaos of the simulator it belongs to. */
+export type WebhookChaosPlanner<TData> = (
+  log: FastifyBaseLogger,
+  event: WebhookEvent<TData>,
+) => WebhookPlan;
+
+export type WebhooksOptions<TData> = {
   readonly target: WebhookTarget;
+  /** The header a webhook is signed under, so each simulator carries its own name. */
+  readonly signatureHeader: string;
   readonly clock: Clock;
-  readonly chaos: Chaos;
+  readonly plan: WebhookChaosPlanner<TData>;
   /** Aborts when the server shuts down, which stops waits and requests in flight. */
   readonly signal: AbortSignal;
 };
 
-/** Tells the merchant what happened to its charges, at least once, signed with the shared secret. */
-export class Webhooks {
+/**
+ * Delivers events at least once, signed with the shared secret, retried with backoff. Generic
+ * over the event data, so every simulator shares it and only its own event shape, header name
+ * and chaos plan differ.
+ */
+export class Webhooks<TData = unknown> {
   private readonly target: WebhookTarget;
+  private readonly signatureHeader: string;
   private readonly clock: Clock;
-  private readonly chaos: Chaos;
+  private readonly plan: WebhookChaosPlanner<TData>;
   private readonly signal: AbortSignal;
 
-  constructor({ target, clock, chaos, signal }: WebhooksOptions) {
+  constructor({ target, signatureHeader, clock, plan, signal }: WebhooksOptions<TData>) {
     this.target = target;
+    this.signatureHeader = signatureHeader;
     this.clock = clock;
-    this.chaos = chaos;
+    this.plan = plan;
     this.signal = signal;
   }
 
-  /** Sends one event as the chaos settings say: maybe late, maybe twice, maybe never. */
-  async publish(event: WebhookEvent, origin: Origin): Promise<readonly Delivery[]> {
-    const plan = this.chaos.planWebhook(origin.log, event.data.chargeId, event.id);
+  /** Sends one event as the chaos plan says: maybe late, maybe twice, maybe never. */
+  async publish(event: WebhookEvent<TData>, origin: Origin): Promise<readonly Delivery[]> {
+    const plan = this.plan(origin.log, event);
     if (plan.fate === 'dropped') {
       return [];
     }
@@ -71,8 +79,12 @@ export class Webhooks {
   }
 
   /** Retries network errors and any answer outside 2xx, then gives up after the last delay. */
-  private async deliver(event: WebhookEvent, body: string, origin: Origin): Promise<Delivery> {
-    const context = { eventId: event.id, type: event.type, chargeId: event.data.chargeId };
+  private async deliver(
+    event: WebhookEvent<TData>,
+    body: string,
+    origin: Origin,
+  ): Promise<Delivery> {
+    const context = { eventId: event.id, type: event.type };
     for (let attempt = 1; ; attempt += 1) {
       const failure = await this.attempt(body, origin);
       if (failure === undefined) {
@@ -101,7 +113,7 @@ export class Webhooks {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          [SIGNATURE_HEADER]: sign(this.target.secret, body, timestamp),
+          [this.signatureHeader]: sign(this.target.secret, body, timestamp),
           [CORRELATION_ID_HEADER]: origin.correlationId,
         },
         body,

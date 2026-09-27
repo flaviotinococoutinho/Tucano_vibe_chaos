@@ -4,60 +4,60 @@ import Fastify from 'fastify';
 import type { Clock } from '../../src/clock.ts';
 import { systemClock } from '../../src/clock.ts';
 import { loadConfig } from '../../src/config.ts';
-import { CALM, Chaos, type ChaosSettings } from '../../src/payfake/chaos.ts';
-import { verify } from '../../src/payfake/signature.ts';
-import { type Origin, type WebhookEvent, Webhooks } from '../../src/payfake/webhooks.ts';
 import { logOptions } from '../../src/platform/logging.ts';
+import type { WebhookPlan } from '../../src/webhooks/chaos-plan.ts';
+import { type Origin, type WebhookEvent, Webhooks } from '../../src/webhooks/sender.ts';
+import { verify } from '../../src/webhooks/signature.ts';
 import { InstantClock } from '../support/clock.ts';
-import { chaosDecisions, type LogLine, SECRET } from '../support/payfake.ts';
+import type { LogLine } from '../support/logs.ts';
 import { type Answer, WebhookReceiver } from '../support/receiver.ts';
 
-const EVENT: WebhookEvent = {
+const SECRET = 'whsec_test';
+const HEADER = 'Test-Signature';
+
+const SENT: WebhookPlan = { fate: 'sent', copies: 1, delayMs: 0 };
+
+const EVENT: WebhookEvent<{ readonly subjectId: string }> = {
   id: 'evt_01J8Z5W3Q4X9M2N7B8C6D5E4F3',
-  type: 'charge.succeeded',
+  type: 'thing.happened',
   createdAt: '2026-09-27T12:00:00.900Z',
-  data: {
-    chargeId: 'ch_01J8Z5W3Q4X9M2N7B8C6D5E4F3',
-    reference: 'pay-1',
-    amount: { value: 18990, currency: 'BRL' },
-  },
+  data: { subjectId: 'thing_1' },
 };
 
 type Setup = {
   readonly answers?: readonly Answer[];
   readonly clock?: Clock;
-  readonly webhooks?: Partial<ChaosSettings['webhooks']>;
+  readonly plan?: WebhookPlan;
 };
 
 async function webhooksFor(
   t: TestContext,
-  { answers, clock = new InstantClock(), webhooks }: Setup,
+  { answers, clock = new InstantClock(), plan = SENT }: Setup,
 ) {
   const receiver = await WebhookReceiver.start(answers);
   t.after(() => receiver.close());
-  const chaos = new Chaos(() => 0.5);
-  chaos.change({ ...CALM, webhooks: { ...CALM.webhooks, ...webhooks } });
   const shutdown = new AbortController();
   const target = { url: receiver.url, secret: SECRET };
   const logs: LogLine[] = [];
   const logger = logOptions(loadConfig({ LOG_LEVEL: 'info' }), {
     write: (line) => logs.push(JSON.parse(line)),
   });
-  // The logger of the request that settled the charge, like request.log in the app.
+  // The logger of the request that triggered the event, like request.log in the app.
   const log = Fastify({ logger }).log.child({ correlation_id: 'req-7#1' });
   const origin: Origin = { log, correlationId: 'req-7#1' };
+  const webhooks = new Webhooks({
+    target,
+    signatureHeader: HEADER,
+    clock,
+    plan: () => plan,
+    signal: shutdown.signal,
+  });
 
-  return {
-    receiver,
-    logs,
-    shutdown,
-    publish: () =>
-      new Webhooks({ target, clock, chaos, signal: shutdown.signal }).publish(EVENT, origin),
-  };
+  return { receiver, logs, shutdown, publish: () => webhooks.publish(EVENT, origin) };
 }
 
-describe('webhook delivery', () => {
-  it('posts the event as JSON, signed, with the correlation id of the request behind it', async (t) => {
+describe('webhook sender', () => {
+  it('posts the event as JSON, signed under the given header, with the correlation id behind it', async (t) => {
     const clock = new InstantClock();
     const { receiver, publish } = await webhooksFor(t, { clock });
 
@@ -68,7 +68,7 @@ describe('webhook delivery', () => {
     assert.deepEqual(JSON.parse(webhook.body), EVENT);
     assert.equal(webhook.headers['content-type'], 'application/json');
     assert.equal(webhook.headers['x-correlation-id'], 'req-7#1');
-    const header = String(webhook.headers['payfake-signature']);
+    const header = String(webhook.headers['test-signature']);
     const now = Math.floor(clock.now() / 1000);
     assert.equal(verify({ secret: SECRET, payload: webhook.body, header, now }), 'valid');
   });
@@ -107,6 +107,7 @@ describe('webhook delivery', () => {
       level: 'error',
       message: 'webhook abandoned after the last retry',
       eventId: EVENT.id,
+      type: EVENT.type,
       attempt: 6,
       failure: 'HTTP 500',
       correlation_id: 'req-7#1',
@@ -127,25 +128,18 @@ describe('webhook delivery', () => {
     assert.equal(receiver.received.length, 1);
   });
 
-  it('drops the webhook when the drop rate says so, and logs it', async (t) => {
-    const { receiver, logs, publish } = await webhooksFor(t, { webhooks: { dropRate: 0.6 } });
+  it('never sends an event the plan drops', async (t) => {
+    const { receiver, publish } = await webhooksFor(t, { plan: { fate: 'dropped' } });
 
     assert.deepEqual(await publish(), []);
 
     assert.equal(receiver.received.length, 0);
-    assert.partialDeepStrictEqual(chaosDecisions(logs), [
-      {
-        level: 'info',
-        chaos: 'webhook-drop',
-        chargeId: EVENT.data.chargeId,
-        eventId: EVENT.id,
-        message: 'chaos: dropping the webhook',
-      },
-    ]);
   });
 
-  it('sends the same event twice when the duplicate rate says so', async (t) => {
-    const { receiver, logs, publish } = await webhooksFor(t, { webhooks: { duplicateRate: 0.6 } });
+  it('sends the event twice when the plan says two copies', async (t) => {
+    const { receiver, publish } = await webhooksFor(t, {
+      plan: { fate: 'sent', copies: 2, delayMs: 0 },
+    });
 
     assert.deepEqual(await publish(), [
       { outcome: 'delivered', attempts: 1 },
@@ -155,35 +149,18 @@ describe('webhook delivery', () => {
     const [first, second] = receiver.received.map(({ body }) => body);
     assert.equal(first, second);
     assert.equal(JSON.parse(String(first)).id, EVENT.id);
-    assert.partialDeepStrictEqual(chaosDecisions(logs), [
-      { chaos: 'webhook-duplicate', chargeId: EVENT.data.chargeId, eventId: EVENT.id },
-    ]);
   });
 
-  it('leaves a rate below the roll alone', async (t) => {
-    const { receiver, logs, publish } = await webhooksFor(t, {
-      webhooks: { dropRate: 0.4, duplicateRate: 0.4 },
-    });
-
-    assert.deepEqual(await publish(), [{ outcome: 'delivered', attempts: 1 }]);
-
-    assert.equal(receiver.received.length, 1);
-    assert.deepEqual(chaosDecisions(logs), []);
-  });
-
-  it('holds every webhook back by the configured delay', async (t) => {
+  it('waits the planned delay before the first attempt', async (t) => {
     const clock = new InstantClock();
-    const { receiver, logs, publish } = await webhooksFor(t, {
+    const { receiver, publish } = await webhooksFor(t, {
       clock,
-      webhooks: { delayMs: 5_000 },
+      plan: { fate: 'sent', copies: 1, delayMs: 5_000 },
     });
 
     assert.deepEqual(await publish(), [{ outcome: 'delivered', attempts: 1 }]);
 
     assert.deepEqual(clock.sleeps, [5_000]);
     assert.equal(receiver.received.length, 1);
-    assert.partialDeepStrictEqual(chaosDecisions(logs), [
-      { chaos: 'webhook-delay', chargeId: EVENT.data.chargeId, delayMs: 5_000 },
-    ]);
   });
 });
