@@ -45,11 +45,32 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
 
+  shared-kernel:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'shared-kernel')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/shared-kernel
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: apcu
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose]
+    needs: [changes, compose, shared-kernel]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results
