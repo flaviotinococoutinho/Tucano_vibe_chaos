@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Commerce\Ordering\Application\UseCase;
 
 use Commerce\Ordering\Application\OrderDetails;
-use Commerce\Ordering\Application\Outcome;
 use Commerce\Ordering\Application\PlacedOrder;
 use Commerce\Ordering\Application\PlaceOrderCommand;
 use Commerce\Ordering\Application\Port\Driven\ForFindingProducts;
@@ -20,6 +19,7 @@ use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\ReservationWindow;
+use Commerce\Shared\Application\Idempotency\Outcome;
 use Commerce\Shared\Application\Port\Driven\ForPublishingEvents;
 use Commerce\Shared\Application\Port\Driven\ForRememberingRequests;
 use Commerce\Shared\Application\Port\Driven\ForRunningTransactions;
@@ -69,7 +69,7 @@ final readonly class PlaceOrder implements ForPlacingOrders
         $details = OrderDetails::of($order->toSnapshot());
         $this->requests->remember(self::SCOPE, $command->idempotencyKey, $details->toArray());
 
-        return new PlacedOrder($details, Outcome::Placed);
+        return new PlacedOrder($details, Outcome::Fresh);
     }
 
     /**
