@@ -57,6 +57,8 @@ A ponte pediu de novo as 39 etiquetas: 35 terminaram em `not_needed`, porque a r
 
 Qualquer `docker compose up` que suba o flagd como dependência roda o `flags-init` de novo, e a flag volta ao valor do repositório. Numa das levas, recriei os workers no meio do experimento, e a taxa de falha voltou a zero sem aviso. Para recriar um worker durante o experimento, use `docker compose up -d --no-deps <serviço>`.
 
+Por que o pedido de etiqueta parte do evento, e não de um dispatch depois do commit, está no [ADR 0018](../adr/0018-async-work-starts-from-the-event.md).
+
 ## O que eu levo para a entrevista
 
 - Kafka é log e SQS é fila de trabalho. O log guarda o fato e deixa reler; a fila entrega cada mensagem a um worker e esquece depois de apagar.

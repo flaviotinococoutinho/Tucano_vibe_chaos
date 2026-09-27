@@ -20,6 +20,9 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0014](0014-node-for-bff-and-partners.md) | Node.js no BFF e no simulador de parceiros | aceito |
 | [0015](0015-feature-flags-openfeature-flagd.md) | Feature flags com OpenFeature e flagd | aceito |
 | [0016](0016-copied-node-platform.md) | Plataforma Node copiada, não compartilhada | aceito |
+| [0017](0017-wait-for-the-database-not-the-dlq.md) | Esperar o banco voltar em vez de mandar para a DLQ | aceito |
+| [0018](0018-async-work-starts-from-the-event.md) | Começar o trabalho assíncrono pelo evento, não por um dispatch depois do commit | aceito |
+| [0019](0019-abandoned-payments-accept-late-outcomes.md) | Desistir de um pagamento sem fechar a porta para o PSP | aceito |
 
 ## Modelo
 
