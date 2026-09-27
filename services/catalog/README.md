@@ -20,11 +20,13 @@ O catálogo é quase um CRUD com cache. Ports e adapters aqui seriam cerimônia 
 | `app/Logging/LogContext.php` | campos que entram em toda linha de log |
 | `app/Providers/PlatformServiceProvider.php` | relógio, feature flags, contexto de log e health checks |
 | `config/` | só o que o serviço usa: `app`, `cache`, `database`, `logging` e `platform` |
+| `database/` | migrations com DDL explícito e seeders |
+| `artisan` | console do Lumen: `migrate`, `db:seed` e companhia |
 | `routes/web.php` | rotas |
 
 ## O que muda em relação ao Laravel
 
-- Facades e Eloquent ficam desligados, como o Lumen vem. Tudo chega por injeção de dependência, e o banco é acessado pelo `DatabaseManager`.
+- Facades e Eloquent ficam desligados, como o Lumen vem. Tudo chega por injeção de dependência, e o banco é acessado pelo `DatabaseManager`. Nos comandos de console o Lumen liga as facades, sem os aliases globais, então migrations e seeders importam a `DB` que usam.
 - As rotas usam `Controller@method` dentro do namespace definido em `bootstrap/app.php`. A sintaxe de array do Laravel não funciona aqui.
 - O Lumen faz `bindTo` em toda closure de rota, então uma closure de rota não pode ser `static`.
 - Não existe o `Context` do Laravel 11. O `LogContext` é um processor do Monolog que grava `service` e `correlation_id` em `extra`, o mesmo lugar que o commerce usa, e as linhas de log dos dois serviços ficam com o mesmo formato.
@@ -33,6 +35,10 @@ O catálogo é quase um CRUD com cache. Ports e adapters aqui seriam cerimônia 
 - Não existe `config:cache` nem `route:cache`. O container sobe direto no `php-fpm`.
 - O roteador do Lumen lança 404 e 405 sem mensagem, então o `detail` desses erros repete o `title`.
 - Cada aplicação do Lumen registra um error handler e um exception handler. O `Tests\TestCase` remove os dois no `tearDown`, senão o PHPUnit 12 marca todos os testes como risky.
+
+## Banco
+
+O schema e os seeds ficam em `database/`. O job `catalog-migrate` do compose roda `php artisan migrate --force --seed` antes da API subir, e os seeds não sobrescrevem o que mudou depois. Os tipos e as diferenças para o PostgreSQL estão no [modelo de dados](../../docs/architecture/data-model.md#catalog-mysql-banco-catalog).
 
 ## Endpoints
 
