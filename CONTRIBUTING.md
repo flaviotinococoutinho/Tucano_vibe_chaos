@@ -68,6 +68,19 @@ O workflow `pr-policy` garante as regras de origem e destino:
 | `develop` | `feat/*`, `fix/*`, `chore/*`, `release/*`, `hotfix/*` e `main` (back-merge) |
 | `main` | `release/x.y.z` e `hotfix/*` |
 
+### Aprovação
+
+O GitHub não deixa ninguém aprovar o próprio PR. Enquanto o projeto tiver um único autor, o portão de qualidade é o CI obrigatório somado ao checklist de *definition of done* do template. Quando entrar mais alguém, as rulesets passam a exigir uma aprovação e a revisão do `CODEOWNERS`.
+
+## Versionamento e cadência
+
+- Versões seguem **SemVer**: `MAJOR.MINOR.PATCH`. Enquanto a API não estabiliza, trabalhamos na série `0.x`.
+- Cada entrega que cumpre o *definition of done* fecha uma release **minor** (`0.2.0`, `0.3.0`...). Assim a `develop` nunca acumula trabalho pronto e parado.
+- Correções de algo já liberado geram uma **patch** (`0.3.1`) via `hotfix/*`.
+- Tags `v*` são imutáveis: uma ruleset impede mover ou apagar uma tag publicada.
+- Ao publicar a tag, o workflow `release` cria a GitHub Release com a seção correspondente do `CHANGELOG.md`.
+- Branches são apagadas no merge. Localmente, `git fetch --prune` seguido de `git branch --merged develop | grep -vE '^\*|main|develop' | xargs -r git branch -d` mantém tudo limpo.
+
 ## Release
 
 ```bash
