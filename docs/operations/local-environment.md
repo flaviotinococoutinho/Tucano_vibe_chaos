@@ -12,7 +12,8 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 
 | Comando | O que faz |
 |---|---|
-| `make up` | sobe a stack e espera tudo ficar saudável |
+| `make base` | constrói as imagens base do PHP (8.3 e 8.4); só demora na primeira vez |
+| `make up` | constrói o que faltar, sobe a stack e espera tudo ficar saudável |
 | `APP_ENV=staging make up` | sobe usando as flags de staging (vale `production` também) |
 | `make tools` | sobe junto o Kafka UI, o Adminer e o DynamoDB Admin |
 | `make down` | para tudo e mantém os dados |
@@ -29,6 +30,7 @@ Todas as portas escutam só em `127.0.0.1`.
 |---|---|---|
 | Kong (proxy) | http://localhost:8000 | - |
 | Kong Admin API | http://localhost:8001 | - |
+| nginx (apps PHP) | `localhost:8081` catalog, `8082` commerce, `8083` logistics | - |
 | Kong Manager | http://localhost:8002 | somente leitura, porque o Kong roda em DB-less |
 | PostgreSQL | `localhost:5432` | `postgres`/`postgres`; `commerce`/`commerce`; `logistics`/`logistics` |
 | MySQL | `localhost:3306` | `catalog`/`catalog`; root com senha `root` |

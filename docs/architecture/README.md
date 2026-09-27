@@ -106,7 +106,7 @@ C4Container
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | planejado |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | planejado |
 | `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | planejado |
-| `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | planejado |
+| `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
 | `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |
 | `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |
 | `mongo` | MongoDB 8 | read models com consistência eventual (CQRS) | rodando |

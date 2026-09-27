@@ -6,6 +6,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Added
 
+- Imagem base do PHP (8.3 e 8.4) com as extensões dos serviços e nginx na frente dos apps PHP-FPM.
 - Pacote `tucano/feature-flags`: porta `FeatureFlags` com OpenFeature e flagd, cache de avaliação (APCu ou memória) e guard que desliga flags de caos e laboratório em produção.
 
 ## [0.2.0] - 2026-09-27
