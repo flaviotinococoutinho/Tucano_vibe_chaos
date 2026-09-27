@@ -1,4 +1,4 @@
-# UC-ORD-01 · Fazer um pedido
+# UC-ORD-01: Fazer um pedido
 
 | | |
 |---|---|
@@ -10,7 +10,7 @@
 ## Partes interessadas e interesses
 
 - **Cliente**: garantir os itens pelo preço que viu, sem pedido duplicado se clicar duas vezes.
-- **Tucano**: não vender o que não tem (*overselling*) nem abaixo do preço vigente.
+- **Tucano**: não vender o que não tem (overselling) nem abaixo do preço vigente.
 - **Logística**: receber só pedidos com endereço entregável.
 
 ## Pré-condições
@@ -37,15 +37,15 @@
 ## Extensões
 
 - 1a. `Idempotency-Key` já usada com o mesmo corpo: o sistema devolve a resposta original.
-- 1b. `Idempotency-Key` já usada com outro corpo: o sistema recusa (422).
+- 1b. `Idempotency-Key` já usada com outro corpo: o sistema recusa (`422`).
 - 2a. Produto desconhecido ou descontinuado: o sistema recusa o pedido indicando o SKU.
-- 3a. Estoque insuficiente em algum item: o sistema desfaz tudo e informa o que falta (409).
-- 3b. Disputa pelo mesmo estoque: a estratégia de reserva configurada decide quem leva (veja o lab de *overselling*).
+- 3a. Estoque insuficiente em algum item: o sistema desfaz tudo e informa o que falta (`409`).
+- 3b. Disputa pelo mesmo estoque: a estratégia de reserva configurada decide quem leva (veja o lab de overselling).
 - 4a. Banco indisponível: nada é gravado e o cliente pode repetir com a mesma chave.
 
 ## Variações de tecnologia
 
-- Estratégias de reserva: `atomic` (padrão), `pessimistic`, `optimistic`, `serializable`, `redis` e `naive` (só no laboratório, para ver o *lost update* acontecer).
+- Estratégias de reserva: `atomic` (padrão), `pessimistic`, `optimistic`, `serializable`, `redis` e `naive` (só no laboratório, onde quero ver o lost update acontecer).
 
 ## No código
 

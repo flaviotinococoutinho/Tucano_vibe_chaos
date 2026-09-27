@@ -10,12 +10,16 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Feature flags privadas por ambiente (local, staging e production) com OpenFeature e flagd.
 - Comandos `make` para operar a stack e job de CI que valida compose, configuração do Kong, flags e scripts.
 
+### Changed
+
+- Documentação revisada: tom direto, primeira pessoa, pontuação simples, tipos de dados precisos e direções corrigidas no context map.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
 
 - Estrutura inicial do repositório, Git Flow e convenções de engenharia.
-- Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estado, casos de uso e ADRs 0001 a 0014.
+- Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
 [Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...develop

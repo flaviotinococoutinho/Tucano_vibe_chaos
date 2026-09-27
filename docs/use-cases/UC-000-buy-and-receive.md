@@ -1,4 +1,4 @@
-# UC-000 · Comprar e receber um produto
+# UC-000: Comprar e receber um produto
 
 | | |
 |---|---|
@@ -36,4 +36,4 @@
 
 - 3a. Pagamento recusado ou não feito no prazo: o pedido é cancelado e o estoque liberado (UC-ORD-03).
 - 7a. Destinatário ausente: nova tentativa; depois da terceira, devolução ao remetente (UC-SHP-08) e estorno (UC-PAY-04).
-- *a. O cliente cancela antes da coleta (UC-ORD-02): a remessa é cancelada (UC-SHP-09) e o pagamento estornado.
+- *a. O cliente cancela antes da coleta (UC-ORD-02): a remessa é cancelada (UC-SHP-09) e o pagamento, estornado.

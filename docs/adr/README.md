@@ -1,6 +1,6 @@
 # Decisões de arquitetura (ADRs)
 
-Cada decisão que alguém vai questionar daqui a seis meses vira um ADR curto, no formato de Michael Nygard: **contexto**, **decisão**, **consequências** e alternativas consideradas. ADR não se edita depois de aceito; se a decisão mudar, um ADR novo substitui o antigo e os dois apontam um para o outro.
+Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, no formato de Michael Nygard: contexto, decisão, consequências e alternativas consideradas. ADR aceito não é editado; se a decisão mudar, um ADR novo substitui o antigo e os dois apontam um para o outro.
 
 | ADR | Decisão | Status |
 |---|---|---|
@@ -14,7 +14,7 @@ Cada decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0008](0008-transactional-outbox.md) | Transactional Outbox, com uma exceção consciente no catálogo | aceito |
 | [0009](0009-lumen-legacy-service.md) | Lumen como serviço legado | aceito |
 | [0010](0010-cloudevents-contracts.md) | Envelope CloudEvents e contratos versionados | aceito |
-| [0011](0011-state-machines-without-flags.md) | Máquinas de estado com enum e guards em cadeia | aceito |
+| [0011](0011-state-machines-without-flags.md) | Máquinas de estados com enum e guards em cadeia | aceito |
 | [0012](0012-acid-writes-base-reads.md) | Escrita ACID em SQL, leitura BASE em NoSQL | aceito |
 | [0013](0013-swoole-for-fleet-tracking.md) | Swoole para o tempo real da frota | aceito |
 | [0014](0014-node-for-bff-and-partners.md) | Node.js no BFF e no simulador de parceiros | aceito |

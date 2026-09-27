@@ -1,6 +1,6 @@
 # Documentação
 
-Mapa da documentação do projeto. A ordem abaixo também é uma **trilha de estudo**: comece pelo topo e desça.
+Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de estudo**, de cima para baixo.
 
 ## 1. Engenharia
 
@@ -9,12 +9,12 @@ Mapa da documentação do projeto. A ordem abaixo também é uma **trilha de est
 
 ## 2. Arquitetura
 
-- [Visão geral e C4](architecture/README.md): contexto, containers e o fluxo principal.
+- [Visão geral e C4](architecture/README.md): contexto, containers e fluxo principal.
 - [Context map](architecture/context-map.md): contextos delimitados e padrões de integração.
 - [Linguagem ubíqua](architecture/ubiquitous-language.md): o vocabulário do negócio.
 - [Eventos](architecture/events.md): tópicos, CloudEvents, outbox, inbox e DLQ.
 - [Identificadores](architecture/identifiers.md): UUIDv7 e Snowflake.
-- [Máquinas de estado](architecture/state-machines.md): pedido, pagamento e remessa.
+- [Máquinas de estados](architecture/state-machines.md): pedido, pagamento e remessa.
 - [Topologia local](architecture/deployment.md): redes, proxies de caos, listeners do Kafka e memória.
 - [Feature flags](architecture/feature-flags.md): flags privadas por ambiente com OpenFeature e flagd.
 
