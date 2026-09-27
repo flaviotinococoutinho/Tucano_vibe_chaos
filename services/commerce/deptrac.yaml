@@ -1,0 +1,55 @@
+# Layer rules for the hexagon inside each feature package (src/<Feature>/...).
+# Anything a layer is not allowed to use breaks the build.
+deptrac:
+  paths:
+    - ./app
+    - ./src
+  layers:
+    - name: Domain
+      collectors:
+        - type: classLike
+          value: ^Commerce\\[A-Za-z]+\\Domain\\.*
+    - name: Application
+      collectors:
+        - type: classLike
+          value: ^Commerce\\[A-Za-z]+\\Application\\.*
+    - name: Adapter
+      collectors:
+        - type: classLike
+          value: ^Commerce\\[A-Za-z]+\\Adapter\\.*
+    - name: App
+      collectors:
+        - type: classLike
+          value: ^App\\.*
+    - name: SharedKernel
+      collectors:
+        - type: classLike
+          value: ^Tucano\\SharedKernel\\.*
+    - name: FeatureFlags
+      collectors:
+        - type: classLike
+          value: ^Tucano\\FeatureFlags\\.*
+    - name: Framework
+      collectors:
+        - type: classLike
+          value: ^(Illuminate|Laravel|Symfony|Monolog|Psr)\\.*
+  ruleset:
+    Domain:
+      - SharedKernel
+    Application:
+      - Domain
+      - SharedKernel
+      - FeatureFlags
+    Adapter:
+      - Application
+      - Domain
+      - SharedKernel
+      - FeatureFlags
+      - Framework
+    App:
+      - Adapter
+      - Application
+      - Domain
+      - SharedKernel
+      - FeatureFlags
+      - Framework

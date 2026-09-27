@@ -1,0 +1,82 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "tucano/commerce",
+    "type": "project",
+    "description": "Commerce service: orders, inventory, payments and notifications.",
+    "keywords": [],
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../packages/php/shared-kernel"
+        },
+        {
+            "type": "path",
+            "url": "../../packages/php/feature-flags"
+        },
+        {
+            "type": "path",
+            "url": "../../packages/php/read-models"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "laravel/framework": "^13.17",
+        "laravel/tinker": "^3.0",
+        "tucano/feature-flags": "*@dev",
+        "tucano/read-models": "*@dev",
+        "tucano/shared-kernel": "*@dev"
+    },
+    "require-dev": {
+        "deptrac/deptrac": "^4.7",
+        "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.27",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^12.5.12"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Commerce\\": "src/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "lint": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "arch": "deptrac analyse --no-progress",
+        "test": "phpunit",
+        "check": [
+            "@lint",
+            "@analyse",
+            "@arch",
+            "@test"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

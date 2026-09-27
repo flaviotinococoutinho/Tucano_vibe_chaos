@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - bin
+        - src
+        - tests
+    # Swoole classes, functions and constants, so the analysis also runs where the extension is missing.
+    scanDirectories:
+        - vendor/swoole/ide-helper/src

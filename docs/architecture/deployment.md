@@ -55,6 +55,23 @@ Separei duas redes para o laboratório se parecer com uma rede de verdade:
 - **backend** é a rede interna, com os serviços e as dependências.
 - Kong, BFF e Toxiproxy ficam nas duas. O Kong é a porta de entrada, e o Toxiproxy faz o papel do proxy de saída quando um serviço chama um parceiro.
 
+## Runtime PHP
+
+Os serviços PHP partem de uma imagem base própria (`infra/php-base`), construída uma vez por versão com `make base`:
+
+| Imagem | Usada por | O que tem |
+|---|---|---|
+| `chaos-playground/php-base:8.4` | commerce, logistics, tracking | PHP-FPM 8.4 no Alpine com apcu, bcmath, intl, mongodb, opcache, pcntl, pdo_mysql, pdo_pgsql, rdkafka, redis, sockets e zip |
+| `chaos-playground/php-base:8.3` | catalog (Lumen) | as mesmas extensões sobre o PHP 8.3 |
+
+O tracking parte da base 8.4 e instala o Swoole 6.2 na própria imagem, porque só ele usa.
+
+Compilar essas extensões leva uns 5 minutos por versão. Com a base separada, isso acontece uma vez só, e os serviços compartilham as camadas no disco.
+
+Na frente dos apps FPM fica um nginx só, com uma porta por app (`8081` catalog, `8082` commerce, `8083` logistics). Ele não tem o código: todo request vai para o `public/index.php` do app via FastCGI. O `fastcgi_pass` usa variável e o resolver do Docker (`127.0.0.11`), porque com o nome fixo o nginx nem sobe quando um app está fora e ainda guarda o IP antigo depois de um restart. Com a variável, ele responde 502 enquanto o app está fora e volta sozinho quando o container sobe de novo.
+
+O FPM roda com `pm.max_children = 6`: cada processo filho atende um request por vez (shared-nothing), então isso é o teto de concorrência e também de memória por container.
+
 ## Toxiproxy no meio do caminho
 
 As aplicações não falam direto com as dependências: toda conexão passa por um proxy do Toxiproxy. Assim dá para injetar latência, cortar a conexão ou limitar banda de um par serviço/dependência sem reiniciar nada, e o blast radius de cada experimento fica pequeno.
@@ -74,6 +91,42 @@ As aplicações não falam direto com as dependências: toda conexão passa por 
 | `tracking` | `toxiproxy:19501` | `tracking:9501` | logistics (despacho) |
 
 `payfake` e `carriers` apontam para o mesmo container de propósito: são proxies separados para eu poder degradar o PSP sem mexer nas transportadoras.
+
+## Timeouts
+
+Toda chamada a uma dependência tem limite de tempo. Sem limite, uma dependência que para de responder (o toxic `timeout` do Toxiproxy, ou uma rede de verdade que some) prende o filho do FPM até o nginx desistir em 30 segundos, e o filho continua preso depois disso. Com seis filhos por container, seis requests presos derrubam o serviço inteiro. Medi antes de corrigir: com o PostgreSQL, o MySQL ou o Redis mudos, o readiness respondia 504 depois de 30 s.
+
+| Dependência | Onde fica o limite | Valor | Readiness com a dependência muda |
+|---|---|---|---|
+| PostgreSQL | `PDO::ATTR_TIMEOUT`, que o pdo_pgsql entrega à libpq como `connect_timeout` | 2 s para conectar | 503 em 2,2 s |
+| MySQL | `PDO::ATTR_TIMEOUT` para abrir o socket e `mysqlnd.net_read_timeout` para ler | 2 s e 2 s | 503 em 4,1 s |
+| Redis | `timeout` e `read_timeout` do phpredis | 1 s | 503 em 1,0 s |
+| MongoDB | `connectTimeoutMS`, `serverSelectionTimeoutMS` e `socketTimeoutMS` | 2 s, 2 s e 5 s | fora do readiness |
+| flagd | timeout do Guzzle | 0,3 s, e o valor padrão da flag vence | fora do readiness |
+| qualquer uma | `request_terminate_timeout` do FPM | 30 s | última barreira |
+
+O `max_execution_time` não serve de barreira: no Linux ele conta só o tempo de CPU do script, e um processo bloqueado esperando a rede não gasta CPU. O `request_terminate_timeout` conta o tempo de relógio e mata o filho.
+
+Depois de conectado, o PostgreSQL não tem timeout de leitura no cliente. A libpq não oferece essa opção, e o `statement_timeout` roda no servidor, que não consegue avisar nada através de um proxy mudo. Uma query presa num blackhole que aparece no meio do request só cai pelo `request_terminate_timeout`.
+
+### Retry em camadas multiplica o timeout
+
+O MySQL mostrou um efeito que vale conhecer. O mysqlnd usa o `ATTR_TIMEOUT` só para abrir o socket, e o socket com o Toxiproxy abre na hora. Quem estoura é a leitura do cumprimento inicial do servidor, com a mensagem `MySQL server has gone away`. O Laravel entende essa mensagem como conexão perdida e tenta de novo duas vezes, uma no conector e outra na query. Com read timeout de 5 s, o blackhole custava quatro tentativas de 5 s: 20 s no total.
+
+A correção tem duas partes. O health check roda a query direto no PDO, fora do retry da query, porque retry dentro de health check esconde a falha que ele existe para reportar (quem repete é o Docker, com o `retries` do healthcheck). E o read timeout do catálogo caiu para 2 s. No readiness ficam duas tentativas de 2 s, porque o retry do conector continua; num request comum, quatro tentativas de 2 s.
+
+O retry automático tem um risco que não aparece no readiness: se o timeout estourar depois de o servidor executar um `INSERT`, o Laravel executa de novo e grava duas vezes. Dentro de transação ele não repete. Por isso a regra é: toda escrita roda em transação ou é idempotente (upsert por chave natural ou chave de idempotência).
+
+Para repetir o experimento na stack:
+
+```bash
+curl -s -X POST localhost:8474/proxies/commerce-postgres/toxics \
+  -d '{"name":"blackhole","type":"timeout","attributes":{"timeout":0}}'
+curl -s -o /dev/null -w '%{http_code} em %{time_total}s\n' localhost:8000/api/commerce/health/ready
+curl -s -X DELETE localhost:8474/proxies/commerce-postgres/toxics/blackhole
+```
+
+O `ReadinessIntegrationTest` de cada serviço reproduz o mesmo cenário sem o Toxiproxy: abre uma porta local que aceita a conexão e nunca responde.
 
 ## Os três listeners do Kafka
 
@@ -104,6 +157,10 @@ Uso medido com a stack parada (sem tráfego), numa VM de 4 GB:
 | mailpit | 9 MB | 64 MB |
 | redis | 8 MB | 128 MB |
 | toxiproxy | 4 MB | 64 MB |
-| **total** | **cerca de 1,2 GB** | |
+| catalog, commerce, logistics (cada) | 15 a 25 MB | 256 MB |
+| bff, partners-sim (cada) | 33 MB | 96 MB |
+| tracking (Swoole, 2 workers) | 20 MB | 128 MB |
+| nginx | 5 MB | 64 MB |
+| **total** | **cerca de 1,3 GB** | |
 
 Os ajustes que mantêm isso baixo: heap fixo no Kafka (256 MB) e no ZooKeeper (64 MB), buffer pool de 64 MB e `performance_schema` desligado no MySQL, cache do WiredTiger em 256 MB no MongoDB e um único worker no Kong.

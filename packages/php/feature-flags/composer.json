@@ -1,0 +1,43 @@
+{
+    "name": "tucano/feature-flags",
+    "description": "Feature flag port for the Tucano PHP services, backed by OpenFeature and flagd.",
+    "type": "library",
+    "license": "MIT",
+    "repositories": [
+        { "type": "path", "url": "../shared-kernel" }
+    ],
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.8",
+        "open-feature/flagd-provider": "^2.0",
+        "open-feature/sdk": "^2.3",
+        "tucano/shared-kernel": "*@dev"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^12.5"
+    },
+    "suggest": {
+        "ext-apcu": "Lets ApcuFlagCache share evaluations across PHP-FPM requests"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tucano\\FeatureFlags\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tucano\\FeatureFlags\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "check": ["@lint", "@analyse", "@test"]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

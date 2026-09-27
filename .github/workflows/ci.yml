@@ -40,6 +40,8 @@ jobs:
         run: docker compose --profile tools config --quiet
       - name: Validate Kong declarative config
         run: docker run --rm -e KONG_DATABASE=off -v "$PWD/infra/kong:/kong:ro" kong:3.9.3 kong config parse /kong/kong.yml
+      - name: Validate nginx config
+        run: docker run --rm -v "$PWD/infra/nginx/conf.d:/etc/nginx/conf.d:ro" nginx:stable-alpine nginx -t
       - name: Validate feature flag definitions
         run: pipx run check-jsonschema --schemafile https://flagd.dev/schema/v0/flags.json infra/flags/environments/*.flagd.json
       - name: Lint shell scripts
@@ -66,11 +68,288 @@ jobs:
       - run: composer install --no-interaction --no-progress
       - run: composer check
 
+  feature-flags:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'feature-flags')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/feature-flags
+    env:
+      FLAGD_HOST: localhost
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start flagd with the local flag file
+        working-directory: .
+        run: >
+          docker run -d --name flagd -p 8013:8013
+          -v "$PWD/infra/flags/environments:/flags:ro"
+          ghcr.io/open-feature/flagd:v0.17.0 start --uri file:/flags/local.flagd.json
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: apcu
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
+  messaging:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'messaging')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/messaging
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: messaging
+          POSTGRES_PASSWORD: messaging
+          POSTGRES_DB: messaging
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U messaging" --health-interval 5s --health-timeout 3s --health-retries 20
+      kafka:
+        # KRaft single node that auto-creates topics: enough to test the client code.
+        image: apache/kafka:3.9.2
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_NUM_PARTITIONS: 1
+        ports: ["9092:9092"]
+    env:
+      MESSAGING_PG_DSN: pgsql:host=127.0.0.1;dbname=messaging
+      MESSAGING_PG_USER: messaging
+      MESSAGING_PG_PASSWORD: messaging
+      MESSAGING_KAFKA_BROKERS: localhost:9092
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pcntl, pdo_pgsql, posix, rdkafka
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - name: Wait for Kafka
+        run: timeout 60 bash -c 'until (echo > /dev/tcp/127.0.0.1/9092) 2>/dev/null; do sleep 2; done'
+      - run: composer check
+
+  read-models:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'read-models')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.3", "8.4"]
+    defaults:
+      run:
+        working-directory: packages/php/read-models
+    services:
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      READ_MODELS_MONGO_URI: mongodb://127.0.0.1:27017
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mongodb
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
+  catalog:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'catalog')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: catalog
+          MYSQL_USER: catalog
+          MYSQL_PASSWORD: catalog
+        ports: ["3306:3306"]
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent" --health-interval 5s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          # Lumen 11 is frozen on PHP 8.3 (ADR 0009).
+          php-version: "8.3"
+          extensions: apcu, bcmath, intl, pdo_mysql, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
+  commerce:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'commerce')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/commerce
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: commerce
+          POSTGRES_PASSWORD: commerce
+          POSTGRES_DB: commerce
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U commerce" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
+  logistics:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'logistics')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/logistics
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: logistics
+          POSTGRES_PASSWORD: logistics
+          POSTGRES_DB: logistics
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U logistics" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: apcu, bcmath, intl, mongodb, pdo_pgsql, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
+  tracking:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'tracking')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/tracking
+    services:
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: swoole-6.2.3, apcu, redis
+          ini-values: apc.enable_cli=1
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer check
+
+  bff:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'bff')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/bff
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/bff/package-lock.json
+      # src/platform is a deliberate copy shared with partners-sim (ADR 0016).
+      - name: Platform copies match
+        working-directory: .
+        run: diff -r services/bff/src/platform services/partners-sim/src/platform
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
+  partners-sim:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'partners-sim')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/partners-sim
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/partners-sim/package-lock.json
+      # src/platform is a deliberate copy shared with bff (ADR 0016).
+      - name: Platform copies match
+        working-directory: .
+        run: diff -r services/bff/src/platform services/partners-sim/src/platform
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
   ci-ok:
     if: always()
-    needs: [changes, compose, shared-kernel]
+    needs: [changes, compose, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

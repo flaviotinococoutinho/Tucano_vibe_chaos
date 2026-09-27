@@ -98,15 +98,15 @@ C4Container
 
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
-| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, ainda sem rotas |
+| `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
 | `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
-| `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | planejado |
-| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | planejado |
-| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | planejado |
-| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | planejado |
-| `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | planejado |
-| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | planejado |
-| `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | planejado |
+| `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | esqueleto rodando (health, erros) |
+| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | esqueleto rodando (health, erros, flags) |
+| `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | esqueleto rodando (health, erros, flags) |
+| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | esqueleto rodando (health, erros, flags) |
+| `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | esqueleto rodando (health, erros) |
+| `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | esqueleto rodando (health, erros) |
+| `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
 | `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |
 | `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |
 | `mongo` | MongoDB 8 | read models com consistência eventual (CQRS) | rodando |
@@ -158,6 +158,7 @@ sequenceDiagram
 - [Casos de uso](../use-cases/README.md): lista ator-objetivo e fichas no formato de Cockburn.
 - [Eventos](events.md): tópicos, envelope CloudEvents e garantias de entrega.
 - [Identificadores](identifiers.md): UUIDv7 e Snowflake.
+- [Modelo de dados](data-model.md): DDL, tipos e constraints de cada banco.
 - [Máquinas de estados](state-machines.md): pedido, pagamento e remessa, sem flags booleanas.
 - [Topologia local](deployment.md): redes, proxies de caos e memória.
 - [Feature flags](feature-flags.md): flags privadas por ambiente.

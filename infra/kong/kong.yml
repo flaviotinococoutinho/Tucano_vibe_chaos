@@ -7,3 +7,39 @@ plugins:
       header_name: X-Correlation-Id
       generator: uuid#counter
       echo_downstream: true
+
+services:
+  - name: bff
+    url: http://bff:3000
+    routes:
+      - name: bff-api
+        paths: [/bff]
+        strip_path: true
+
+  - name: catalog
+    url: http://nginx:8081
+    routes:
+      - name: catalog-api
+        paths: [/api/catalog]
+        strip_path: true
+
+  - name: commerce
+    url: http://nginx:8082
+    routes:
+      - name: commerce-api
+        paths: [/api/commerce]
+        strip_path: true
+
+  - name: logistics
+    url: http://nginx:8083
+    routes:
+      - name: logistics-api
+        paths: [/api/logistics]
+        strip_path: true
+
+  - name: tracking
+    url: http://tracking:9501
+    routes:
+      - name: tracking-api
+        paths: [/api/tracking]
+        strip_path: true

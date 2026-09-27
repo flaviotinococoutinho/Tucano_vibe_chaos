@@ -4,6 +4,34 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
+### Added
+
+- Imagem base do PHP (8.3 e 8.4) com as extensões dos serviços e nginx na frente dos apps PHP-FPM.
+- Pacote `tucano/feature-flags`: porta `FeatureFlags` com OpenFeature e flagd, cache de avaliação (APCu ou memória) e guard que desliga flags de caos e laboratório em produção.
+- `DomainError` com `ErrorCategory` no shared kernel, para o domínio dizer o tipo do problema sem conhecer HTTP.
+- Pacote `tucano/messaging`: producer idempotente, consumer at-least-once com retry e DLQ, relay da outbox com `SKIP LOCKED` e inbox, testado contra PostgreSQL e Kafka reais.
+- Read models no MongoDB: pacote `tucano/read-models` (migrations com `$jsonSchema` e upsert por versão), coleções `order_views` e `shipment_timelines` criadas no job de migração.
+- Serviço `commerce` (Laravel 13, PHP 8.4): esqueleto de API com health checks, erros RFC 9457, correlation id, flags e Snowflake, exposto pelo Kong em `/api/commerce`.
+- Serviço `logistics` (Laravel 13, PHP 8.4) com a mesma estrutura do commerce, exposto pelo Kong em `/api/logistics`.
+- Schemas PostgreSQL do commerce e do logistics com DDL explícito (constraints, índices parciais, comentários), seeders idempotentes, jobs de migração no compose e testes das constraints contra o banco real.
+- Serviço `catalog` (Lumen 11, PHP 8.3) no papel de serviço legado: health checks, erros RFC 9457, correlation id e flags, exposto pelo Kong em `/api/catalog`.
+- Schema MySQL do catálogo com DDL explícito (UUIDv7 em `BINARY(16)`, `ENUM`, `CHECK` com `REGEXP_LIKE`), seeders idempotentes com os produtos do estoque, job `catalog-migrate` e testes das constraints.
+- Serviço `tracking` (Swoole 6.2, PHP 8.4): servidor HTTP e WebSocket de longa duração com health checks, erros RFC 9457, correlation id no contexto da corrotina e graceful shutdown, exposto pelo Kong em `/api/tracking`.
+- Serviços `bff` e `partners-sim` (Node 24, Fastify 5, TypeScript sem build): health checks, erros RFC 9457, correlation id e logs JSON. O bff fica no Kong em `/bff`; o simulador fica só na rede `edge`, e os serviços chegam nele pelo Toxiproxy.
+- `make check s=<serviço>` para qualquer serviço: PHP contra a stack, Node no `node:24-alpine`.
+- Modelo de dados com o uso do Redis e as tabelas do DynamoDB.
+
+### Changed
+
+- A tag de release sai direto da `origin/main`, sem trocar o working tree: a troca apagava e recriava arquivos montados pelos containers da stack.
+
+### Fixed
+
+- Dependência muda não prende mais o PHP-FPM: timeouts de conexão e leitura em PostgreSQL, MySQL, Redis e MongoDB, `request_terminate_timeout` no FPM e health check sem o retry da query. Com um banco em blackhole, o readiness responde 503 em 2 a 4 s, e não mais 504 depois de 30 s.
+- O 405 dos serviços PHP volta com o header `Allow`: o problem details descartava os headers da exceção HTTP.
+
 ## [0.2.0] - 2026-09-27
 
 ### Added
@@ -25,6 +53,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...develop
+[0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/flaviotinococoutinho/chaos_playground/releases/tag/v0.1.0

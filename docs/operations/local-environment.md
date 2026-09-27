@@ -12,12 +12,15 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 
 | Comando | O que faz |
 |---|---|
-| `make up` | sobe a stack e espera tudo ficar saudável |
+| `make base` | constrói as imagens base do PHP (8.3 e 8.4); só demora na primeira vez |
+| `make up` | constrói o que faltar, sobe a stack e espera tudo ficar saudável |
 | `APP_ENV=staging make up` | sobe usando as flags de staging (vale `production` também) |
 | `make tools` | sobe junto o Kafka UI, o Adminer e o DynamoDB Admin |
 | `make down` | para tudo e mantém os dados |
 | `make clean` | apaga todos os volumes; pede confirmação |
 | `make ps` e `make logs s=kafka` | estado dos containers e logs de um serviço |
+| `make check s=commerce` | Pint, PHPStan, Deptrac e PHPUnit de um serviço PHP, dentro da rede da stack |
+| `make kong-reload` | aplica o `infra/kong/kong.yml` no Kong em execução, sem downtime |
 
 Um boot a frio, com volumes vazios, leva uns 20 segundos até tudo ficar saudável.
 
@@ -27,8 +30,9 @@ Todas as portas escutam só em `127.0.0.1`.
 
 | Serviço | Endereço | Acesso |
 |---|---|---|
-| Kong (proxy) | http://localhost:8000 | - |
+| Kong (proxy) | http://localhost:8000 | rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
 | Kong Admin API | http://localhost:8001 | - |
+| nginx (apps PHP) | `localhost:8081` catalog, `8082` commerce, `8083` logistics | - |
 | Kong Manager | http://localhost:8002 | somente leitura, porque o Kong roda em DB-less |
 | PostgreSQL | `localhost:5432` | `postgres`/`postgres`; `commerce`/`commerce`; `logistics`/`logistics` |
 | MySQL | `localhost:3306` | `catalog`/`catalog`; root com senha `root` |
@@ -65,5 +69,7 @@ Pelo Floci também dá para inspecionar sem consumir nada: http://localhost:4566
 - **MongoDB a partir do host**: use `directConnection=true`. O replica set anuncia o endereço `mongo:27017`, que só resolve dentro da rede do compose; sem essa opção o driver tenta segui-lo e falha.
 - **Kafka a partir do host**: use `localhost:29092`. Dentro da rede, as ferramentas usam `kafka:9092` e as aplicações usam `toxiproxy:19092` (explicação em [deployment.md](../architecture/deployment.md)).
 - **Volume do Kafka com mais de 1 GB no `docker system df`**: são índices pré-alocados em arquivos esparsos. O uso real fica em poucos MB (`du -sh` dentro do volume mostra).
-- **Memória**: a infraestrutura sozinha usa cerca de 1,2 GB. Com os serviços, 4 GB na VM é o mínimo confortável.
+- **Memória**: a infraestrutura sozinha usa cerca de 1,2 GB; com os serviços, cerca de 1,3 GB. Com 4 GB na VM ainda sobra espaço para build.
+- **Container perdeu um arquivo montado** (`No such file or directory` no healthcheck do Floci, por exemplo): o arquivo foi recriado no host depois que o container subiu, e o bind mount ficou apontando para o arquivo antigo. Acontece quando o git troca o working tree para um commit que não tem o arquivo (checkout de uma branch antiga) e volta. O `docker compose up -d --force-recreate <serviço>` monta de novo; os volumes com dados não são tocados.
+- **Kafka reiniciando com `NodeExistsException` depois de recriar o container**: o broker antigo ainda está registrado no ZooKeeper até a sessão dele expirar (18 s). O broker novo sobe, encontra o registro e cai; o restart automático resolve sozinho em menos de um minuto.
 - **Flag alterada pelo painel de caos voltou ao valor original**: é esperado. Todo `make up` recria a cópia de runtime a partir do arquivo versionado (veja [feature-flags.md](../architecture/feature-flags.md)).
