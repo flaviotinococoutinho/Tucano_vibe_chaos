@@ -466,6 +466,17 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  commerce-order-expiry:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:expire-orders"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
   logistics-migrate:
     <<: [*job, *logistics]
     # Runs once before the API starts, like a Kubernetes Job: SQL schema and seeds, then the read models.
