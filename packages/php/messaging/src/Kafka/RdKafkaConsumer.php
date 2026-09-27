@@ -35,6 +35,7 @@ final class RdKafkaConsumer
         $conf->set('group.id', $group);
         $conf->set('enable.auto.commit', 'false');
         $conf->set('auto.offset.reset', 'earliest');
+        LibrdkafkaLog::route($conf, $logger);
         $this->consumer = new KafkaConsumer($conf);
     }
 

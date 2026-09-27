@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tucano\Messaging\Kafka;
 
+use Psr\Log\LoggerInterface;
 use RdKafka\Conf;
 use RdKafka\Message as RdKafkaMessage;
 use RdKafka\Producer as RdKafkaClient;
@@ -20,7 +21,7 @@ final class RdKafkaProducer implements Producer
     private array $failures = [];
 
     /** @param array<string, string> $settings extra librdkafka settings */
-    public function __construct(string $brokers, string $clientId, array $settings = [])
+    public function __construct(string $brokers, string $clientId, array $settings = [], ?LoggerInterface $logger = null)
     {
         $conf = new Conf();
         $conf->set('bootstrap.servers', $brokers);
@@ -34,6 +35,9 @@ final class RdKafkaProducer implements Producer
         $conf->set('message.timeout.ms', '10000');
         foreach ($settings as $name => $value) {
             $conf->set($name, $value);
+        }
+        if ($logger !== null) {
+            LibrdkafkaLog::route($conf, $logger);
         }
         $conf->setDrMsgCb(function (RdKafkaClient $client, RdKafkaMessage $message): void {
             if ($message->err !== RD_KAFKA_RESP_ERR_NO_ERROR) {
