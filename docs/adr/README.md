@@ -23,6 +23,7 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0017](0017-wait-for-the-database-not-the-dlq.md) | Esperar o banco voltar em vez de mandar para a DLQ | aceito |
 | [0018](0018-async-work-starts-from-the-event.md) | Começar o trabalho assíncrono pelo evento, não por um dispatch depois do commit | aceito |
 | [0019](0019-abandoned-payments-accept-late-outcomes.md) | Desistir de um pagamento sem fechar a porta para o PSP | aceito |
+| [0020](0020-address-by-thoroughfare-and-divisions.md) | Modelar o endereço por logradouro e divisões territoriais | aceito |
 
 ## Modelo
 
