@@ -387,6 +387,11 @@ services:
       KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
       KONG_STATUS_LISTEN: 0.0.0.0:8100
       KONG_NGINX_WORKER_PROCESSES: "1"
+      # Docker's DNS answers with a TTL of 600 s, so a service recreated by compose would keep
+      # getting its old IP for ten minutes (502 on every call). Five seconds and Kong follows it.
+      KONG_DNS_VALID_TTL: "5"
+      # The same for the new DNS client, off in 3.9 (new_dns_client), in case it is turned on.
+      KONG_RESOLVER_VALID_TTL: "5"
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
