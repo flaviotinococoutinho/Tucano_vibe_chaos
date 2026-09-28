@@ -1,0 +1,45 @@
+---
+- name: Find Homebrew
+  ansible.builtin.command:
+    argv: [brew, --prefix]
+  register: toolchain_brew
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Stop without Homebrew, which installs everything else
+  ansible.builtin.assert:
+    that: toolchain_brew.rc == 0
+    fail_msg: "Install Homebrew first (https://brew.sh) and run the playbook again."
+    quiet: true
+
+# macOS already brings git, make, curl and python3 with the Command Line Tools.
+- name: Install Colima, the Docker CLI, Compose and jq
+  community.general.homebrew:
+    name: [colima, docker, docker-compose, jq]
+    state: present
+
+- name: Ask the Docker CLI for Compose
+  ansible.builtin.command:
+    argv: [docker, compose, version]
+  register: toolchain_compose
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Homebrew puts the Compose plugin where the Docker CLI does not look. A link in the
+# plugin directory of the user is the fix its formula suggests, and it touches nothing else.
+- name: Let the Docker CLI find the Compose of Homebrew
+  when: toolchain_compose.rc != 0
+  block:
+    - name: Make the plugin directory of the Docker CLI
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.docker/cli-plugins"
+        state: directory
+        mode: "0755"
+
+    - name: Link the Compose plugin
+      ansible.builtin.file:
+        src: "{{ toolchain_brew.stdout }}/bin/docker-compose"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.docker/cli-plugins/docker-compose"
+        state: link

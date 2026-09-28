@@ -1,0 +1,38 @@
+name: setup
+
+# The whole Ansible setup on a clean Ubuntu runner: it installs what is missing, builds and
+# starts the stack, and asks every service whether it is ready. Proof that a new machine gets
+# to a healthy stack with one command. Manual, because it takes a while.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      # The images and the volumes need more room than a fresh runner has free.
+      - name: Make room on the disk of the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: Install Ansible
+        run: pipx install --include-deps ansible
+      - name: Prepare the machine and bring the stack up
+        working-directory: infra/ansible
+        run: ansible-playbook playbooks/setup.yml
+      - name: A second run changes nothing and the stack is still healthy
+        working-directory: infra/ansible
+        run: |
+          ansible-playbook playbooks/setup.yml | tee second-run.txt
+          grep -Eq 'changed=0 ' second-run.txt
+      - name: Containers
+        if: always()
+        run: docker compose ps -a
+      - name: Logs of what did not come up
+        if: failure()
+        run: docker compose logs --tail 60

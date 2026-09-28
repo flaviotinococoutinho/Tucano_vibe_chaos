@@ -5,13 +5,25 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check lint-workflows
+.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check lint-workflows
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-doctor: ## Check that Docker has enough resources for the stack
+doctor: ## Check that Docker has enough resources for the stack (and, on a Mac, that the Mac disk has room)
 	@scripts/doctor.sh
+
+setup: ## Prepare this machine with Ansible (tools, Docker VM, .env) and bring the stack up
+	@command -v ansible-playbook >/dev/null || { echo "Ansible first: brew install ansible (macOS) or pipx install --include-deps ansible"; exit 1; }
+	cd infra/ansible && ansible-playbook playbooks/setup.yml
+
+setup-check: ## Check the machine and the running stack with Ansible, changing nothing
+	@command -v ansible-playbook >/dev/null || { echo "Ansible first: brew install ansible (macOS) or pipx install --include-deps ansible"; exit 1; }
+	cd infra/ansible && ansible-playbook playbooks/check.yml
+
+trim: ## Give the space freed inside the Colima VM back to the Mac (after docker image prune)
+	@command -v colima >/dev/null || { echo "trim is for Colima: elsewhere Docker writes straight to the host disk"; exit 0; }
+	colima ssh -- sudo fstrim -av
 
 base: ## Build the PHP base images (8.3 and 8.4); cached after the first run
 	@for version in 8.3 8.4; do \

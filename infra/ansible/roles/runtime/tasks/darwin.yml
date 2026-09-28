@@ -1,0 +1,44 @@
+---
+- name: Ask Colima whether the VM is running
+  ansible.builtin.command:
+    argv: [colima, status, --profile, "{{ colima_profile }}"]
+  register: runtime_colima_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Ask Colima which VMs exist
+  ansible.builtin.command:
+    argv: [colima, list]
+  register: runtime_colima_list
+  changed_when: false
+  check_mode: false
+
+- name: Create the Docker VM with the size of the lab
+  ansible.builtin.command:
+    argv:
+      - colima
+      - start
+      - --profile
+      - "{{ colima_profile }}"
+      - --cpu
+      - "{{ colima_cpus }}"
+      - --memory
+      - "{{ colima_memory_gb }}"
+      - --disk
+      - "{{ colima_disk_gb }}"
+      - --vm-type
+      - "{{ colima_vm_type }}"
+  changed_when: true
+  when:
+    - runtime_colima_status.rc != 0
+    - runtime_colima_list.stdout is not search('(?m)^' ~ colima_profile ~ '\s')
+
+# An existing VM keeps its own settings: passing sizes again could grow its disk for good.
+- name: Start the Docker VM that already exists
+  ansible.builtin.command:
+    argv: [colima, start, --profile, "{{ colima_profile }}"]
+  changed_when: true
+  when:
+    - runtime_colima_status.rc != 0
+    - runtime_colima_list.stdout is search('(?m)^' ~ colima_profile ~ '\s')

@@ -3,7 +3,7 @@
 # array, so each CI job can skip itself when its area is untouched.
 set -euo pipefail
 
-ALL_AREAS="docs compose contracts shared-kernel feature-flags messaging read-models catalog commerce logistics tracking bff partners-sim web"
+ALL_AREAS="docs compose ansible contracts shared-kernel feature-flags messaging read-models catalog commerce logistics tracking bff partners-sim web"
 PHP_AREAS="shared-kernel feature-flags messaging read-models catalog commerce logistics tracking"
 
 changed_files() {
@@ -28,6 +28,7 @@ area_of() {
     scripts/*)                      echo "compose" ;;
     docs/operations/configuration.md) echo "compose docs" ;;
     infra/flags/*)                  echo "compose feature-flags" ;;
+    infra/ansible/*)                echo "ansible" ;;
     compose*.yaml|infra/*|Makefile) echo "compose" ;;
     docs/*|*.md)                    echo "docs" ;;
   esac

@@ -1,0 +1,60 @@
+---
+# Checks only: nothing here changes the machine, so it also runs under --check.
+
+- name: Refuse an operating system the playbook does not know
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in ['Darwin', 'Debian']
+    fail_msg: >-
+      The playbook knows macOS (Homebrew and Colima) and Debian or Ubuntu (Docker Engine).
+      On {{ ansible_facts['os_family'] }}, follow docs/operations/local-environment.md by hand.
+    quiet: true
+
+- name: Find the repository
+  ansible.builtin.stat:
+    path: "{{ project_root }}/compose.yaml"
+  register: preflight_compose
+
+- name: Stop outside a checkout of the chaos playground
+  ansible.builtin.assert:
+    that: preflight_compose.stat.exists
+    fail_msg: "No compose.yaml in {{ project_root }}: run the playbook from infra/ansible of the repository."
+    quiet: true
+
+# On a Mac the Docker VM keeps its disk as a file on the Mac disk, and that file grows as the
+# VM writes. The VM may think it has room while the Mac has none, and then every write inside
+# the VM fails with an I/O error. So the disk that counts is the Mac's.
+- name: Choose the disk that holds the Docker data
+  ansible.builtin.set_fact:
+    preflight_disk: "{{ (ansible_facts['os_family'] == 'Darwin') | ternary(ansible_facts['env']['HOME'], '/var/lib') }}"
+
+- name: Measure the free space of that disk
+  ansible.builtin.command:
+    argv: [df, -Pk, "{{ preflight_disk }}"]
+  register: preflight_df
+  changed_when: false
+  check_mode: false
+
+- name: Keep the free space in gigabytes
+  ansible.builtin.set_fact:
+    preflight_free_gb: "{{ ((preflight_df.stdout_lines[-1].split()[3] | int) / 1048576) | round(1) }}"
+
+- name: Stop when the disk cannot take the images and the volumes
+  ansible.builtin.assert:
+    that: preflight_free_gb | float >= host_min_free_gb | float
+    fail_msg: >-
+      Only {{ preflight_free_gb }} GB free on the disk of {{ preflight_disk }}, and the lab needs
+      {{ host_min_free_gb }} GB at least. Free some space first: docker image prune removes the
+      images no container uses, and make trim gives what the VM freed back to the Mac.
+    quiet: true
+
+- name: Warn when the disk is tight
+  ansible.builtin.debug:
+    msg: >-
+      {{ preflight_free_gb }} GB free on the disk of {{ preflight_disk }}. It works, but
+      {{ host_recommended_free_gb }} GB leaves room for builds and volumes to grow.
+  when: preflight_free_gb | float < host_recommended_free_gb | float
+
+- name: Warn when the machine has little memory for the VM and the host together
+  ansible.builtin.debug:
+    msg: "{{ ansible_facts['memtotal_mb'] }} MB of memory; the lab is sized for 8 GB machines and up."
+  when: ansible_facts['memtotal_mb'] | int < host_min_memory_mb | int

@@ -1,0 +1,9 @@
+---
+# Changes nothing: checks the machine and asks the running stack whether it is healthy.
+#   ansible-playbook playbooks/check.yml
+- name: Check the machine and the running stack
+  hosts: local
+  gather_facts: true
+  roles:
+    - role: preflight
+    - role: smoke

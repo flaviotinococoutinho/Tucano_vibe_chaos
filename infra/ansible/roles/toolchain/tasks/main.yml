@@ -1,0 +1,8 @@
+---
+- name: Install the tools on macOS
+  ansible.builtin.include_tasks: darwin.yml
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: Install the tools on Debian or Ubuntu
+  ansible.builtin.include_tasks: debian.yml
+  when: ansible_facts['os_family'] == 'Debian'

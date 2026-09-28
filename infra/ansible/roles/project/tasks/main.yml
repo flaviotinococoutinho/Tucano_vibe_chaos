@@ -1,0 +1,16 @@
+---
+# compose.yaml reads APP_ENV from .env; the other lines of an existing .env stay as they are.
+- name: Choose the flags of the stack in .env
+  ansible.builtin.lineinfile:
+    path: "{{ project_root }}/.env"
+    regexp: "^APP_ENV="
+    line: "APP_ENV={{ app_env }}"
+    create: true
+    mode: "0644"
+
+- name: Write the lab overrides to compose.override.yaml
+  ansible.builtin.template:
+    src: compose.override.yaml.j2
+    dest: "{{ project_root }}/compose.override.yaml"
+    mode: "0644"
+  when: lab_overrides | length > 0

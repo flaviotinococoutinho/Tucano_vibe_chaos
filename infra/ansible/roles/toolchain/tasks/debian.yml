@@ -1,0 +1,63 @@
+---
+- name: Install git, make, jq, curl and python3
+  ansible.builtin.apt:
+    name: [git, make, jq, curl, ca-certificates, python3]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Find a Docker already installed
+  ansible.builtin.command:
+    argv: [docker, --version]
+  register: toolchain_docker
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# A Docker that is already there (Docker Desktop, the one of a CI runner) stays as it is.
+- name: Install Docker Engine from the repository of Docker
+  when: toolchain_docker.rc != 0
+  become: true
+  block:
+    - name: Find the architecture Debian calls this machine
+      ansible.builtin.command:
+        argv: [dpkg, --print-architecture]
+      register: toolchain_arch
+      changed_when: false
+      check_mode: false
+
+    - name: Make the directory of the APT keys
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download the key that signs the Docker packages
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Add the repository of Docker
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ toolchain_arch.stdout }} signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}
+          {{ ansible_facts['distribution_release'] }} stable
+        filename: docker
+        state: present
+
+    - name: Install Docker Engine with the compose and buildx plugins
+      ansible.builtin.apt:
+        name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+        state: present
+        update_cache: true
+
+- name: Let the current user talk to Docker without sudo
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups: [docker]
+    append: true
+  become: true
+  when: ansible_facts['user_id'] != 'root'
