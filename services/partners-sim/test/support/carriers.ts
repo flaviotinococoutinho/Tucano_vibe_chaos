@@ -10,9 +10,13 @@ export type { LogLine };
 export { chaosDecisions };
 
 export const SECRET = 'whsec_test';
+/** The couriers' own secret: different from SECRET, so a test catches a report signed wrong. */
+export const COURIER_REPORT_SECRET = 'whsec_test_couriers';
 
 /** Nothing listens on the discard port, so webhooks sent here fail fast. */
 export const NOWHERE = 'http://127.0.0.1:9/v1/webhooks/carriers';
+/** Same discard port, for a test that does not care where the courier's reports go. */
+export const NOWHERE_TRACKING = 'http://127.0.0.1:9/api/tracking';
 
 /** A partner shipment crossing two states, so its journey passes through two hubs. */
 export const PICKUP = {
@@ -59,6 +63,12 @@ export function carriersApp({
     // The journey should not wait in a test: every step is one instant tick of InstantClock.
     CARRIERS_STEP_MIN_MS: '1000',
     CARRIERS_STEP_MAX_MS: '1000',
+    // Nowhere by default, so a test that is not about the courier device never reaches the
+    // network for it; one tick per ride is enough life to exercise the wiring regardless.
+    TRACKING_URL: NOWHERE_TRACKING,
+    COURIERS_SECRET: COURIER_REPORT_SECRET,
+    COURIER_POSITION_INTERVAL_MS: '1000',
+    COURIER_RIDE_MS: '1000',
     ...env,
   });
   const logStream = logs && { write: (line: string) => logs.push(JSON.parse(line)) };

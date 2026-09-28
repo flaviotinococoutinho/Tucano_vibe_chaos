@@ -64,6 +64,7 @@ export function buildApp({
   });
   app.register(carriersRoutes, {
     config: config.carriers,
+    couriers: config.couriers,
     webhookDelivery: config.webhooks,
     clock,
     random,

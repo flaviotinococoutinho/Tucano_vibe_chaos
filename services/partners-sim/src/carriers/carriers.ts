@@ -1,5 +1,6 @@
 import { between, type Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
+import type { CourierDevice } from '../couriers/device.ts';
 import { ExpiringMap, type Retention } from '../expiring-map.ts';
 import { newId } from '../ids.ts';
 import type { Origin, Webhooks } from '../webhooks/sender.ts';
@@ -69,6 +70,8 @@ export type CarriersOptions = {
   readonly random: Random;
   readonly chaos: Chaos;
   readonly webhooks: Webhooks<ParcelEventData>;
+  /** The own fleet's device: reports positions while a courier rides out for delivery. */
+  readonly device?: CourierDevice;
   /** How long a step of the journey takes before its webhook goes out. */
   readonly stepDelayMs: Range;
   /** How long CarrierFake remembers pickups and their history, and how many at most. */
@@ -91,10 +94,20 @@ export class Carriers {
   private readonly random: Random;
   private readonly chaos: Chaos;
   private readonly webhooks: Webhooks<ParcelEventData>;
+  private readonly device: CourierDevice | undefined;
   private readonly stepDelayMs: Range;
   private readonly signal: AbortSignal;
 
-  constructor({ clock, random, chaos, webhooks, stepDelayMs, retention, signal }: CarriersOptions) {
+  constructor({
+    clock,
+    random,
+    chaos,
+    webhooks,
+    device,
+    stepDelayMs,
+    retention,
+    signal,
+  }: CarriersOptions) {
     this.pickups = new ExpiringMap(clock, retention);
     this.eventsByPickup = new ExpiringMap(clock, retention);
     this.pickupIdsByReference = new ExpiringMap(clock, retention);
@@ -102,6 +115,7 @@ export class Carriers {
     this.random = random;
     this.chaos = chaos;
     this.webhooks = webhooks;
+    this.device = device;
     this.stepDelayMs = stepDelayMs;
     this.signal = signal;
   }
@@ -219,6 +233,12 @@ export class Carriers {
       }
       const attempt = dispatched.attempts;
 
+      // The own fleet's device rides from the center to the door while the visit happens; a
+      // partner has no device at all, so this call is the only place that carrier is checked.
+      if (dispatched.carrier === OWN_FLEET) {
+        await this.device?.ride(dispatched, origin);
+      }
+
       // The outcome is decided now; `advance` still spends the one delay of this step
       // before it turns into a delivered or a delivery_failed webhook.
       const outcome = this.chaos.visitOutcome(origin.log, id, attempt);
@@ -228,6 +248,9 @@ export class Carriers {
           receiverName: randomReceiverName(this.random),
           receiverDocument: randomReceiverDocument(this.random),
         }));
+        if (dispatched.carrier === OWN_FLEET) {
+          await this.device?.end(dispatched, 'delivered', origin);
+        }
         return;
       }
 
@@ -240,6 +263,9 @@ export class Carriers {
       );
       if (failed === undefined) {
         return;
+      }
+      if (dispatched.carrier === OWN_FLEET) {
+        await this.device?.end(dispatched, 'delivery_failed', origin);
       }
       if (outcome === 'recipient_refused' || attempt >= 3) {
         break;

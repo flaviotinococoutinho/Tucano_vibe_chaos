@@ -69,10 +69,15 @@ describe('a failed visit', () => {
   it('is tried again after a failure that is not a refusal, and can still be delivered', async (t) => {
     const receiver = await WebhookReceiver.start();
     t.after(() => receiver.close());
-    // Own fleet, no hubs: sleepStep, sleepStep, outcome(fail), sleepStep, sleepStep,
-    // outcome(deliver), sleepStep, then the delivered step draws a name and a masked CPF
-    // (11 more rolls). The extra padding covers those without having to count them by hand.
-    const rolls = [0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.1, ...Array.from({ length: 20 }, () => 0.1)];
+    // Own fleet, no hubs: sleepStep, sleepStep, the courier's ride (2 rolls: bearing and
+    // distance jitter), outcome(fail), sleepStep, sleepStep, the ride again, outcome(deliver),
+    // sleepStep, then the delivered step draws a name and a masked CPF (11 more rolls). The
+    // extra padding covers those without having to count them by hand.
+    const rolls = [
+      ...Array.from({ length: 9 }, () => 0.1),
+      0.9,
+      ...Array.from({ length: 20 }, () => 0.1),
+    ];
     const app = carriersApp({ webhookUrl: receiver.url, random: sequence(...rolls) });
     t.after(() => app.close());
     await putChaos(app, { failureRate: 0.5 });

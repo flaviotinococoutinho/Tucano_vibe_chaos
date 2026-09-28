@@ -41,6 +41,16 @@ export type CarriersConfig = {
   readonly retention: Retention;
 };
 
+export type CouriersConfig = {
+  /** Where the own fleet's device reports positions, and the secret its reports are signed with. */
+  readonly url: string;
+  readonly secret: string;
+  /** How often the device reports a position while a courier rides out for delivery. */
+  readonly positionIntervalMs: number;
+  /** How long one ride lasts, from the fulfillment center to the door. */
+  readonly rideMs: number;
+};
+
 export type Config = {
   readonly serviceName: string;
   readonly environment: Environment;
@@ -50,6 +60,7 @@ export type Config = {
   readonly webhooks: WebhookDeliveryConfig;
   readonly payfake: PayFakeConfig;
   readonly carriers: CarriersConfig;
+  readonly couriers: CouriersConfig;
 };
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -160,6 +171,14 @@ export function loadConfig(env: Env): Config {
     );
   }
 
+  const positionIntervalMs = milliseconds('COURIER_POSITION_INTERVAL_MS', 1000);
+  const rideMs = milliseconds('COURIER_RIDE_MS', 20000);
+  if (rideMs < positionIntervalMs) {
+    problems.push(
+      `COURIER_RIDE_MS must be at least COURIER_POSITION_INTERVAL_MS (${positionIntervalMs}), got "${rideMs}"`,
+    );
+  }
+
   const config: Config = {
     serviceName: text('APP_NAME', 'partners-sim'),
     environment: environmentOf(text('APP_ENV', 'production')),
@@ -187,6 +206,12 @@ export function loadConfig(env: Env): Config {
       },
       stepDelayMs: { min: stepMin, max: stepMax },
       retention: retention('CARRIERS_RETENTION_HOURS', 'CARRIERS_RETENTION_MAX_ENTRIES'),
+    },
+    couriers: {
+      url: url('TRACKING_URL', 'http://kong:8000/api/tracking'),
+      secret: text('COURIERS_SECRET', 'whsec_local_couriers'),
+      positionIntervalMs,
+      rideMs,
     },
   };
   if (problems.length > 0) {
