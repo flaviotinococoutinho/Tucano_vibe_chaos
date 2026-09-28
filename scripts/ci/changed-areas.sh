@@ -21,7 +21,12 @@ area_of() {
     .github/*|scripts/ci/*)         echo "$ALL_AREAS" ;;
     packages/php/*)                 echo "$PHP_AREAS" ;;
     contracts/*)                    echo "contracts catalog commerce logistics bff partners-sim" ;;
+    # A variable read or dropped in a config file must still agree with compose and the reference.
+    services/*/config/*|services/*/src/config.ts|services/tracking/src/Platform/Config.php)
+                                    echo "compose $(echo "$1" | cut -d/ -f2)" ;;
     services/*)                     echo "$1" | cut -d/ -f2 ;;
+    scripts/*)                      echo "compose" ;;
+    docs/operations/configuration.md) echo "compose docs" ;;
     infra/flags/*)                  echo "compose feature-flags" ;;
     compose*.yaml|infra/*|Makefile) echo "compose" ;;
     docs/*|*.md)                    echo "docs" ;;

@@ -24,6 +24,10 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 
 Um boot a frio, com volumes vazios, leva uns 20 segundos até tudo ficar saudável.
 
+## Configuração
+
+Cada serviço lê a configuração de variáveis de ambiente, e os padrões já servem para a stack. A [referência de configuração](configuration.md) lista todas, com o padrão e o porquê de cada uma. Para mudar um valor num experimento, uso um `compose.override.yaml` (o Git ignora) e recrio só o serviço com `docker compose up -d --no-deps <serviço>`. O `make config-check` confere que compose, código e referência concordam.
+
 ## Endereços
 
 Todas as portas escutam só em `127.0.0.1`.

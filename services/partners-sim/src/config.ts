@@ -138,9 +138,10 @@ export function loadConfig(env: Env): Config {
     return fallback;
   };
 
-  const retention = (prefix: string): Retention => ({
-    ttlMs: count(`${prefix}_RETENTION_HOURS`, 24, MAX_RETENTION_HOURS) * HOUR_MS,
-    maxEntries: count(`${prefix}_RETENTION_MAX_ENTRIES`, 20_000, MAX_RETENTION_ENTRIES),
+  // The names are written out in full, so a search for a variable finds where it is read.
+  const retention = (hoursName: string, maxEntriesName: string): Retention => ({
+    ttlMs: count(hoursName, 24, MAX_RETENTION_HOURS) * HOUR_MS,
+    maxEntries: count(maxEntriesName, 20_000, MAX_RETENTION_ENTRIES),
   });
 
   const processingMin = milliseconds('PAYFAKE_PROCESSING_MIN_MS', 300);
@@ -176,7 +177,7 @@ export function loadConfig(env: Env): Config {
         secret: text('PAYFAKE_WEBHOOK_SECRET', 'whsec_local_payfake'),
       },
       processingDelayMs: { min: processingMin, max: processingMax },
-      retention: retention('PAYFAKE'),
+      retention: retention('PAYFAKE_RETENTION_HOURS', 'PAYFAKE_RETENTION_MAX_ENTRIES'),
       timeoutHoldMs: milliseconds('PAYFAKE_TIMEOUT_HOLD_MS', 30000),
     },
     carriers: {
@@ -185,7 +186,7 @@ export function loadConfig(env: Env): Config {
         secret: text('CARRIERS_WEBHOOK_SECRET', 'whsec_local_carriers'),
       },
       stepDelayMs: { min: stepMin, max: stepMax },
-      retention: retention('CARRIERS'),
+      retention: retention('CARRIERS_RETENTION_HOURS', 'CARRIERS_RETENTION_MAX_ENTRIES'),
     },
   };
   if (problems.length > 0) {
