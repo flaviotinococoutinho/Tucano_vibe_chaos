@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import time
 
-from .store import Answer, Shopper, logger, self_link
+from .store import APPROVED_CARD, TRACK, Answer, Shopper, link_to, logger, self_link
 
-# The order a probe keeps between the check before the fault and the one after it, for the
+# What a probe keeps between the check before the fault and the one after it, for the
 # screens that must still answer when the service behind them is out.
 _remembered_order: str | None = None
+_remembered_tracking: str | None = None
 
 
 def catalog_opens(within_seconds: float = 2.0) -> bool:
@@ -65,6 +66,38 @@ def paying_answers_quickly(within_seconds: float = 1.0) -> bool:
     return in_time and (payment.status == 202 or _is_honest_refusal(payment))
 
 
+def placing_answers_quickly(within_seconds: float = 2.0) -> bool:
+    """Placing an order answers fast: the order, or a 503 that says when to come back.
+
+    Without its database, Commerce cannot keep a promise about stock, so refusing is the
+    right answer. A 500 that tells the customer nothing is not.
+    """
+    shopper = Shopper()
+    order = shopper.place_order()
+    logger.info("placing the order answered %s", order.described())
+    if order.status == 201:
+        # Declined at once, the order is cancelled and the mug goes back to the shelf.
+        shopper.pay(order)
+    return order.seconds <= within_seconds and (order.status == 201 or _is_honest_refusal(order))
+
+
+def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: float = 90.0) -> bool:
+    """The public tracking screen answers in time, read from its copy in DynamoDB.
+
+    The first check buys a mug with the card that approves and follows the order until the
+    carrier picks it up and the order offers its tracking link: the one probe that spends
+    stock. The next check only opens that link, while the database behind it may be out.
+    """
+    global _remembered_tracking
+    if _remembered_tracking is None:
+        _remembered_tracking = _a_parcel_to_track(pickup_within_seconds)
+        if _remembered_tracking is None:
+            return False
+    answer = Shopper().open(_remembered_tracking)
+    logger.info("the tracking screen answered %s", answer.described())
+    return answer.status == 200 and answer.seconds <= within_seconds
+
+
 def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
     """A payment the PSP settled reaches the order, by webhook or by reconciliation.
 
@@ -94,6 +127,30 @@ def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
         time.sleep(2)
     logger.info("no outcome after %.0f s", within_seconds)
     return False
+
+
+def _a_parcel_to_track(within_seconds: float) -> str | None:
+    shopper = Shopper()
+    order = shopper.place_order()
+    if order.status != 201:
+        logger.info("could not place the order to track: %s", order.described())
+        return None
+    payment = shopper.pay(order, card=APPROVED_CARD)
+    if payment.status != 202:
+        logger.info("the payment was not accepted: %s", payment.described())
+        return None
+
+    started = time.monotonic()
+    following = self_link(payment.screen)
+    while time.monotonic() - started <= within_seconds:
+        screen = shopper.open(following)
+        tracking = link_to(screen.screen, TRACK) if screen.status == 200 else None
+        if tracking is not None:
+            logger.info("the carrier picked the order up after %.1f s", time.monotonic() - started)
+            return tracking
+        time.sleep(2)
+    logger.info("no tracking link after %.0f s", within_seconds)
+    return None
 
 
 def _content_or_honest_refusal(answer: Answer, within_seconds: float) -> bool:

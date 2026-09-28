@@ -25,7 +25,7 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 
 ## Os experimentos que rodam sozinhos
 
-Os laboratórios contam o que aconteceu; os experimentos repetem. Quatro deles viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
+Os laboratórios contam o que aconteceu; os experimentos repetem. Seis deles viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
 
 ```bash
 make experiments                 # cada experimento e o estado estável que ele defende
@@ -52,6 +52,15 @@ O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a 
 ```bash
 make experiment e=commerce-cut-from-the-web
 make experiment e=catalog-slow-for-the-web
+```
+
+## O experimento que me corrigiu
+
+Eu ia escrever neste guia que, sem o banco, a loja recusa um pedido com honestidade. Antes de escrever, medi: cortei o PostgreSQL do commerce e tentei comprar. A resposta foi um `500` que não dizia nada, e não o `503` com hora para voltar que eu ia afirmar. A frase virou o experimento `commerce-database-out`, o experimento pegou a fraqueza na primeira execução, e a correção fez a queda de um banco responder como indisponibilidade em todos os serviços PHP ([ADR 0026](../adr/0026-a-database-outage-is-unavailability.md)). É a razão de este capítulo existir: uma afirmação sobre resiliência só vale depois de medida.
+
+```bash
+make experiment e=commerce-database-out          # sem o banco do commerce: 503 em 0,13 s, com Retry-After
+make experiment e=tracking-without-its-database  # sem o banco da logistics: o rastreio responde em 0,03 s
 ```
 
 ## O que eu levo de todos eles

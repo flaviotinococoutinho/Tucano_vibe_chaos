@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0",
+  "title": "O banco da logistics cai, e o rastreio continua respondendo pela cópia",
+  "description": "A logistics perde o PostgreSQL, onde a remessa é escrita, pelo proxy logistics-postgres do Toxiproxy. A página pública de rastreio lê uma cópia no DynamoDB, por chave, e a hipótese é que ela nem perceba: continua respondendo em até 1 s. É a escolha do CAP feita por operação: escrever uma remessa precisa do banco, mostrar onde ela está não. Para ter o que rastrear, a primeira sonda compra uma caneca com o cartão que aprova e espera a coleta, então cada execução entrega uma caneca de verdade.",
+  "tags": [
+    "tucano",
+    "logistics",
+    "database",
+    "cap",
+    "read-models"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "A página de rastreio de uma encomenda coletada responde em até 1 s",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-tracking-screen-answers",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "tracking_screen_answers",
+          "arguments": {
+            "within_seconds": 1,
+            "pickup_within_seconds": 90
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-logistics-from-its-database",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/logistics-postgres",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "reconnect-logistics-to-its-database",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/logistics-postgres",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}
