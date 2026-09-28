@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Application\Port\Driven;
 
+use DateTimeImmutable;
 use Logistics\Shipping\Domain\Error\ShipmentChangedMeanwhile;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Shipment;
 use Logistics\Shipping\Domain\Shipment\ShipmentId;
+use Logistics\Shipping\Domain\Shipment\ShipmentReference;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 
 interface ForStoringShipments
@@ -29,4 +31,11 @@ interface ForStoringShipments
 
     /** @throws ShipmentChangedMeanwhile when the stored version is not the one this shipment was loaded with */
     public function save(Shipment $shipment): void;
+
+    /**
+     * Claims the shipment in the hands of a carrier that has gone without news
+     * for the longest, if that is since before the given instant, and touches it
+     * so the next rounds leave it alone until it is quiet again.
+     */
+    public function claimQuiet(DateTimeImmutable $quietSince, DateTimeImmutable $now): ?ShipmentReference;
 }
