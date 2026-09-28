@@ -129,6 +129,8 @@ def the_page_follows_the_journey(within_seconds: float = 90.0) -> bool:
         if tracking is None:
             screen = shopper.open(order)
             tracking = link_to(screen.screen, TRACK) if screen.status == 200 else None
+            if tracking is not None:
+                logger.info("the order got its tracking link after %.1f s", time.monotonic() - started)
         else:
             page = shopper.open(tracking)
             if page.status == 200:

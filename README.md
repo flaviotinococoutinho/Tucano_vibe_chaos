@@ -60,6 +60,7 @@ Os [laboratórios](#os-laboratórios) contam o que eu quebrei e o que mudou no c
 | `tracking-without-its-database` | a logística perde o banco | o rastreio continua respondendo, pela cópia no DynamoDB |
 | `tracking-without-its-copy` | a cópia do rastreio no DynamoDB some | a página recusa na hora, com `503` e `Retry-After`, em vez de pendurar |
 | `tracking-without-the-timeline` | o MongoDB da linha do tempo interna some | a página pública segue a encomenda até entregue, com todos os passos |
+| `kafka-out-and-back` | o Kafka some por 30 s, com um pedido pago no meio | a entrega nasce e chega a entregue quando o Kafka volta |
 
 O `commerce-database-out` tem história. Eu ia escrever no guia que, sem o banco, a loja recusa um pedido com honestidade. Medi antes de escrever, e ela respondia um `500` que não dizia nada. A frase virou o experimento, o experimento pegou a fraqueza na primeira execução, e a correção virou o [ADR 0026](docs/adr/0026-a-database-outage-is-unavailability.md). O [mapa de modos de falha](docs/architecture/failure-modes.md) junta tudo isso numa tabela, com a prova de cada reação e a lista do que ainda não tem prova.
 
@@ -214,6 +215,6 @@ Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [gu
 
 ## Para onde ele vai
 
-- **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Kafka fora e o Redis junto com o PSP lento.
+- **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Redis junto com o PSP lento e o BFF sem a logistics.
 - **O tempo real da frota**, que o `tracking` já sabe servir por WebSocket e a web ainda não usa.
 - **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, login e sessão no lugar do cliente convidado. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).

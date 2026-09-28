@@ -6,6 +6,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Added
 
+- Experimento `kafka-out-and-back`: corta o Kafka por 30 s, compra e paga uma caneca no meio da queda e exige que, com o Kafka de volta, a encomenda chegue a entregue na página pública em até 90 s. Mediu 8,6 s até a remessa nascer e 18,8 s até entregue, e mostrou a inbox descartando o `order.paid` que a volta entregou duas vezes.
 - Experimento `tracking-without-the-timeline`: corta o MongoDB, compra uma caneca durante a queda e exige que a página pública chegue a entregue, com todos os passos da jornada, em até 90 s. Na primeira execução, a jornada inteira da encomenda foi para a DLQ, e a página ficou sem nenhum passo.
 - Experimento `tracking-without-its-copy`: corta o DynamoDB (o Floci inteiro) e exige que a página de rastreio responda em até 1 s, com a entrega ou com `503` e `Retry-After`. Na primeira execução, ela pendurava até o BFF desistir, em 5,05 s.
 

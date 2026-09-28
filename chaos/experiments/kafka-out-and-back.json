@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "title": "O Kafka cai, e o pedido pago no meio da queda vira entrega quando ele volta",
+  "description": "Todos os serviços falam com o Kafka pelo proxy kafka do Toxiproxy, e o experimento corta esse proxy por 30 s. No meio da queda, uma caneca é comprada e paga: o pagamento não precisa do Kafka, mas o order.paid fica esperando na outbox do commerce, e a logistics não fica sabendo de nada. O Kafka volta no fim do método, e a hipótese, conferida com ele de volta, é que a entrega nasça e chegue a entregue na página pública em até 90 s, com todos os passos. O log diz quanto tempo o pedido levou para ganhar o link de rastreio e para chegar a entregue.",
+  "tags": [
+    "tucano",
+    "kafka",
+    "outbox",
+    "recovery"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Uma encomenda paga chega a entregue na página pública em até 90 s, com todos os passos da jornada",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-page-follows-the-journey",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "the_page_follows_the_journey",
+          "arguments": {
+            "within_seconds": 90
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-kafka",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/kafka",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "action",
+      "name": "buy-a-parcel-while-kafka-is-out",
+      "provider": {
+        "type": "python",
+        "module": "tucano_chaos.actions",
+        "func": "buy_a_parcel"
+      },
+      "pauses": {
+        "after": 30
+      }
+    },
+    {
+      "type": "action",
+      "name": "bring-kafka-back",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/kafka",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "make-sure-kafka-is-back",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/kafka",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

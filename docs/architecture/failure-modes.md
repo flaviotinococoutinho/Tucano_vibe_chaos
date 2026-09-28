@@ -34,7 +34,7 @@ Os números vêm da stack local, em 28/09/2026. Eles mudam de máquina para máq
 
 | Modo de falha | Efeito para o cliente | Detecção | Reação | Prova | O que sobra |
 |---|---|---|---|---|---|
-| Kafka fora | a remessa demora a nascer; a tela do pedido espera | o relay não consegue publicar | o evento espera na outbox, gravado na mesma transação do fato, e sai quando o Kafka volta; os consumidores retomam do último offset confirmado | [ADR 0008](../adr/0008-transactional-outbox.md) e os testes do pacote de mensageria | sem experimento como código ainda |
+| Kafka fora | a remessa demora a nascer; a tela do pedido espera | o relay não consegue publicar | o evento espera na outbox, gravado na mesma transação do fato, e sai quando o Kafka volta; os consumidores retomam do último offset confirmado, e a inbox descarta o que a volta entregar duas vezes | experimento `kafka-out-and-back`: depois de 30 s fora, a remessa nasceu 8,6 s depois da volta do Kafka e a encomenda chegou a entregue em 18,8 s; [ADR 0008](../adr/0008-transactional-outbox.md) | até uns 10 s de espera depois da volta, que é o teto do backoff de reconexão do cliente do Kafka |
 | evento entregue duas vezes | efeito em dobro | o id do evento, na inbox | a inbox descarta a repetição na mesma transação do efeito; `UNIQUE (order_id)` nas remessas | teste (pacote de mensageria e `SchemaConstraintsTest`) | nada |
 | mensagem ilegível, ou recusada pelo domínio | a partição travaria atrás dela | `PermanentFailure` | vai para `dlq.<consumer-group>` na hora, com o erro nos headers | teste (pacote de mensageria) | alguém precisa olhar a DLQ |
 | worker parado no meio de um retry | um efeito pela metade | `SIGTERM` | o offset não é confirmado, e a mensagem volta depois do restart | laboratório do banco fora do ar | nada |
@@ -68,7 +68,6 @@ Os números vêm da stack local, em 28/09/2026. Eles mudam de máquina para máq
 
 Uma análise honesta termina pelo que falta. Estes são os próximos experimentos, em ordem de valor:
 
-1. **Kafka fora**: a outbox garante que nenhum evento se perde, mas nenhum experimento mede quanto tempo a remessa leva para nascer depois que o Kafka volta.
-2. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
-3. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
-4. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.
+1. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
+2. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
+3. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.
