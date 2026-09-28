@@ -1,6 +1,6 @@
 # 3. A natureza da informação
 
-![O tucano numa ponte sobre um rio de envelopes, entre um cofre trancado com um livro-razão e prateleiras de caixas; o rio desemboca num lago](../assets/guia/informacao.png)
+![Um varal com recibos em branco presos em fila por prendedores laranja; na ponta, o tucano prende mais um com o bico](../assets/guia/informacao.png)
 
 Antes de escolher banco, fila ou cache, eu pergunto de que tipo é a informação. Quem é o dono dela? Ela pode chegar atrasada? Pode chegar duas vezes? É de uma pessoa? A resposta decide a ferramenta, e não o contrário.
 

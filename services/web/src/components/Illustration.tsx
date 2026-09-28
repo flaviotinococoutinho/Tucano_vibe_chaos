@@ -7,24 +7,24 @@ type Entry = {
   readonly alt: string;
 };
 
-// The four moments the mascot shows up in the app (docs/assets/README.md). Files are the
-// untouched originals, copied byte for byte into public/illustrations.
+// The four moments the mascot shows up in the app (docs/assets/README.md). The originals live
+// in docs/assets/ui; these are the copies `make web-art` sizes for the screen.
 const ILLUSTRATIONS: Readonly<Record<IllustrationName, Entry>> = {
   empty: {
-    file: 'ui-empty.png',
-    alt: 'Tucano com capacete de segurança segurando uma caixa de papelão vazia e aberta',
+    file: 'ui-empty.webp',
+    alt: 'O tucano espiando dentro de uma sacola de compras vazia',
   },
   'not-found': {
-    file: 'ui-not-found.png',
-    alt: 'Tucano com capacete de segurança lendo um mapa ao lado de uma caixa de papelão com um raio desenhado',
+    file: 'ui-not-found.webp',
+    alt: 'O tucano olhando para uma placa com três setas em branco, cada uma apontando para um lado',
   },
   error: {
-    file: 'ui-error.png',
-    alt: 'Tucano com capacete de segurança apagando com um extintor um servidor que solta faíscas',
+    file: 'ui-error.webp',
+    alt: 'O tucano segurando no bico a ponta de um cabo cortado, com a outra ponta no chão',
   },
   success: {
-    file: 'ui-success.png',
-    alt: 'Tucano com capacete de segurança e asas abertas ao lado de uma caixa de papelão marcada com certo, cercado de confete',
+    file: 'ui-success.webp',
+    alt: 'O tucano de asa erguida ao lado de uma encomenda fechada com laço',
   },
 };
 
@@ -39,8 +39,8 @@ export function Illustration({ name, className }: IllustrationProps): ReactEleme
     <img
       src={`/illustrations/${file}`}
       alt={alt}
-      width={1024}
-      height={1024}
+      width={512}
+      height={512}
       loading="lazy"
       decoding="async"
       className={className}
