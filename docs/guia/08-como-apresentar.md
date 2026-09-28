@@ -4,7 +4,7 @@ Um projeto de estudo só vale numa conversa se couber no tempo da conversa. Este
 
 ## Em um minuto
 
-> Montei um e-commerce com entrega própria, a Tucano, para reaprender PHP moderno e Node depois de anos no Java e no Kotlin. São seis serviços num Docker Compose, conversando por Kafka com outbox e inbox, com PostgreSQL para escrever e MongoDB e DynamoDB para ler. A web é um intérprete de telas: o BFF manda cada tela em hipermídia, e o fluxo inteiro mora no servidor. E eu quebro tudo de propósito: o Toxiproxy fica entre cada serviço e cada dependência, os parceiros são simulados e aceitam comandos de caos, e cada laboratório conta o que mudou no código depois que a realidade discordou de mim.
+> Passei um tempo usando mais Java, Kotlin e os frameworks em volta deles, e montei a Tucano, um e-commerce com entrega própria, para reencontrar o PHP e o Node que eu conhecia de perto e ver o quanto eles evoluíram junto com as ferramentas que atravessam qualquer linguagem. São seis serviços num Docker Compose, conversando por Kafka com outbox e inbox, com PostgreSQL para escrever e MongoDB e DynamoDB para ler. A web é um intérprete de telas: o BFF manda cada tela em hipermídia, e o fluxo inteiro mora no servidor. E eu quebro tudo de propósito: o Toxiproxy fica entre cada serviço e cada dependência, os parceiros são simulados e aceitam comandos de caos, e cada laboratório conta o que mudou no código depois que a realidade discordou de mim. Seis experimentos de caos rodam com um comando, e um deles pegou um bug enquanto eu escrevia a documentação.
 
 ## Uma demo de três minutos
 
@@ -15,8 +15,9 @@ open http://localhost:8000                # a loja
 
 1. Compro um livro e pago com o cartão que aprova. A tela do pedido se atualiza sozinha: confirmando, pagamento aprovado, a caminho, entregue. O código de rastreio aparece quando a transportadora coleta.
 2. Compro de novo e pago com o cartão recusado. A tela termina em "Cancelado", dizendo por quê, e o estoque volta para a prateleira.
-3. Corto o commerce no Toxiproxy (`curl -s -X POST localhost:8474/proxies/bff-commerce -d '{"enabled": false}'`). A tela do pedido responde 503 dizendo quando tentar de novo, e o catálogo continua abrindo.
-4. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
+3. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
+4. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
+5. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
 
 ## Numa conversa técnica longa
 
@@ -25,7 +26,9 @@ Eu escolho o fio pela pessoa do outro lado:
 | Se a conversa é sobre | Eu começo por | E aprofundo em |
 |---|---|---|
 | consistência de dados | a outbox e a inbox | idempotência de ponta a ponta, e o [ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md) sobre esperar o banco em vez de mandar para a DLQ |
-| resiliência | o [laboratório do circuit breaker](../labs/circuit-breaker.md) | a [conciliação de pagamentos](../labs/payment-reconciliation.md) e o estado `abandoned` |
+| resiliência | o [laboratório do circuit breaker](../labs/circuit-breaker.md) | a [conciliação de pagamentos](../labs/payment-reconciliation.md), o estado `abandoned`, e o [mapa de modos de falha](../architecture/failure-modes.md) |
+| engenharia do caos | os [experimentos como código](../../chaos/README.md) | o experimento que me corrigiu, e por que um rollback precisa devolver o estado estável, não só tirar a falha |
+| dados | [como eu penso](00-como-eu-penso.md): fato, conta e cópia | até onde normalizar, o que vai para o banco como `CHECK`, e o CAP escolhido por operação |
 | concorrência | o [laboratório de overselling](../labs/overselling.md), com os números | por que o `serializable` desistiu de sete compradores e ainda vendeu tudo |
 | arquitetura | o hexágono por pacote e o Deptrac | as fitness functions, e por que eu copio a plataforma Node em vez de compartilhar |
 | front-end | a web como intérprete de hipermídia | o contrato Siren, os exemplos que viram teste nos dois lados, e a acessibilidade |
@@ -38,6 +41,7 @@ Eu escolho o fio pela pessoa do outro lado:
 | Como você garante que um evento não se perde? | ele entra na outbox na mesma transação do fato, e um relay publica depois | [ADR 0008](../adr/0008-transactional-outbox.md) |
 | E se o Kafka entregar duas vezes? | o consumidor marca o id na inbox na mesma transação do efeito | [eventos](../architecture/events.md) |
 | Como você não vende a mesma unidade duas vezes? | reserva dentro de uma transação, com uma de quatro estratégias corretas atrás de um port | [overselling](../labs/overselling.md) |
+| E se o banco cair? | o pedido recusa na hora, com `503` e `Retry-After`, e o rastreio continua respondendo pela cópia | [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md) e o [capítulo da informação](03-informacao.md#quando-a-rede-se-parte) |
 | O que acontece se o PSP cair? | o circuit breaker abre e o checkout responde 503 com `Retry-After` em milissegundos | [circuit breaker](../labs/circuit-breaker.md) |
 | E se o webhook do PSP nunca chegar? | a conciliação pergunta ao PSP e aplica a resposta pelo mesmo caminho do webhook | [conciliação](../labs/payment-reconciliation.md) |
 | Por que não um microsserviço por entidade? | fronteira por subdomínio: o que muda junto fica junto | [ADR 0002](../adr/0002-services-per-subdomain.md) |

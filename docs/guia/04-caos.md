@@ -25,7 +25,7 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 
 ## Os experimentos que rodam sozinhos
 
-Os laboratórios contam o que aconteceu; os experimentos repetem. Seis deles viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
+Os laboratórios contam o que aconteceu; os experimentos repetem. As falhas mais importantes viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
 
 ```bash
 make experiments                 # cada experimento e o estado estável que ele defende
@@ -62,6 +62,10 @@ Eu ia escrever neste guia que, sem o banco, a loja recusa um pedido com honestid
 make experiment e=commerce-database-out          # sem o banco do commerce: 503 em 0,13 s, com Retry-After
 make experiment e=tracking-without-its-database  # sem o banco da logistics: o rastreio responde em 0,03 s
 ```
+
+## O mapa de tudo isso
+
+O [mapa de modos de falha](../architecture/failure-modes.md) junta laboratórios, experimentos e testes numa tabela só: para cada falha que interessa, o que o cliente sente, como o sistema percebe, o que ele faz, a prova de que ele faz, e o que ainda não tem prova. A última seção dele é a lista dos próximos experimentos.
 
 ## O que eu levo de todos eles
 

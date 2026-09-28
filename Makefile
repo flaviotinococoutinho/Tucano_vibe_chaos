@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check lint-workflows web-art
+.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check docs-check lint-workflows web-art
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -109,6 +109,9 @@ kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 
 config-check: ## Check that compose, the code and docs/operations/configuration.md agree on every variable
 	@python3 scripts/check-config.py
+
+docs-check: ## Check that every relative link and anchor in the Markdown points somewhere
+	@python3 scripts/check-doc-links.py
 
 lint-workflows: ## Validate the GitHub Actions workflows with actionlint
 	docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color

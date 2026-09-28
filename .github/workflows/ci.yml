@@ -30,6 +30,14 @@ jobs:
         run: |
           scripts/ci/changed-areas.sh | tee -a "$GITHUB_OUTPUT"
 
+  # Cheap enough for every change: a file renamed anywhere can break a link in the docs.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every relative link in the docs points somewhere
+        run: python3 scripts/check-doc-links.py
+
   compose:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'compose')
@@ -435,7 +443,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim, web]
+    needs: [changes, docs, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim, web]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

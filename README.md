@@ -4,17 +4,38 @@
 
 # chaos_playground
 
-Passei cinco anos no Java e no Kotlin. Este é o laboratório onde reaprendo PHP moderno (Laravel, Lumen e Swoole) e Node.js, e onde treino system design e engenharia do caos. Em vez de exemplos soltos, montei um sistema inteiro para ter onde quebrar as coisas e medir o que acontece: a **Tucano**, um e-commerce fictício com entrega própria, a Tucano Express.
+[![ci](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/flaviotinococoutinho/chaos_playground?color=F28C28)](https://github.com/flaviotinococoutinho/chaos_playground/releases)
+[![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-138A8A)](LICENSE)
 
-O projeto calibra e relembra stacks. Cada linguagem está onde o trabalho dela faz mais sentido, cada ferramenta entrou porque um problema pedia, e cada decisão tem o porquê escrito, com o ganho e o custo. Nada aqui é bala de prata.
+Uma loja de verdade, feita para ser quebrada de propósito. A **Tucano** é um e-commerce fictício com entrega própria, a Tucano Express, e este repositório é o laboratório onde eu construo esse sistema do jeito que construiria no trabalho, para depois derrubar um banco, deixar o PSP lento ou sumir com um webhook, e medir o que a pessoa do outro lado sente.
 
-## Por que olhar este projeto
+Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados deles. Este projeto é o meu reencontro com uma tecnologia com que eu tinha muita familiaridade, o PHP, e com o Node: sentir de novo o tato delas e ver o quanto evoluíram, principalmente quando se juntam às soluções transversais que hoje atravessam qualquer linguagem, como Kafka, Kong, Toxiproxy, OpenFeature e CloudEvents.
 
-- **Um sistema de verdade, não um tutorial.** Seis serviços e uma web num Docker Compose só, conversando por Kafka com outbox e inbox, com PostgreSQL para escrever e MongoDB e DynamoDB para ler. Um pedido atravessa estoque, pagamento com PSP, etiqueta, coleta, hubs e a porta de casa.
-- **Caos com número.** O Toxiproxy fica entre cada serviço e cada dependência, os parceiros são simulados e aceitam comandos de falha, e [seis laboratórios](docs/guia/04-caos.md) contam o que eu quebrei, o que medi e o que mudou no código por causa disso.
-- **A web é um intérprete.** O BFF manda cada tela em hipermídia (Siren), com os próximos passos dentro dela, e a web só desenha e segue. O fluxo inteiro mora no servidor ([ADR 0023](docs/adr/0023-server-driven-ui-with-siren.md)).
-- **Integridade conceitual cobrada pelo CI.** Direção das dependências, fronteiras entre pacotes, casos de uso documentados, configuração, contratos de eventos e de telas, e até onde um dado pessoal pode aparecer: cada regra é um teste que quebra o build ([abstrações](docs/guia/05-abstracoes.md)).
-- **Padrões antes de invenção.** RFC 9457 para erro, 9110 para status, 7240 para preferência, 8288 para links, 3339 para tempo, o draft de `Idempotency-Key`, CloudEvents, JSON Schema, WCAG 2.2, LGPD e PCI DSS ([padrões](docs/guia/07-padroes.md)).
+## Em três perguntas
+
+### O que isso faz?
+
+Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
+
+### Por onde eu começo?
+
+| Se você quer | Comece por |
+|---|---|
+| ver funcionando | [subir a stack](#subindo) e abrir `http://localhost:8000`: dois comandos |
+| entender as decisões | [como eu penso esse tipo de sistema](docs/guia/00-como-eu-penso.md), o capítulo 0 do guia |
+| ver o caos | `make experiment e=commerce-database-out`, o experimento que pegou um bug enquanto eu escrevia a documentação |
+| conversar sobre o projeto | o [roteiro de apresentação](docs/guia/08-como-apresentar.md), do pitch de um minuto à conversa técnica longa |
+
+### Por que foi feito assim?
+
+Porque cada escolha tem um porquê escrito, com o ganho e o custo, num [ADR](docs/adr/README.md). Três ideias atravessam tudo:
+
+- **Nada de bala de prata.** Quando uma decisão parece de graça, eu ainda não entendi o que ela cobra.
+- **Integridade conceitual.** O mesmo problema tem a mesma solução em todo lugar: um jeito de errar (RFC 9457), um jeito de publicar evento (outbox), um jeito de chamar outro contexto (port e adapter).
+- **O que importa, um computador confere.** Direção das dependências, fronteiras entre pacotes, contratos, configuração, onde um dado pessoal pode aparecer e até as hipóteses de resiliência: cada regra é um teste ou um experimento que quebra quando alguém a quebra.
+
+O [guia](docs/guia/README.md) conta a história inteira como um passeio, em capítulos que cabem numa leitura de café.
 
 ## A loja
 
@@ -24,6 +45,21 @@ O projeto calibra e relembra stacks. Cada linguagem está onde o trabalho dela f
 | ![Um pedido entregue, com o selo Entregue, o código de rastreio e o botão Acompanhar a entrega](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
 
 A tela do pedido se atualiza sozinha enquanto algo está para acontecer: "Confirmando o pagamento", "Pagamento aprovado", "A caminho", "Entregue". Com o cartão de teste recusado, ela termina em "Cancelado" e diz por quê.
+
+## Caos com hipótese
+
+Os [laboratórios](#os-laboratórios) contam o que eu quebrei e o que mudou no código. Os [experimentos](chaos/README.md) repetem as falhas mais importantes sozinhos, no formato do Chaos Toolkit: a hipótese é conferida antes da falha e de novo com ela ativa, e os rollbacks rodam sempre.
+
+| Experimento | A falha | O que precisa continuar verdade |
+|---|---|---|
+| `psp-slow` | 3 s de latência no PSP | pagar responde em até 1 s, aceito ou recusado com `Retry-After` |
+| `lost-psp-webhooks` | o PSP cobra, mas nenhum webhook sai | todo pagamento chega a um desfecho, pela conciliação |
+| `commerce-cut-from-the-web` | o BFF perde o commerce | só as telas do commerce recusam, e o catálogo continua abrindo |
+| `catalog-slow-for-the-web` | 7 s de latência no catálogo | o BFF desiste em 5 s e diz quando tentar de novo |
+| `commerce-database-out` | o commerce perde o banco | fechar um pedido recusa na hora, com `503` e `Retry-After` |
+| `tracking-without-its-database` | a logística perde o banco | o rastreio continua respondendo, pela cópia no DynamoDB |
+
+O `commerce-database-out` tem história. Eu ia escrever no guia que, sem o banco, a loja recusa um pedido com honestidade. Medi antes de escrever, e ela respondia um `500` que não dizia nada. A frase virou o experimento, o experimento pegou a fraqueza na primeira execução, e a correção virou o [ADR 0026](docs/adr/0026-a-database-outage-is-unavailability.md). O [mapa de modos de falha](docs/architecture/failure-modes.md) junta tudo isso numa tabela, com a prova de cada reação e a lista do que ainda não tem prova.
 
 ## O que roda aqui
 
@@ -84,7 +120,8 @@ sequenceDiagram
   W->>B: a tela viva busca de novo o pedido, até a história acabar
 ```
 
-Para ver pela API, sem a web:
+<details>
+<summary>O mesmo pedido pela API, sem a web</summary>
 
 ```bash
 ORDER=$(curl -s -X POST localhost:8000/api/commerce/v1/orders \
@@ -111,6 +148,8 @@ for i in $(seq 20); do curl -s "localhost:8000/api/commerce/v1/orders/$ORDER" | 
 
 O status passa por `pending_payment`, `paid`, `shipped` e `delivered` em menos de um minuto, e o código de rastreio aparece na coleta. Enquanto isso, `make consume t=logistics.shipments.v2` mostra a remessa andando pelo Kafka.
 
+</details>
+
 ## Os laboratórios
 
 Cada um provoca uma falha de propósito, mede o que acontece e conta o que mudou no código por causa disso.
@@ -126,20 +165,19 @@ Cada um provoca uma falha de propósito, mede o que acontece e conta o que mudou
 
 As ferramentas do caos são o Toxiproxy (`make proxies`) para latência e cortes de rede, as flags `chaos.*` (`make flag key=... variant=...`) para falhas dentro dos serviços, e a API `/_chaos` do partners-sim para o PSP e as transportadoras.
 
-## Por onde começar a ler
+## O guia
 
-O [guia](docs/guia/README.md) conta a história na ordem em que ela faz sentido, em capítulos curtos:
-
+0. [Como eu penso esse tipo de sistema](docs/guia/00-como-eu-penso.md): informação, normalização, regra no banco, pureza nos atributos, abstração, escala e entropia
 1. [A Tucano e a jornada de um pedido](docs/guia/01-a-tucano.md)
 2. [Stacks e ferramentas transversais](docs/guia/02-stacks.md)
-3. [A natureza da informação](docs/guia/03-informacao.md)
+3. [A natureza da informação](docs/guia/03-informacao.md), com o CAP escolhido operação por operação
 4. [O playground do caos](docs/guia/04-caos.md)
 5. [Abstrações que seguram a entropia](docs/guia/05-abstracoes.md)
-6. [Conceitos, ganhos e custos](docs/guia/06-conceitos.md), de Brooks, Parnas e Dijkstra a Fielding, Helland e Nygard
+6. [Conceitos, ganhos e custos](docs/guia/06-conceitos.md), de Brooks, Parnas e Dijkstra a Kleppmann, Vernon, Greg Young e Brewer
 7. [Padrões e RFCs](docs/guia/07-padroes.md)
 8. [Como apresentar o projeto](docs/guia/08-como-apresentar.md)
 
-Depois do guia, a [documentação](docs/README.md) tem a referência: convenções, arquitetura, operação, laboratórios, casos de uso e decisões. O [CONTRIBUTING](CONTRIBUTING.md) explica o fluxo de Git, e o [CHANGELOG](CHANGELOG.md) conta o que mudou em cada versão.
+Depois do guia, a [documentação](docs/README.md) tem a referência: convenções, arquitetura, operação, caos, casos de uso e decisões. O [CONTRIBUTING](CONTRIBUTING.md) explica o fluxo de Git, e o [CHANGELOG](CHANGELOG.md) conta o que mudou em cada versão.
 
 ## Onde está cada coisa
 
@@ -164,7 +202,16 @@ Depois do guia, a [documentação](docs/README.md) tem a referência: convençõ
 | `make psql db=logistics` | abre o psql com o role do serviço |
 | `make flags` | mostra o valor de cada feature flag |
 | `make stalled` | roda agora a vigia das jornadas paradas |
+| `make experiments` | lista os experimentos de caos, cada um com a hipótese que defende |
+| `make experiment e=psp-slow` | roda um experimento contra a stack; os rollbacks rodam sempre |
+| `make web-art` | gera as imagens da web a partir dos originais em `docs/assets` |
 | `make config-check` | confere que compose, código e a referência de configuração concordam |
 | `make trim` | devolve ao Mac o espaço liberado dentro da VM do Colima |
 
 Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [guia do ambiente local](docs/operations/local-environment.md). Ainda em construção: o tempo real da frota por WebSocket, que o `tracking` já sabe servir e a web ainda não usa. O andamento de cada parte está na [tabela da arquitetura](docs/architecture/README.md).
+
+## Para onde ele vai
+
+- **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o DynamoDB fora (hoje a recusa leva 5 s), o MongoDB fora por muito tempo (o projetor mandaria mensagens boas para a DLQ), o Kafka fora e o Redis junto com o PSP lento.
+- **O tempo real da frota**, que o `tracking` já sabe servir por WebSocket e a web ainda não usa.
+- **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, login e sessão no lugar do cliente convidado. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).
