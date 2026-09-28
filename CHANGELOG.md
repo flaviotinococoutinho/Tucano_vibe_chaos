@@ -4,6 +4,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+
+- Com o DynamoDB fora, a leitura do rastreio levava 12,4 s na logistics e respondia `500`, porque o SDK repetia a chamada com espera entre as tentativas. Agora a leitura usa um cliente próprio, com uma tentativa só e até 800 ms (`DYNAMODB_READ_TIMEOUT_MS`), e a falta de resposta vira `TrackingPagesUnavailable`, que o controller devolve como `503` com `Retry-After: 5`: a página recusa em 0,06 s. A escrita do projetor mantém as tentativas.
+
 ## [0.9.0] - 2026-09-28
 
 ### Added

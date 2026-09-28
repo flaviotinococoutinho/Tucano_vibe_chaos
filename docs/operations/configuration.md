@@ -147,7 +147,8 @@ O Compose junta o override com o `compose.yaml` sozinho. O `--no-deps` evita rec
 | `SQS_TIMEOUT_MS` e `SQS_CONNECT_TIMEOUT_MS` | `5000` e `2000` | o padrão do Laravel espera 60 s pelo SQS, e uma fila lenta assim é uma fila fora do ar |
 | `S3_TIMEOUT_MS` e `S3_CONNECT_TIMEOUT_MS` | `5000` e `2000` | as chamadas ao S3 das etiquetas |
 | `TRACKING_TABLE` | `tracking_lookup` | a tabela do DynamoDB com a página pública de rastreio |
-| `DYNAMODB_TIMEOUT_MS` e `DYNAMODB_CONNECT_TIMEOUT_MS` | `3000` e `1000` | a página responde a uma pessoa esperando: um DynamoDB lento vira 503, não um request pendurado |
+| `DYNAMODB_TIMEOUT_MS` e `DYNAMODB_CONNECT_TIMEOUT_MS` | `3000` e `1000` | a escrita do projetor, que roda em segundo plano e ainda tem as tentativas do SDK por trás de cada chamada |
+| `DYNAMODB_READ_TIMEOUT_MS` | `800` | a leitura da página pública: uma pessoa espera, então é uma tentativa só, e um DynamoDB lento ou fora vira 503 com `Retry-After`, e não um request pendurado até o BFF desistir |
 | `TRACKING_PAGE_RETENTION_DAYS` | `90` | quantos dias a página fica depois do último passo; o TTL do DynamoDB apaga depois |
 
 ## catalog
