@@ -1,6 +1,6 @@
 # 4. O playground do caos
 
-![O tucano de jaleco e óculos de proteção puxando uma alavanca num painel cheio de medidores, com servidores tremendo amarrados e uma caixa descendo de paraquedas](../assets/guia/caos.png)
+![O tucano segurando no bico o plugue que ele tirou da tomada; os outros dois continuam ligados, e a lâmpada acima deles segue acesa](../assets/guia/caos.png)
 
 É aqui que o projeto ganha o nome. Construir o sistema é metade do trabalho; a outra metade é quebrar de propósito e ver se ele se comporta como eu achava. Quase sempre não se comporta, e é aí que o laboratório paga o que custou.
 

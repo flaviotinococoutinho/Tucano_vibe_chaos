@@ -1,6 +1,6 @@
 # 1. A Tucano e a jornada de um pedido
 
-![O tucano voando com uma caixa da loja ao centro de distribuição e dele até a casa do cliente, sobre estradas e um rio](../assets/guia/jornada.png)
+![O tucano levando uma encomenda pendurada no bico por uma trilha pontilhada, da loja de toldo listrado até uma casa de porta teal](../assets/guia/jornada.png)
 
 A Tucano vende livros, eletrônicos, casa e esporte, e entrega com frota própria, a Tucano Express, ou com três transportadoras parceiras. O negócio é inventado; o problema, não. Um pedido atravessa estoque, pagamento, etiqueta, coleta, hubs e porta de casa, e em cada passagem de mão alguma coisa pode dar errado. Por isso escolhi esse domínio: ele é pequeno o bastante para caber na minha máquina e grande o bastante para ter todas as falhas que interessam.
 

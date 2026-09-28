@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="O tucano da Tucano, de capacete, segurando uma caixa entre um rack de servidores, uma gangorra com um banco de dados e uma esteira de encomendas" width="100%">
+  <img src="docs/assets/banner.png" alt="O tucano da Tucano pulando o vão de uma pedra que falta num rio, com uma encomenda pendurada no bico" width="100%">
 </p>
 
 # chaos_playground
@@ -20,7 +20,7 @@ O projeto calibra e relembra stacks. Cada linguagem está onde o trabalho dela f
 
 | | |
 |---|---|
-| ![A home da loja, com o tucano segurando uma caixa e o botão Ver o catálogo](docs/assets/telas/loja.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
+| ![A home da loja, com o tucano pulando a pedra que falta no rio e o botão Ver o catálogo](docs/assets/telas/loja.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
 | ![Um pedido entregue, com o selo Entregue, o código de rastreio e o botão Acompanhar a entrega](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
 
 A tela do pedido se atualiza sozinha enquanto algo está para acontecer: "Confirmando o pagamento", "Pagamento aprovado", "A caminho", "Entregue". Com o cartão de teste recusado, ela termina em "Cancelado" e diz por quê.

@@ -22,14 +22,14 @@ export function HomeScreen({ screen }: { readonly screen: SirenScreen }): ReactE
             </Link>
           ) : null}
         </div>
-        {/* The banner of the brand, the original file from docs/assets: decorative, so it says
-            nothing to a screen reader, and sized up front so the page does not jump. */}
+        {/* The banner of the brand, derived from docs/assets by `make web-art`: decorative, so
+            it says nothing to a screen reader, and sized up front so the page does not jump. */}
         <img
           className="home-hero__art"
-          src="/illustrations/banner.png"
+          src="/illustrations/banner.webp"
           alt=""
           width={1600}
-          height={679}
+          height={686}
           decoding="async"
           fetchPriority="high"
         />

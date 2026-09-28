@@ -13,14 +13,15 @@
   padding: var(--space-5) var(--space-5) 0;
 }
 
-/* Narrow screens crop the banner around the tucano, so it does not shrink into the scenery. */
+/* Narrow screens crop the banner around the tucano, so it does not shrink into the scenery:
+   the bird and its parcel live between 55% and 85% of the width. */
 .home-hero__art {
   display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  object-position: 60% 50%;
+  object-position: 92% 50%;
 }
 
 .home-hero__headline {

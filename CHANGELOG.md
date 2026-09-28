@@ -8,10 +8,17 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 - Experimentos de caos como código (ADR 0025): quatro experimentos do Chaos Toolkit em `chaos/experiments`, cada um com o estado estável conferido antes da falha e de novo com ela ativa, e rollbacks que rodam sempre. O PSP lento abre o circuit breaker e pagar passa a responder `503` em 0,10 s; o commerce cortado derruba só as telas dele; o catálogo lento faz o BFF desistir em 5 s; e, sem nenhum webhook do PSP, a conciliação ainda traz o desfecho em pouco mais de um minuto. As sondas compram pela loja seguindo a hipermídia do BFF, e pagam com o cartão recusado para devolver o estoque. `make experiments` lista, `make experiment e=<nome>` roda, e o CI valida cada experimento.
 - Mais dois experimentos de caos, os dois sobre um banco fora do ar. `commerce-database-out` corta o PostgreSQL do commerce e exige que fechar um pedido recuse em até 2 s, com `503` e `Retry-After`; na primeira execução ele pegou um `500`. `tracking-without-its-database` corta o PostgreSQL da logistics e exige que o rastreio continue respondendo em até 1 s, pela cópia no DynamoDB: respondeu em 0,03 s. É o único experimento que compra de verdade, uma caneca por execução, porque precisa de uma encomenda coletada.
+- `make web-art` (`scripts/web-art.py`, num container Python): gera as imagens da web a partir dos originais em `docs/assets`. O banner vai em WebP com 1600 px (58 KB, contra 4 MB do original), as quatro ilustrações das telas em WebP com 512 px, e os ícones saem recortados em volta do tucano, com uma paleta de 64 cores que guarda as três tintas.
+
+### Changed
+
+- Identidade visual redesenhada: o tucano virou uma figura de poucas formas chapadas, em três tintas sobre papel, com o grão de uma impressão pequena, e cada ilustração conta uma ideia só (a pedra que falta no rio, o varal de recibos, o plugue puxado com a lâmpada acesa, o hexágono com portas). Os originais ficam intactos em `docs/assets`, as ilustrações das telas ganharam a pasta `docs/assets/ui`, e as capturas da loja foram refeitas.
+- As ilustrações das telas trazem o próprio papel e aparecem como um cartão claro de cantos arredondados, também no tema escuro.
 
 ### Fixed
 
 - Com o banco fora do ar, os serviços PHP respondiam `500` com o detalhe escondido, e a web mostrava um erro sem saída. Agora uma conexão recusada ou perdida vira `503` com `Retry-After: 5` e um texto fixo que não revela host nem porta; o BFF repassa o `Retry-After`, e qualquer outro erro de banco continua `500` (ADR 0026).
+- A página de um problema tinha como título a frase do status em inglês ("Not Found"). A web agora dá nome ao status em português ("Não encontrado", "Fora do ar por um instante"), e o `detail` do servidor continua logo abaixo.
 
 ## [0.8.0] - 2026-09-28
 
