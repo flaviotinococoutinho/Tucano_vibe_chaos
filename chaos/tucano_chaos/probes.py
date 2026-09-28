@@ -14,6 +14,11 @@ from .store import APPROVED_CARD, TRACK, Answer, Shopper, link_to, logger, self_
 # screens that must still answer when the service behind them is out.
 _remembered_order: str | None = None
 _remembered_tracking: str | None = None
+# The order bought while the fault is on, which the probe after the method follows.
+_bought_during_the_fault: str | None = None
+
+# The steps every journey of the own fleet goes through, from the shipment to the door.
+JOURNEY = ("created", "ready_for_pickup", "picked_up", "out_for_delivery", "delivered")
 
 
 def catalog_opens(within_seconds: float = 2.0) -> bool:
@@ -98,6 +103,42 @@ def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: 
     return answer.status == 200 and answer.seconds <= within_seconds
 
 
+def the_page_follows_the_journey(within_seconds: float = 90.0) -> bool:
+    """The public tracking page follows a parcel to the door, with every step of the journey.
+
+    It follows the order bought while the fault was on when there is one, and buys a new one
+    otherwise, with the card that approves: a parcel has to ship. The page is read the way
+    the web reads it, through the tracking link of the order screen.
+    """
+    shopper = Shopper()
+    order = _bought_during_the_fault
+    if order is None:
+        order = _a_paid_order(shopper)
+        if order is None:
+            return False
+
+    started = time.monotonic()
+    tracking = None
+    while time.monotonic() - started <= within_seconds:
+        if tracking is None:
+            screen = shopper.open(order)
+            tracking = link_to(screen.screen, TRACK) if screen.status == 200 else None
+        else:
+            page = shopper.open(tracking)
+            if page.status == 200:
+                steps = [step["properties"]["status"] for step in page.screen.get("entities", [])]
+                if page.screen["properties"]["status"] == "delivered":
+                    missing = [step for step in JOURNEY if step not in steps]
+                    waited = time.monotonic() - started
+                    logger.info("the page reached delivered after %.1f s, with %s", waited, ", ".join(steps))
+                    if missing:
+                        logger.info("the page lost the steps %s", ", ".join(missing))
+                    return not missing
+        time.sleep(2)
+    logger.info("the page did not reach delivered in %.0f s", within_seconds)
+    return False
+
+
 def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
     """A payment the PSP settled reaches the order, by webhook or by reconciliation.
 
@@ -127,6 +168,19 @@ def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
         time.sleep(2)
     logger.info("no outcome after %.0f s", within_seconds)
     return False
+
+
+def _a_paid_order(shopper: Shopper) -> str | None:
+    """Buys a mug with the card that approves, and returns the order screen to follow."""
+    order = shopper.place_order()
+    if order.status != 201:
+        logger.info("could not place the order: %s", order.described())
+        return None
+    payment = shopper.pay(order, card=APPROVED_CARD)
+    if payment.status != 202:
+        logger.info("the payment was not accepted: %s", payment.described())
+        return None
+    return self_link(payment.screen)
 
 
 def _a_parcel_to_track(within_seconds: float) -> str | None:

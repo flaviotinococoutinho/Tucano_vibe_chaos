@@ -1,0 +1,87 @@
+{
+  "version": "1.0.0",
+  "title": "O MongoDB cai, e a página pública continua acompanhando a encomenda",
+  "description": "O MongoDB, onde a logistics guarda a linha do tempo interna de cada remessa, some pelo proxy mongo do Toxiproxy. A página pública de rastreio mora em outro lugar, no DynamoDB, e a hipótese é que ela nem perceba: uma encomenda comprada durante a queda chega a entregue na página, com todos os passos da jornada, enquanto o MongoDB ainda está fora. Como os outros experimentos do rastreio, este compra e entrega canecas de verdade.",
+  "tags": [
+    "tucano",
+    "logistics",
+    "mongodb",
+    "read-models",
+    "bulkhead"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Uma encomenda chega a entregue na página pública em até 90 s, com todos os passos da jornada",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-page-follows-the-journey",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "the_page_follows_the_journey",
+          "arguments": {
+            "within_seconds": 90
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-the-internal-timeline",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/mongo",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "action",
+      "name": "buy-a-parcel-while-mongodb-is-out",
+      "provider": {
+        "type": "python",
+        "module": "tucano_chaos.actions",
+        "func": "buy_a_parcel"
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "bring-the-internal-timeline-back",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/mongo",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}
