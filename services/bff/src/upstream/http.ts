@@ -31,6 +31,10 @@ type Call = {
   readonly idempotencyKey?: string;
 };
 
+/** Where the services explain their named problems; a problem type is this page plus the name. */
+const PROBLEMS =
+  'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#';
+
 /** When nothing says otherwise, trying again in this many seconds is a fair bet. */
 const RETRY_AFTER_SECONDS = 5;
 
@@ -77,6 +81,21 @@ export class Answer {
     }
     const { errors } = body;
     return typeof errors === 'object' && errors !== null ? Object.keys(errors) : [];
+  }
+
+  /**
+   * The name of the problem, from its RFC 9457 type (stock-not-reserved), when the service
+   * gave it one; null for about:blank, where the status says it all.
+   */
+  problem(): string | null {
+    const body = this.#body;
+    if (typeof body !== 'object' || body === null || !('type' in body)) {
+      return null;
+    }
+    const { type } = body;
+    return typeof type === 'string' && type.startsWith(PROBLEMS)
+      ? type.slice(PROBLEMS.length)
+      : null;
   }
 
   /** For a status the call does not expect: the two sides disagree, and a person has to look. */

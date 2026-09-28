@@ -94,8 +94,14 @@ function reaches(
   seen = new Set<string>(),
 ): boolean {
   for (const next of edges.get(from) ?? []) {
-    if (next === to || (!seen.has(next) && (seen.add(next), reaches(edges, next, to, seen)))) {
+    if (next === to) {
       return true;
+    }
+    if (!seen.has(next)) {
+      seen.add(next);
+      if (reaches(edges, next, to, seen)) {
+        return true;
+      }
     }
   }
   return false;
