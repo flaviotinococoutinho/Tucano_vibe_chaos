@@ -12,11 +12,22 @@ use DateTimeImmutable;
  */
 final readonly class StatusTransition
 {
-    public function __construct(
+    private function __construct(
         public ?ShipmentStatus $from,
         public ShipmentStatus $to,
         public DateTimeImmutable $at,
         public ?string $reason = null,
         public ?string $location = null,
     ) {}
+
+    /** The status the aggregate is born in: there is nothing before it. */
+    public static function initial(ShipmentStatus $status, DateTimeImmutable $at): self
+    {
+        return new self(null, $status, $at);
+    }
+
+    public static function between(ShipmentStatus $from, ShipmentStatus $to, DateTimeImmutable $at, ?string $reason = null, ?string $location = null): self
+    {
+        return new self($from, $to, $at, $reason, $location);
+    }
 }

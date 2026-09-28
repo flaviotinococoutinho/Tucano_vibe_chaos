@@ -117,6 +117,12 @@ x-logistics: &logistics
     MONGO_URI: mongodb://toxiproxy:17017/?directConnection=true
     MONGO_DATABASE: logistics_read
     KAFKA_BROKERS: toxiproxy:19092
+    # Floci plays S3 (the label bucket) and SQS (the label queue).
+    AWS_ENDPOINT: http://toxiproxy:14566
+    SQS_PREFIX: http://toxiproxy:14566/000000000000
+    # CarrierFake, the carriers of the lab, and the secret of their webhooks.
+    CARRIERS_URL: http://toxiproxy:14002
+    CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
   depends_on:
     postgres:
       condition: service_healthy
@@ -570,6 +576,54 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  # Kafka is the log, SQS the work queue: this bridge turns every ShipmentCreated into a label job.
+  logistics-label-requests:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:request-labels"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # With the label ready, the carrier is asked to come (UC-SHP-04).
+  logistics-pickup-bookings:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:book-pickups"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # Laravel's queue worker on label-jobs. It finishes the current job on SIGTERM, and
+  # --max-time recycles it every hour; the restart policy brings it back.
+  logistics-label-worker:
+    <<: [*service, *logistics]
+    # --quiet: the job logs its outcome in JSON, like every other line of the stack.
+    command: ["php", "artisan", "queue:work", "sqs", "--queue=label-jobs", "--sleep=3", "--max-time=3600", "--quiet"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
   tracking:
     <<: *service
     build:
@@ -631,7 +685,11 @@ services:
       PAYFAKE_WEBHOOK_SECRET: whsec_local_payfake
       PAYFAKE_PROCESSING_MIN_MS: "300"
       PAYFAKE_PROCESSING_MAX_MS: "1500"
-    # The chaos controls of PayFake, from the host.
+      CARRIERS_WEBHOOK_URL: http://kong:8000/api/logistics/v1/webhooks/carriers
+      CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
+      CARRIERS_STEP_MIN_MS: "1000"
+      CARRIERS_STEP_MAX_MS: "4000"
+    # The chaos controls of PayFake and CarrierFake, from the host.
     ports:
       - "127.0.0.1:4000:4000"
     healthcheck:

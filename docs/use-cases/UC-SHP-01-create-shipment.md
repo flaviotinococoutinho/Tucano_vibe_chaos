@@ -31,7 +31,7 @@
 2. O sistema monta os volumes a partir do peso e das dimensões de cada produto.
 3. O sistema escolhe a transportadora pela corrente de regras (UC-SHP-02).
 4. O sistema gera o código de rastreio, cria a remessa em `created` e registra `ShipmentCreated` na outbox.
-5. O relay publica o `ShipmentCreated` em `logistics.shipments.v1`, e é dele que a geração da etiqueta (UC-SHP-03) vai partir.
+5. O relay publica o `ShipmentCreated` em `logistics.shipments.v2`, e é dele que parte a geração da etiqueta (UC-SHP-03).
 
 ## Extensões
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Logistics\Shipping\Domain\Shipment;
 
 use DateTimeImmutable;
-use Logistics\Shipping\Domain\Destination\Destination;
+use LogicException;
 use Logistics\Shipping\Domain\Error\TransitionNotAllowed;
 use Logistics\Shipping\Domain\Event\DeliveryAttemptFailed;
 use Logistics\Shipping\Domain\Event\ShipmentCancelled;
@@ -31,6 +31,7 @@ use Logistics\Shipping\Domain\Transition\Hub;
 use Logistics\Shipping\Domain\Transition\ProofOfDelivery;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
 use Logistics\Shipping\Domain\Transition\TransitionRequest;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\AggregateRoot;
 
 /**
@@ -45,12 +46,15 @@ final class Shipment extends AggregateRoot
     /** @var list<StatusTransition> */
     private array $transitions = [];
 
+    /** @var list<DeliveryAttempt> the visits not stored yet */
+    private array $visits = [];
+
     private function __construct(
         private readonly ShipmentReference $reference,
         private readonly CarrierCode $carrier,
         private readonly FulfillmentCenterCode $origin,
         private readonly Recipient $recipient,
-        private readonly Destination $destination,
+        private readonly Address $destination,
         private readonly Parcels $parcels,
         private readonly DateTimeImmutable $createdAt,
         public private(set) ShipmentStatus $status,
@@ -64,12 +68,12 @@ final class Shipment extends AggregateRoot
         CarrierCode $carrier,
         FulfillmentCenterCode $origin,
         Recipient $recipient,
-        Destination $destination,
+        Address $destination,
         Parcels $parcels,
         DateTimeImmutable $createdAt,
     ): self {
         $shipment = new self($reference, $carrier, $origin, $recipient, $destination, $parcels, $createdAt, ShipmentStatus::Created, DeliveryAttempts::none(), null, 1);
-        $transition = new StatusTransition(null, ShipmentStatus::Created, $createdAt);
+        $transition = StatusTransition::initial(ShipmentStatus::Created, $createdAt);
         $shipment->transitions[] = $transition;
         $shipment->recordThat(new ShipmentCreated($reference, $transition, $carrier, $origin, $destination, $parcels));
 
@@ -139,6 +143,7 @@ final class Shipment extends AggregateRoot
     {
         $transition = $this->moveTo(ShipmentStatus::Delivered, $at, new Evidence(proof: $proof));
         $this->attempts = $this->attempts->succeeded();
+        $this->visits[] = DeliveryAttempt::delivered($this->attempts->made, $proof ?? throw new LogicException('The proof guard let a delivery through without its proof.'), $at);
         $this->recordThat(new ShipmentDelivered($this->reference, $transition, $this->attempts->made));
     }
 
@@ -146,6 +151,7 @@ final class Shipment extends AggregateRoot
     {
         $transition = $this->moveTo(ShipmentStatus::DeliveryFailed, $at, new Evidence(failure: $failure));
         $this->attempts = $this->attempts->failed($failure);
+        $this->visits[] = DeliveryAttempt::failed($this->attempts->made, $failure ?? throw new LogicException('The reason guard let a failed visit through without its reason.'), $at);
         $this->recordThat(new DeliveryAttemptFailed($this->reference, $transition, $this->attempts->made));
     }
 
@@ -179,6 +185,19 @@ final class Shipment extends AggregateRoot
         return $transitions;
     }
 
+    /**
+     * The visits to the address not stored yet, oldest first, handed over once like the transitions.
+     *
+     * @return list<DeliveryAttempt>
+     */
+    public function releaseVisits(): array
+    {
+        $visits = $this->visits;
+        $this->visits = [];
+
+        return $visits;
+    }
+
     private function moveTo(ShipmentStatus $target, DateTimeImmutable $at, Evidence $evidence = new Evidence()): StatusTransition
     {
         if (!$this->status->canMoveTo($target)) {
@@ -186,7 +205,7 @@ final class Shipment extends AggregateRoot
         }
         self::guards()->check(new TransitionRequest($target, $this->attempts, $evidence));
 
-        $transition = new StatusTransition($this->status, $target, $at, $evidence->reason(), $evidence->location());
+        $transition = StatusTransition::between($this->status, $target, $at, $evidence->reason(), $evidence->location());
         $this->transitions[] = $transition;
         $this->status = $target;
         $this->version++;

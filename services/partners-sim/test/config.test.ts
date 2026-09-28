@@ -17,6 +17,13 @@ describe('config', () => {
         },
         processingDelayMs: { min: 300, max: 1500 },
       },
+      carriers: {
+        webhook: {
+          url: 'http://kong:8000/api/logistics/v1/webhooks/carriers',
+          secret: 'whsec_local_carriers',
+        },
+        stepDelayMs: { min: 1000, max: 4000 },
+      },
     });
   });
 
@@ -31,6 +38,10 @@ describe('config', () => {
       PAYFAKE_WEBHOOK_SECRET: 'whsec_rotated',
       PAYFAKE_PROCESSING_MIN_MS: '0',
       PAYFAKE_PROCESSING_MAX_MS: '50',
+      CARRIERS_WEBHOOK_URL: 'https://logistics.example/webhooks',
+      CARRIERS_WEBHOOK_SECRET: 'whsec_carriers_rotated',
+      CARRIERS_STEP_MIN_MS: '10',
+      CARRIERS_STEP_MAX_MS: '60',
     });
 
     assert.deepEqual(config, {
@@ -43,11 +54,22 @@ describe('config', () => {
         webhook: { url: 'https://merchant.example/webhooks', secret: 'whsec_rotated' },
         processingDelayMs: { min: 0, max: 50 },
       },
+      carriers: {
+        webhook: { url: 'https://logistics.example/webhooks', secret: 'whsec_carriers_rotated' },
+        stepDelayMs: { min: 10, max: 60 },
+      },
     });
   });
 
   it('treats an empty variable as unset', () => {
-    const empty = { PORT: '', APP_ENV: ' ', PAYFAKE_WEBHOOK_SECRET: '', PAYFAKE_WEBHOOK_URL: '' };
+    const empty = {
+      PORT: '',
+      APP_ENV: ' ',
+      PAYFAKE_WEBHOOK_SECRET: '',
+      PAYFAKE_WEBHOOK_URL: '',
+      CARRIERS_WEBHOOK_SECRET: '',
+      CARRIERS_WEBHOOK_URL: '',
+    };
 
     assert.deepEqual(loadConfig(empty), loadConfig({}));
   });
@@ -90,6 +112,33 @@ describe('config', () => {
       message:
         'Invalid configuration: PAYFAKE_PROCESSING_MAX_MS must be at least ' +
         'PAYFAKE_PROCESSING_MIN_MS (2000), got "1000".',
+    });
+  });
+
+  it('refuses CarrierFake settings it cannot run with', () => {
+    const invalid = {
+      CARRIERS_WEBHOOK_URL: 'kong:8000/webhooks',
+      CARRIERS_STEP_MIN_MS: 'soon',
+      CARRIERS_STEP_MAX_MS: '900000',
+    };
+
+    assert.throws(() => loadConfig(invalid), {
+      name: 'InvalidConfig',
+      message:
+        'Invalid configuration: ' +
+        'CARRIERS_STEP_MIN_MS must be an integer from 0 to 600000, got "soon"; ' +
+        'CARRIERS_STEP_MAX_MS must be an integer from 0 to 600000, got "900000"; ' +
+        'CARRIERS_WEBHOOK_URL must be an http or https URL, got "kong:8000/webhooks".',
+    });
+  });
+
+  it('refuses a step delay whose maximum is below its minimum', () => {
+    const inverted = { CARRIERS_STEP_MIN_MS: '5000', CARRIERS_STEP_MAX_MS: '1000' };
+
+    assert.throws(() => loadConfig(inverted), {
+      message:
+        'Invalid configuration: CARRIERS_STEP_MAX_MS must be at least ' +
+        'CARRIERS_STEP_MIN_MS (5000), got "1000".',
     });
   });
 });

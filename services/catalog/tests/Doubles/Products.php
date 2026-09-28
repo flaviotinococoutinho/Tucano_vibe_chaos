@@ -27,7 +27,7 @@ final class Products
             'books',
             Money::of(18990, Currency::brl()),
             1100,
-            new Dimensions(240, 170, 40),
+            Dimensions::ofMillimetres(240, 170, 40),
             3,
             new DateTimeImmutable('2026-09-27T12:00:04.567891Z'),
         );

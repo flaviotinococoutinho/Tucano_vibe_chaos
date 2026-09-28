@@ -36,11 +36,11 @@ final readonly class OrderPlaced extends OrderEvent
         return [
             'customerId' => $this->customerId->toString(),
             'fulfillmentCenter' => (string) $this->center,
-            'total' => $this->lines->total()->jsonSerialize(),
+            'total' => $this->lines->total()->toArray(),
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
                 'quantity' => $line->quantity->value,
-                'unitPrice' => $line->unitPrice->jsonSerialize(),
+                'unitPrice' => $line->unitPrice->toArray(),
             ], iterator_to_array($this->lines, false)),
             'reservationExpiresAt' => $this->reservationExpiresAt->format(DATE_RFC3339_EXTENDED),
         ];

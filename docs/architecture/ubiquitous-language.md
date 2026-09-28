@@ -10,6 +10,12 @@ Os termos abaixo valem igualmente na conversa, na documentação e no código. S
 | SKU | `Sku` | Catalog, Commerce | código único de um produto (ex.: `BOOK-DDD-001`) |
 | Snapshot de produto | `ProductSnapshot` | Commerce, Logistics | cópia local do estado do produto, recebida pelo tópico do catálogo |
 | Pedido | `Order` | Ordering | intenção de compra do cliente, com itens e endereço de entrega |
+| Endereço | `Address` | Shared kernel | logradouro, número, complemento, divisões territoriais, CEP e, quando há, coordenadas |
+| Logradouro | `Thoroughfare` | Shared kernel | a via pública, com tipo e nome: `Rua` e `da Bahia`, `Rodovia` e `Fernão Dias` |
+| Tipo de logradouro | `Thoroughfare::$type` | Shared kernel | rua, avenida, rodovia, estrada, travessa, alameda, praça; texto, porque cada país tem sua lista |
+| Número | `Address::$number` | Shared kernel | a posição no logradouro, em texto: `1200`, `KM 500`, `S/N`, `120-A` |
+| Divisão territorial | `Division` | Shared kernel | um nível do território (estado, município, distrito, subdistrito ou bairro), com nome e código oficial opcional |
+| Geocódigo | `Division::$code` | Shared kernel | código do IBGE que começa com o de quem está acima: `31` (MG), `3106200` (Belo Horizonte) |
 | Número do pedido | `OrderNumber` | Ordering | identificador público do pedido (Snowflake em decimal) |
 | Item do pedido | `OrderLine` | Ordering | SKU, quantidade e preço congelado no momento da compra |
 | Centro de distribuição (CD) | `FulfillmentCenter` | Inventory, Logistics | armazém de onde os pedidos saem (`GRU1`, `BHZ1`) |
@@ -48,4 +54,8 @@ Cada contexto tem seu próprio modelo, mesmo quando o nome coincide.
 | `item` sozinho | `OrderLine`, `Parcel`, `StockItem` | `item` significa coisas diferentes em cada contexto |
 | `status` booleano (`isPaid`, `delivered`) | um estado da máquina (`OrderStatus::Paid`) | flags combinadas criam estados impossíveis |
 | `data`, `info`, `manager`, `helper` | o nome do conceito | nomes genéricos escondem responsabilidade |
+| `street` ou rua para a via inteira | `Thoroughfare` (logradouro) | rua é só um dos tipos de logradouro |
+| `district` para o bairro | `DivisionKind::Neighborhood` | distrito é outra divisão do IBGE, acima do bairro |
+| `city` | `DivisionKind::Municipality` | a divisão oficial é o município; cidade é a sede dele |
+| número inteiro | texto (`Address::$number`) | quilômetro de rodovia, `S/N` e número com letra não cabem num inteiro |
 | evento no sentido de show ou promoção | - | aqui, evento é sempre **evento de domínio** |

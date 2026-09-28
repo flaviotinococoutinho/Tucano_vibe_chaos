@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Ordering;
 
 use Closure;
-use Commerce\Ordering\Domain\Address\PostalCode;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
 use Commerce\Ordering\Domain\Customer\PersonName;
 use Commerce\Ordering\Domain\Error\InvalidOrder;
@@ -61,7 +60,6 @@ final class OrderRulesTest extends TestCase
     #[Test]
     public function values_are_normalized(): void
     {
-        self::assertSame('01310100', (string) PostalCode::of('01310-100'));
         self::assertSame('ana@example.com', (string) EmailAddress::of('  Ana@Example.com '));
         self::assertSame('BOOK-DDD-001', (string) Sku::of('book-ddd-001'));
         self::assertSame('Ana Souza', (string) PersonName::of('  Ana   Souza '));
@@ -73,7 +71,6 @@ final class OrderRulesTest extends TestCase
         yield 'no lines' => [static fn() => OrderLines::of()];
         yield 'zero units' => [static fn() => Quantity::of(0)];
         yield 'eleven units' => [static fn() => Quantity::of(11)];
-        yield 'short CEP' => [static fn() => PostalCode::of('0131010')];
         yield 'bad e-mail' => [static fn() => EmailAddress::of('ana@')];
         yield 'blank name' => [static fn() => PersonName::of('   ')];
         yield 'bad SKU' => [static fn() => Sku::of('a b')];

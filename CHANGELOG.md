@@ -4,6 +4,32 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-27
+
+### Added
+
+- Etiqueta da remessa (UC-SHP-03): a ponte `logistics-label-requests` transforma cada `ShipmentCreated` em job na fila `label-jobs` do SQS, e o worker gera a etiqueta em ZPL (com escape contra injeção de comandos da impressora), grava no bucket `tucano-labels` e move a remessa para `ready_for_pickup`, com `ShipmentReadyForPickup` na outbox e contrato em JSON Schema. O SDK da AWS entra podado para S3 e SQS.
+- `make flag` e `make flag-reset` trocam a variante de uma flag na cópia que o flagd observa, sem reiniciar nada.
+- Laboratório da fila de etiquetas, com a flag `chaos.logistics.label-failure-rate`, os retries do job, o `failed_jobs` e o replay do Kafka.
+- CarrierFake no `partners-sim`: as transportadoras do laboratório (frota própria e parceiros), com agendamento de coleta idempotente, a jornada da encomenda num relógio comprimido (coleta, hubs, saída para entrega, até três visitas, devolução), webhooks assinados em ordem, caos em tempo real e contrato OpenAPI. O envio de webhooks, a assinatura e as chaves de idempotência viraram módulos comuns ao PayFake e ao CarrierFake.
+- A jornada da remessa até a porta (UC-SHP-04 a 08): a coleta agendada na transportadora quando a etiqueta fica pronta, e os webhooks assinados da transportadora aplicados na máquina de estados, com inbox, o comprovante e o motivo de cada visita em `delivery_attempts` e os sete eventos novos com contrato em JSON Schema.
+- O endereço no shared kernel ([ADR 0020](docs/adr/0020-address-by-thoroughfare-and-divisions.md)): logradouro com tipo e nome, número em texto (`KM 500`, `S/N`), divisões territoriais da UF ao bairro com o geocódigo do IBGE conferido por prefixo, CEP e coordenadas.
+
+### Changed
+
+- O verificador da assinatura de webhook (`t=...,v1=...`) mora no pacote de mensageria, e o commerce e a logística usam o mesmo.
+- O commerce e a logística usam o endereço do shared kernel. O checkout recebe logradouro, número em texto e divisões; `orders` e `shipments` trocam `street`, `district`, `city` e `state` por tipo e nome do logradouro e pelas divisões em `jsonb` com CHECK, e o número passa a `VARCHAR(20)`. A migração separa o `street` gravado em tipo e nome. A etiqueta imprime a linha do logradouro e as divisões dentro do município, e o `fulfillment_centers.city` da logística virou `municipality`.
+- Tópicos `commerce.orders.v2` e `logistics.shipments.v2`, como pede a ADR 0010: o `order.paid` leva o endereço novo, e o `shipment.created` leva o destino até o município. Os consumidores leem `.v1` e `.v2` até o `.v1` esvaziar, e o `order.paid` do `.v1` passa pelo `LegacyShippingAddress`.
+- Os value objects dos domínios nascem por construtores nomeados, como mandam as convenções: `Customer::of`, `OrderNumber::fromSnowflake`, `TrackingCode::fromSnowflake`, `ShipmentReference::of`, `Parcel::of`, `StatusTransition::initial` e `between` e `Dimensions::ofMillimetres` no lugar de `new`, e `Money` e `Dimensions` saem por `toArray()`.
+
+### Removed
+
+- A leitura dos tópicos `commerce.orders.v1` e `logistics.shipments.v1`, o `LegacyShippingAddress` e os schemas congelados do `.v1`, depois que o lag dos três consumer groups que liam o `.v1` zerou. O script do Kafka não cria mais os tópicos antigos.
+
+### Fixed
+
+- Os jobs que esgotam as tentativas agora ficam no `failed_jobs` do PostgreSQL. O `config/queue.php` apontava para um SQLite que não existe, e o job que falhava sumia sem rastro.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
@@ -82,7 +108,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...develop
+[0.5.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...v0.2.0

@@ -17,6 +17,6 @@ final class SequentialTrackingCodes implements ForIssuingTrackingCodes
 
     public function next(): TrackingCode
     {
-        return new TrackingCode(Snowflake::compose(self::NOON_2026_09_27, new NodeId(1, 12), $this->sequence++));
+        return TrackingCode::fromSnowflake(Snowflake::compose(self::NOON_2026_09_27, new NodeId(1, 12), $this->sequence++));
     }
 }

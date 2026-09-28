@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Logistics\Shipping\Application;
+
+use DateTimeImmutable;
+use Logistics\Shipping\Domain\Shipment\TrackingCode;
+
+/** What a carrier told about a shipment: which event, about which label, and when it happened. */
+final readonly class CarrierReport
+{
+    public function __construct(
+        public string $eventId,
+        public TrackingCode $trackingCode,
+        public DateTimeImmutable $at,
+    ) {}
+}

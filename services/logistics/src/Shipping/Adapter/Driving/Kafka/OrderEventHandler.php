@@ -26,7 +26,7 @@ use Tucano\SharedKernel\Messaging\CloudEvent;
 use ValueError;
 
 /**
- * Reads commerce.orders.v1 for the consumer group logistics.order-intake: a
+ * Reads commerce.orders.v2 for the consumer group logistics.order-intake: a
  * paid order becomes a shipment and a cancelled one stops it; the other order
  * events are not for Logistics. What a retry cannot fix goes to the dead
  * letter topic at once: an unreadable event, or a refusal of the domain, which

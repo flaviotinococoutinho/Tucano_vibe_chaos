@@ -53,7 +53,7 @@ Todas as portas escutam só em `127.0.0.1`.
 
 ```bash
 make topics                              # lista os tópicos
-make consume t=commerce.orders.v1        # lê um tópico desde o início, com chave e headers
+make consume t=commerce.orders.v2        # lê um tópico desde o início, com chave e headers
 make psql db=logistics                   # psql com o role do serviço
 make mysql                               # cliente MySQL no banco do catálogo
 make mongo                               # mongosh

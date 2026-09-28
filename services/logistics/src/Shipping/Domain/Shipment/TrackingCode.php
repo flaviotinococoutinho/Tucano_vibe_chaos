@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Domain\Shipment;
 
+use Logistics\Shipping\Domain\Error\InvalidShipment;
 use Stringable;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 
@@ -16,7 +17,22 @@ final readonly class TrackingCode implements Stringable
 {
     private const string PREFIX = 'TX';
 
-    public function __construct(public Snowflake $snowflake) {}
+    private function __construct(public Snowflake $snowflake) {}
+
+    public static function fromSnowflake(Snowflake $snowflake): self
+    {
+        return new self($snowflake);
+    }
+
+    /** Reads the code as people and carriers write it, TX plus 13 symbols. */
+    public static function fromString(string $code): self
+    {
+        if (preg_match('/^TX[0-9A-HJKMNP-TV-Z]{13}$/', $code) !== 1) {
+            throw InvalidShipment::because(sprintf('"%s" is not a tracking code.', $code));
+        }
+
+        return new self(Snowflake::fromBase32(substr($code, 2)));
+    }
 
     public function __toString(): string
     {

@@ -9,7 +9,6 @@ use Logistics\CarrierSelection\Domain\Consignment;
 use Logistics\CarrierSelection\Domain\NoCarrierFits;
 use Logistics\Shipping\Adapter\Driving\Kafka\OrderEventHandler;
 use Logistics\Shipping\Application\OrderLine;
-use Logistics\Shipping\Domain\Destination\Coordinates;
 use Logistics\Shipping\Domain\Error\NoCarrierChosen;
 use Logistics\Shipping\Domain\Error\ProductNotSyncedYet;
 use Logistics\Shipping\Domain\Error\TransitionNotAllowed;
@@ -23,6 +22,8 @@ use Tests\Doubles\Shipping\RecordedShipmentRequests;
 use Tests\Fixtures\OrderEvents;
 use Tests\TestCase;
 use Tucano\Messaging\Kafka\PermanentFailure;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\BrazilianState;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 
 final class OrderEventHandlerTest extends TestCase
@@ -50,12 +51,7 @@ final class OrderEventHandlerTest extends TestCase
         $order = $this->shipments->paid[0];
         self::assertSame([OrderEvents::PAID_EVENT, OrderEvents::ORDER, 'GRU1'], [$order->eventId, $order->orderId->toString(), (string) $order->origin]);
         self::assertSame(['Ana Souza', 'ana@example.com'], [$order->recipient->name, $order->recipient->email]);
-        $destination = $order->destination;
-        self::assertSame(['Avenida Paulista', '1000', 'Apto 12', 'Bela Vista', 'São Paulo', 'SP', '01310100'], [
-            $destination->street, $destination->number, $destination->complement, $destination->district,
-            $destination->city, $destination->state->value, (string) $destination->postalCode,
-        ]);
-        self::assertEquals(new Coordinates(-23.561414, -46.655881), $destination->coordinates);
+        self::assertEquals(self::paulista(), $order->destination);
         self::assertSame([['BOOK-DDD-001', 2], ['HOME-MUG-001', 1]], array_map(
             static fn(OrderLine $line): array => [(string) $line->sku, $line->quantity->value],
             $order->lines,
@@ -113,7 +109,9 @@ final class OrderEventHandlerTest extends TestCase
         yield 'not a CloudEvent' => ['{"orderId": "01999a1e-3c4d-7a2b-8c9d-0e1f2a3b4c5d"}'];
         yield 'an order id that is not a UUIDv7' => [OrderEvents::paid(['orderId' => 'order-1'])];
         yield 'no customer' => [OrderEvents::paid(['customer' => null])];
-        yield 'a state that does not exist' => [OrderEvents::paid(['shippingAddress' => ['street' => 'Rua A', 'number' => '1', 'district' => 'Centro', 'city' => 'Lugar', 'state' => 'XX', 'postalCode' => '01310100']])];
+        yield 'a state that does not exist' => [OrderEvents::paid(['shippingAddress' => ['divisions' => [['kind' => 'state', 'code' => 'XX', 'name' => 'Lugar'], ['kind' => 'municipality', 'code' => null, 'name' => 'Lugar']]] + OrderEvents::plainAddress()])];
+        yield 'a municipality of São Paulo in Minas Gerais' => [OrderEvents::paid(['shippingAddress' => ['divisions' => [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], ['kind' => 'municipality', 'code' => '3550308', 'name' => 'São Paulo']]] + OrderEvents::plainAddress()])];
+        yield 'the number as a number' => [OrderEvents::paid(['shippingAddress' => ['number' => 1200] + OrderEvents::plainAddress()])];
         yield 'a quantity as text' => [OrderEvents::paid(['lines' => [['sku' => 'BOOK-DDD-001', 'name' => 'Domain-Driven Design', 'quantity' => '2']]])];
         yield 'a center outside the format' => [OrderEvents::paid(['fulfillmentCenter' => 'gru1'])];
         yield 'a cancellation without the previous status' => [OrderEvents::cancelled(['previousStatus' => null])];
@@ -127,7 +125,7 @@ final class OrderEventHandlerTest extends TestCase
             $this->handler->handle(OrderEvents::message($payload));
             self::fail('An unreadable event should be a permanent failure.');
         } catch (PermanentFailure $failure) {
-            self::assertStringStartsWith('Unreadable event at commerce.orders.v1[2]@7: ', $failure->getMessage());
+            self::assertStringStartsWith('Unreadable event at commerce.orders.v2[2]@7: ', $failure->getMessage());
         }
 
         self::assertSame([[], []], [$this->shipments->paid, $this->shipments->cancelled]);
@@ -149,7 +147,7 @@ final class OrderEventHandlerTest extends TestCase
     #[Test]
     public function a_shipment_that_left_the_warehouse_goes_to_a_person_with_a_warning(): void
     {
-        $refusal = TransitionNotAllowed::for(new TrackingCode(Snowflake::fromInt(97663548934766595)), ShipmentStatus::PickedUp, ShipmentStatus::Cancelled);
+        $refusal = TransitionNotAllowed::for(TrackingCode::fromSnowflake(Snowflake::fromInt(97663548934766595)), ShipmentStatus::PickedUp, ShipmentStatus::Cancelled);
         $this->shipments->refuseWith($refusal);
 
         try {
@@ -171,5 +169,14 @@ final class OrderEventHandlerTest extends TestCase
         $this->expectException(PermanentFailure::class);
 
         $this->handler->handle(OrderEvents::message(OrderEvents::paid()));
+    }
+
+    private static function paulista(): Address
+    {
+        return Address::builder()
+            ->thoroughfare('Avenida', 'Paulista')->number('1000')->complement('Apto 12')
+            ->state(BrazilianState::SP)->municipality('São Paulo', '3550308')->neighborhood('Bela Vista')
+            ->postalCode('01310-100')->coordinates(-23.561414, -46.655881)
+            ->build();
     }
 }

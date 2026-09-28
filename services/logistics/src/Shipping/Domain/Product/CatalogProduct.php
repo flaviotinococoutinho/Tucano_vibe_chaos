@@ -17,6 +17,6 @@ final readonly class CatalogProduct
     /** One parcel per order line: every unit weighs the same and they go stacked in one box. */
     public function packed(Quantity $quantity): Parcel
     {
-        return new Parcel($this->weight->times($quantity), $this->dimensions->stacked($quantity));
+        return Parcel::of($this->weight->times($quantity), $this->dimensions->stacked($quantity));
     }
 }

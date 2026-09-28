@@ -15,6 +15,13 @@ export type PayFakeConfig = {
   readonly processingDelayMs: { readonly min: number; readonly max: number };
 };
 
+export type CarriersConfig = {
+  /** Where webhooks go and the secret they are signed with. */
+  readonly webhook: { readonly url: string; readonly secret: string };
+  /** How long one step of a pickup's journey takes before its webhook goes out. */
+  readonly stepDelayMs: { readonly min: number; readonly max: number };
+};
+
 export type Config = {
   readonly serviceName: string;
   readonly environment: Environment;
@@ -22,6 +29,7 @@ export type Config = {
   readonly port: number;
   readonly logLevel: LogLevel;
   readonly payfake: PayFakeConfig;
+  readonly carriers: CarriersConfig;
 };
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -96,6 +104,14 @@ export function loadConfig(env: Env): Config {
     );
   }
 
+  const stepMin = milliseconds('CARRIERS_STEP_MIN_MS', 1000);
+  const stepMax = milliseconds('CARRIERS_STEP_MAX_MS', 4000);
+  if (stepMax < stepMin) {
+    problems.push(
+      `CARRIERS_STEP_MAX_MS must be at least CARRIERS_STEP_MIN_MS (${stepMin}), got "${stepMax}"`,
+    );
+  }
+
   const config: Config = {
     serviceName: text('SERVICE_NAME', 'partners-sim'),
     environment: environmentOf(text('APP_ENV', 'production')),
@@ -108,6 +124,13 @@ export function loadConfig(env: Env): Config {
         secret: text('PAYFAKE_WEBHOOK_SECRET', 'whsec_local_payfake'),
       },
       processingDelayMs: { min: processingMin, max: processingMax },
+    },
+    carriers: {
+      webhook: {
+        url: url('CARRIERS_WEBHOOK_URL', 'http://kong:8000/api/logistics/v1/webhooks/carriers'),
+        secret: text('CARRIERS_WEBHOOK_SECRET', 'whsec_local_carriers'),
+      },
+      stepDelayMs: { min: stepMin, max: stepMax },
     },
   };
   if (problems.length > 0) {

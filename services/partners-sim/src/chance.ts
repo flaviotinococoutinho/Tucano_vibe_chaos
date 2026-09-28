@@ -10,3 +10,10 @@ export function happens(random: Random, rate: number): boolean {
 export function between(random: Random, min: number, max: number): number {
   return min + Math.floor(random() * (max - min + 1));
 }
+
+/** One item from a non-empty list, drawn the same way as `between`. */
+export function pick<T>(random: Random, items: readonly [T, ...T[]]): T {
+  const [first] = items;
+
+  return items[between(random, 0, items.length - 1)] ?? first;
+}

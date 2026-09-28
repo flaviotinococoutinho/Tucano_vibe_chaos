@@ -16,8 +16,8 @@ flowchart LR
 
   catalog -- "OHS + PL<br/>catalog.products.v1" --> commerce
   catalog -- "OHS + PL<br/>catalog.products.v1" --> logistics
-  commerce -- "Customer/Supplier<br/>commerce.orders.v1" --> logistics
-  logistics -- "PL<br/>logistics.shipments.v1" --> commerce
+  commerce -- "Customer/Supplier<br/>commerce.orders.v2" --> logistics
+  logistics -- "PL<br/>logistics.shipments.v2" --> commerce
   tracking -- "Customer/Supplier<br/>despacho" --> logistics
   psp -- "ACL" --> commerce
   carriers -- "ACL" --> logistics

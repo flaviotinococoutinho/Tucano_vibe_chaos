@@ -51,6 +51,8 @@ Antes, esse consumidor tentava 8 vezes (cerca de 35 s) e mandava a mensagem para
 
 Um `SIGTERM` durante as tentativas interrompe a espera e não confirma o offset. A mensagem volta depois do restart, em vez de ir para a DLQ só porque o container estava parando.
 
+A decisão e as alternativas que descartei estão no [ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md).
+
 ## O que eu levo para a entrevista
 
 - Conexão de longa duração é estado. Um worker precisa saber refazê-la; a API do PHP-FPM ganha isso de graça, por ser shared-nothing.

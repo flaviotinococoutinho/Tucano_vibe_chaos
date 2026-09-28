@@ -37,7 +37,7 @@ final class ProductRepositoryTest extends IntegrationTestCase
         $this->expectExceptionObject(DuplicateSku::of('BOOK-DDD-001'));
 
         $this->repository()->add(Product::draft(
-            new NewProduct('BOOK-DDD-001', 'Copy', 'books', Money::of(100, Currency::brl()), 100, new Dimensions(1, 1, 1)),
+            new NewProduct('BOOK-DDD-001', 'Copy', 'books', Money::of(100, Currency::brl()), 100, Dimensions::ofMillimetres(1, 1, 1)),
             new DateTimeImmutable(),
         ));
     }
@@ -91,7 +91,7 @@ final class ProductRepositoryTest extends IntegrationTestCase
     private function refactoring(): Product
     {
         return Product::draft(
-            new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, new Dimensions(235, 180, 30)),
+            new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30)),
             new DateTimeImmutable('2026-09-28T10:15:30.123456Z'),
         );
     }

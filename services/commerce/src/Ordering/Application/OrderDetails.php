@@ -21,8 +21,6 @@ final readonly class OrderDetails
 
     public static function of(OrderSnapshot $order): self
     {
-        $address = $order->address;
-
         return new self([
             'orderId' => $order->id->toString(),
             'orderNumber' => (string) $order->number,
@@ -32,24 +30,16 @@ final readonly class OrderDetails
                 'name' => (string) $order->customer->name,
                 'email' => (string) $order->customer->email,
             ],
-            'shippingAddress' => [
-                'street' => $address->street,
-                'number' => $address->number,
-                'complement' => $address->complement,
-                'district' => $address->district,
-                'city' => $address->city,
-                'state' => $address->state->value,
-                'postalCode' => (string) $address->postalCode,
-            ],
+            'shippingAddress' => $order->address->toArray(),
             'fulfillmentCenter' => (string) $order->fulfillmentCenter,
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
                 'name' => $line->productName,
                 'quantity' => $line->quantity->value,
-                'unitPrice' => $line->unitPrice->jsonSerialize(),
-                'subtotal' => $line->subtotal()->jsonSerialize(),
+                'unitPrice' => $line->unitPrice->toArray(),
+                'subtotal' => $line->subtotal()->toArray(),
             ], iterator_to_array($order->lines, false)),
-            'total' => $order->lines->total()->jsonSerialize(),
+            'total' => $order->lines->total()->toArray(),
             'placedAt' => $order->placedAt->format(DATE_RFC3339_EXTENDED),
             'reservationExpiresAt' => $order->reservationExpiresAt->format(DATE_RFC3339_EXTENDED),
         ]);

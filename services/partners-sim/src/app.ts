@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, LogController } from 'fastify';
+import { carriersRoutes } from './carriers/routes.ts';
 import type { Random } from './chance.ts';
 import { type Clock, systemClock } from './clock.ts';
 import type { Config } from './config.ts';
@@ -56,6 +57,7 @@ export function buildApp({
   app.setNotFoundHandler(sendNotFound);
   app.register(healthRoutes, { checks });
   app.register(payfakeRoutes, { config: config.payfake, clock, random });
+  app.register(carriersRoutes, { config: config.carriers, clock, random });
 
   return app;
 }

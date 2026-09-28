@@ -174,7 +174,7 @@ final readonly class ProductRepository
             (string) $row->category,
             Money::of((int) $row->price_cents, Currency::fromCode((string) $row->currency)),
             (int) $row->weight_grams,
-            new Dimensions((int) $row->length_mm, (int) $row->width_mm, (int) $row->height_mm),
+            Dimensions::ofMillimetres((int) $row->length_mm, (int) $row->width_mm, (int) $row->height_mm),
             (int) $row->version,
             new DateTimeImmutable((string) $row->updated_at, new DateTimeZone('UTC')),
         );

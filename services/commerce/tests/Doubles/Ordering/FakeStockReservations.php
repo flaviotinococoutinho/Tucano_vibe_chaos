@@ -6,13 +6,13 @@ namespace Tests\Doubles\Ordering;
 
 use Commerce\Inventory\Domain\InsufficientStock;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
+use Tucano\SharedKernel\Address\Address;
 
 /** Holds everything in one center, until the test says the stock ran out. */
 final class FakeStockReservations implements ForReservingStock
@@ -41,7 +41,7 @@ final class FakeStockReservations implements ForReservingStock
         $this->shortage = StockNotReserved::because(InsufficientStock::in([$this->center => [$sku]]));
     }
 
-    public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode
+    public function reserve(OrderId $order, OrderLines $lines, Address $destination, DateTimeImmutable $until): FulfillmentCenterCode
     {
         if ($this->shortage !== null) {
             throw $this->shortage;

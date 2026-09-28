@@ -6,10 +6,6 @@ namespace Commerce\Ordering\Adapter\Driving\Http;
 
 use Commerce\Ordering\Application\PlaceOrderCommand;
 use Commerce\Ordering\Application\RequestedItem;
-use Commerce\Ordering\Domain\Address\BrazilianState;
-use Commerce\Ordering\Domain\Address\Coordinates;
-use Commerce\Ordering\Domain\Address\PostalCode;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
@@ -19,10 +15,15 @@ use Commerce\Ordering\Domain\Product\Sku;
 use Commerce\Shared\Application\Idempotency\IdempotencyKey;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\Division;
+use Tucano\SharedKernel\Address\DivisionKind;
+use Tucano\SharedKernel\Address\Thoroughfare;
 
 /**
  * Checks the shape of the JSON. The domain value objects check the meaning
- * (a real e-mail, a postal code with eight digits) when the command is built.
+ * (a real e-mail, a postal code with eight digits, divisions in the order of
+ * the hierarchy) when the command is built.
  */
 final class PlaceOrderRequest extends FormRequest
 {
@@ -37,12 +38,17 @@ final class PlaceOrderRequest extends FormRequest
             'customer.name' => ['required', 'string', 'max:120'],
             'customer.email' => ['required', 'string', 'max:254'],
             'shippingAddress' => ['required', 'array'],
-            'shippingAddress.street' => ['required', 'string', 'max:160'],
-            'shippingAddress.number' => ['required', 'string', 'max:16'],
-            'shippingAddress.complement' => ['nullable', 'string', 'max:80'],
-            'shippingAddress.district' => ['required', 'string', 'max:80'],
-            'shippingAddress.city' => ['required', 'string', 'max:80'],
-            'shippingAddress.state' => ['required', 'string', Rule::enum(BrazilianState::class)],
+            'shippingAddress.thoroughfare' => ['required', 'array'],
+            'shippingAddress.thoroughfare.type' => ['required', 'string', 'max:' . Thoroughfare::MAX_TYPE],
+            'shippingAddress.thoroughfare.name' => ['required', 'string', 'max:' . Thoroughfare::MAX_NAME],
+            // Text on purpose: KM 500 on a highway, S/N, 120-A. A JSON number is refused.
+            'shippingAddress.number' => ['required', 'string', 'max:' . Address::MAX_NUMBER],
+            'shippingAddress.complement' => ['nullable', 'string', 'max:' . Address::MAX_COMPLEMENT],
+            'shippingAddress.divisions' => ['required', 'list', 'min:2', 'max:' . count(DivisionKind::cases())],
+            'shippingAddress.divisions.*' => ['required', 'array'],
+            'shippingAddress.divisions.*.kind' => ['required', 'string', Rule::enum(DivisionKind::class)],
+            'shippingAddress.divisions.*.name' => ['required', 'string', 'max:' . Division::MAX_NAME],
+            'shippingAddress.divisions.*.code' => ['nullable', 'string', 'max:20'],
             'shippingAddress.postalCode' => ['required', 'string', 'max:9'],
             'shippingAddress.latitude' => ['nullable', 'numeric', 'required_with:shippingAddress.longitude'],
             'shippingAddress.longitude' => ['nullable', 'numeric', 'required_with:shippingAddress.latitude'],
@@ -54,29 +60,18 @@ final class PlaceOrderRequest extends FormRequest
 
     public function toCommand(): PlaceOrderCommand
     {
-        /** @var array{customer: array{id: string, name: string, email: string}, shippingAddress: array<string, mixed>, items: non-empty-list<array{sku: string, quantity: int|string}>} $data */
+        /** @var array{customer: array{id: string, name: string, email: string}, shippingAddress: array<mixed>, items: non-empty-list<array{sku: string, quantity: int|string}>} $data */
         $data = $this->validated();
-        $address = $data['shippingAddress'];
 
         return new PlaceOrderCommand(
             IdempotencyKey::of((string) $this->header('Idempotency-Key')),
-            new Customer(
+            Customer::of(
                 CustomerId::fromString($data['customer']['id']),
                 PersonName::of($data['customer']['name']),
                 EmailAddress::of($data['customer']['email']),
             ),
-            new ShippingAddress(
-                (string) $address['street'],
-                (string) $address['number'],
-                isset($address['complement']) ? (string) $address['complement'] : null,
-                (string) $address['district'],
-                (string) $address['city'],
-                BrazilianState::from((string) $address['state']),
-                PostalCode::of((string) $address['postalCode']),
-                isset($address['latitude'], $address['longitude'])
-                    ? new Coordinates((float) $address['latitude'], (float) $address['longitude'])
-                    : null,
-            ),
+            // The API takes the address in the shape the events carry it.
+            Address::fromArray($data['shippingAddress']),
             array_map(
                 static fn(array $item): RequestedItem => new RequestedItem(Sku::of($item['sku']), Quantity::of((int) $item['quantity'])),
                 $data['items'],

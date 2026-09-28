@@ -6,10 +6,6 @@ namespace Tests\Builders;
 
 use Closure;
 use DateTimeImmutable;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
-use Logistics\Shipping\Domain\Destination\Coordinates;
-use Logistics\Shipping\Domain\Destination\Destination;
-use Logistics\Shipping\Domain\Destination\PostalCode;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Parcel;
 use Logistics\Shipping\Domain\Parcel\Parcels;
@@ -28,6 +24,8 @@ use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\Hub;
 use Logistics\Shipping\Domain\Transition\ProofOfDelivery;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\BrazilianState;
 use Tucano\SharedKernel\Identity\Snowflake\NodeId;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 
@@ -61,21 +59,16 @@ final class ShipmentBuilder
 
     public static function parcel(int $grams, int $lengthMm, int $widthMm, int $heightMm): Parcel
     {
-        return new Parcel(Weight::ofGrams($grams), Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm));
+        return Parcel::of(Weight::ofGrams($grams), Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm));
     }
 
-    public static function destination(): Destination
+    public static function destination(): Address
     {
-        return new Destination(
-            'Avenida Paulista',
-            '1000',
-            'Apto 12',
-            'Bela Vista',
-            'São Paulo',
-            BrazilianState::SP,
-            PostalCode::of('01310-100'),
-            new Coordinates(-23.561414, -46.655881),
-        );
+        return Address::builder()
+            ->thoroughfare('Avenida', 'Paulista')->number('1000')->complement('Apto 12')
+            ->state(BrazilianState::SP)->municipality('São Paulo', '3550308')->neighborhood('Bela Vista')
+            ->postalCode('01310-100')->coordinates(-23.561414, -46.655881)
+            ->build();
     }
 
     public function forOrder(OrderId $orderId): self
@@ -102,9 +95,9 @@ final class ShipmentBuilder
     public function create(): Shipment
     {
         return Shipment::create(
-            new ShipmentReference(
+            ShipmentReference::of(
                 ShipmentId::generate(),
-                new TrackingCode(Snowflake::compose($this->createdAt->getTimestamp() * 1000, new NodeId(1, 12), self::$sequence++ % (Snowflake::MAX_SEQUENCE + 1))),
+                TrackingCode::fromSnowflake(Snowflake::compose($this->createdAt->getTimestamp() * 1000, new NodeId(1, 12), self::$sequence++ % (Snowflake::MAX_SEQUENCE + 1))),
                 $this->orderId,
             ),
             CarrierCode::of('tucano-express'),

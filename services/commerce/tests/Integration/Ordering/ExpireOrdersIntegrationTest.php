@@ -14,6 +14,7 @@ use Opis\JsonSchema\Validator;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use stdClass;
+use Tests\Builders\Addresses;
 use Tests\TestCase;
 use Tucano\SharedKernel\Time\Clock;
 use Tucano\SharedKernel\Time\FrozenClock;
@@ -93,7 +94,7 @@ final class ExpireOrdersIntegrationTest extends TestCase
     {
         return (string) $this->postJson('/v1/orders', [
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
-            'shippingAddress' => ['street' => 'Avenida Paulista', 'number' => '1000', 'district' => 'Bela Vista', 'city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310-100'],
+            'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'LAB-CONSOLE-001', 'quantity' => $quantity]],
         ], ['Idempotency-Key' => (string) Str::uuid7()])->assertCreated()->json('orderId');
     }

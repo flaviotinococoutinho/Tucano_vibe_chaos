@@ -33,7 +33,7 @@ final class ShipmentLifecycleTest extends TestCase
         self::assertSame(ShipmentStatus::Created, $shipment->status);
         self::assertSame(1, $shipment->version);
         self::assertEquals(
-            [new StatusTransition(null, ShipmentStatus::Created, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
+            [StatusTransition::initial(ShipmentStatus::Created, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
             $shipment->releaseTransitions(),
         );
         $events = $shipment->releaseEvents();
@@ -44,7 +44,10 @@ final class ShipmentLifecycleTest extends TestCase
         $payload = $events[0]->payload();
         self::assertMatchesRegularExpression('/^TX[0-9A-HJKMNP-TV-Z]{13}$/', $payload['trackingCode']);
         self::assertSame(['tucano-express', 'GRU1', 2550], [$payload['carrier'], $payload['origin'], $payload['totalWeightGrams']]);
-        self::assertSame(['city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310100'], $payload['destination']);
+        self::assertSame([
+            'divisions' => [['kind' => 'state', 'code' => 'SP', 'name' => 'São Paulo'], ['kind' => 'municipality', 'code' => '3550308', 'name' => 'São Paulo']],
+            'postalCode' => '01310100',
+        ], $payload['destination']);
         self::assertSame([
             ['weightGrams' => 2200, 'dimensions' => ['lengthMm' => 240, 'widthMm' => 170, 'heightMm' => 80]],
             ['weightGrams' => 350, 'dimensions' => ['lengthMm' => 120, 'widthMm' => 90, 'heightMm' => 100]],
@@ -52,11 +55,12 @@ final class ShipmentLifecycleTest extends TestCase
     }
 
     #[Test]
-    public function the_shipment_event_leaves_the_street_and_the_recipient_out(): void
+    public function the_shipment_event_leaves_the_thoroughfare_the_neighborhood_and_the_recipient_out(): void
     {
         $payload = ShipmentBuilder::aShipment()->create()->releaseEvents()[0]->payload();
 
         self::assertStringNotContainsString('Paulista', (string) json_encode($payload));
+        self::assertStringNotContainsString('Bela Vista', (string) json_encode($payload, JSON_UNESCAPED_UNICODE));
         self::assertStringNotContainsString('ana@example.com', (string) json_encode($payload));
     }
 

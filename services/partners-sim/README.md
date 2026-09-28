@@ -1,6 +1,6 @@
 # partners-sim
 
-Simulador do mundo de fora da Tucano, em Node 24 com Fastify 5 e TypeScript executado direto pelo Node. Ele faz o papel do PayFake (o PSP), das transportadoras parceiras e do app dos entregadores, para os serviços terem com quem conversar e para eu poder estragar essa conversa de propósito. Por enquanto só o PayFake existe. As transportadoras e os entregadores vêm depois.
+Simulador do mundo de fora da Tucano, em Node 24 com Fastify 5 e TypeScript executado direto pelo Node. Ele faz o papel do PayFake (o PSP), das transportadoras (o CarrierFake) e do app dos entregadores, para os serviços terem com quem conversar e para eu poder estragar essa conversa de propósito. Por enquanto o PayFake e o CarrierFake existem. Os entregadores vêm depois.
 
 ## PayFake
 
@@ -97,7 +97,7 @@ O `v1` é o HMAC-SHA256 em hex, com o segredo compartilhado (`PAYFAKE_WEBHOOK_SE
 
 O timestamp entra no HMAC para ninguém reaproveitar um webhook capturado com um `t` novo. O corpo tem que ser o cru: decodificar o JSON e codificar de novo muda os bytes e quebra a assinatura. Pode chegar mais de um `v1`, o que permite trocar o segredo sem parar nada. Cada tentativa é assinada de novo, com um `t` novo, então um retry tardio continua dentro da tolerância.
 
-Os helpers `sign()` e `verify()` estão em `src/payfake/signature.ts`. O teste deles tem um vetor calculado com o `openssl`, para o commerce repetir no PHP: segredo `whsec_local_payfake`, `t=1790510400` e o corpo `{"id":"evt_01J8Z5W3Q4X9M2N7B8C6D5E4F3","type":"charge.succeeded"}` dão o `v1` do exemplo acima.
+Os helpers `sign()` e `verify()` estão em `src/webhooks/signature.ts`, compartilhados com o CarrierFake: só o nome do header muda de um simulador para o outro. O teste deles tem um vetor calculado com o `openssl`, para o commerce repetir no PHP: segredo `whsec_local_payfake`, `t=1790510400` e o corpo `{"id":"evt_01J8Z5W3Q4X9M2N7B8C6D5E4F3","type":"charge.succeeded"}` dão o `v1` do exemplo acima.
 
 ### Controles de caos
 
@@ -146,9 +146,112 @@ Para caber no limite de memória do container, cobranças e chaves somem depois 
 
 Tempo e acaso entram injetados (`Clock` e `Random`), então os testes controlam o relógio e o sorteio sem esperar nada.
 
+## CarrierFake
+
+O CarrierFake faz o papel de toda transportadora que a Tucano usa: a frota própria (`tucano-express`) e os parceiros (`ligeirinho`, `correio-nacional`, `carga-pesada`). Fala a língua de uma transportadora (coleta, encomenda, hub, tentativa de entrega), e o logistics traduz isso para o estado da remessa na borda do contexto de Shipping, a anticorruption layer do [context map](../../docs/architecture/context-map.md). O contrato completo está em [`contracts/http/carriers.openapi.yaml`](../../contracts/http/carriers.openapi.yaml).
+
+| Rota | O que faz |
+|---|---|
+| `POST /carriers/v1/pickups` | agenda a coleta de uma remessa, que nasce `scheduled` e começa a jornada na hora |
+| `GET /carriers/v1/pickups?reference=` | acha a coleta pela referência do lojista, o mesmo papel da busca por referência do PayFake |
+| `GET /carriers/v1/pickups/{id}` | mostra a coleta como ela está agora |
+| `GET`, `PUT` e `DELETE /_chaos/carriers` | os controles de caos |
+
+Uma coleta, do host:
+
+```bash
+curl -s localhost:4000/carriers/v1/pickups \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 01a0e30e-0cea-7159-bc05-56a0f4d16cf7' \
+  -d '{
+    "carrier": "correio-nacional",
+    "reference": "01a0e30e-0cea-7159-bc05-56a0f4d16cf7",
+    "trackingCode": "TX02PRCV4X85G00",
+    "origin": {"center": "GRU1", "state": "SP"},
+    "destination": {"city": "Belo Horizonte", "state": "MG", "postalCode": "30160011"},
+    "parcels": 1,
+    "weightGrams": 400
+  }'
+```
+
+A resposta é `201` com a coleta em `scheduled`. Os ids têm prefixo `pk_` e 26 caracteres, o mesmo esquema Crockford Base32 do PayFake, então também ordenam pela criação.
+
+### A jornada da encomenda
+
+Aceita a coleta, o CarrierFake anda a encomenda pela jornada dela sozinho, no relógio injetado, um passo de cada vez. Cada passo vem depois de um atraso sorteado entre `CARRIERS_STEP_MIN_MS` e `CARRIERS_STEP_MAX_MS`, e é avisado por webhook:
+
+| Passo | Evento |
+|---|---|
+| a transportadora recolhe a encomenda no CD | `parcel.picked_up` |
+| um hub de triagem escaneia (só parceiro: o hub do estado de origem, depois o hub do estado de destino quando é outro) | `parcel.hub_scanned` |
+| o entregador sai com a encomenda | `parcel.out_for_delivery` |
+| o entregador entrega | `parcel.delivered` |
+| ou a visita falha | `parcel.delivery_failed` |
+| a encomenda começa a voltar | `parcel.returning` |
+| a encomenda está de volta no CD | `parcel.returned` |
+
+A frota própria (`tucano-express`) entrega dentro do estado do próprio CD e pula os hubs: vai direto de `picked_up` para `out_for_delivery`. Os parceiros passam por um hub (origem e destino no mesmo estado) ou por dois (estados diferentes). O nome do hub é `Hub <cidade> (<UF>)`, como `Hub Cajamar (SP)` ou `Hub Contagem (MG)`; um estado que o laboratório ainda não conhece cai no nome genérico `Hub <UF>`.
+
+Uma visita malsucedida tenta de novo, até três tentativas no total: depois de uma falha que não é recusa, com menos de três tentativas feitas, o CarrierFake volta para `out_for_delivery` com a tentativa seguinte. Uma recusa do destinatário, ou a terceira falha, manda a encomenda de volta (`returning` e depois `returned`). O campo `status` da coleta acompanha esses passos, e `attempts` conta quantas visitas ao endereço já houve.
+
+### Idempotência
+
+Segue a mesma regra do PayFake, com o código compartilhado entre os dois (`src/idempotency.ts`): todo `POST` exige `Idempotency-Key`, o logistics manda o id da remessa. Mesma chave e mesmo corpo devolvem a primeira resposta, com `Idempotent-Replayed: true`, e a jornada roda uma vez só. Mesma chave e outro corpo respondem `422`.
+
+### Webhooks
+
+Cada evento da jornada de uma encomenda sai sozinho: o próximo espera o anterior ser entregue ou desistido, e um webhook descartado pelo caos conta como desistido. Isso resolve um evento que chega cedo demais sem esforço: o logistics responde `409` porque ainda não viu o passo anterior, e o CarrierFake tenta de novo depois, quando esse passo (se só estiver atrasado, e não perdido) já tiver chegado.
+
+```json
+{
+  "id": "evt_01M3HBNT8XEN7BHPFP3E6P118G",
+  "type": "parcel.delivered",
+  "createdAt": "2026-09-27T15:00:12.000Z",
+  "data": {
+    "pickupId": "pk_01M3HBNT8TE1R8SV13STYN9CXP",
+    "carrier": "correio-nacional",
+    "reference": "01a0e30e-0cea-7159-bc05-56a0f4d16cf7",
+    "trackingCode": "TX02PRCV4X85G00",
+    "attempt": 1,
+    "receiverName": "Ana Souza",
+    "receiverDocument": "123.456.789-09"
+  }
+}
+```
+
+O `receiverName` e o `receiverDocument` (um CPF mascarado) só vêm em `parcel.delivered`; `hub` só em `parcel.hub_scanned`; `attempt` em `parcel.out_for_delivery`, `parcel.delivered` e `parcel.delivery_failed`; `reason` (`recipient_absent`, `address_not_found` ou `recipient_refused`) só em `parcel.delivery_failed`.
+
+Entrega, retentativa e assinatura seguem o mesmo desenho do PayFake, porque o remetente (`src/webhooks/sender.ts`) e a assinatura (`src/webhooks/signature.ts`) são código compartilhado entre os dois: at-least-once, retentativa depois de 1, 2, 4, 8 e 16 segundos, e o cabeçalho muda de nome para cada parceiro simulado.
+
+```text
+Carrier-Signature: t=1790510400,v1=0605457e458dd9fea675921d4df5754d4330d115baa8c60beb64f86dc29f4061
+```
+
+O `v1` é o HMAC-SHA256 de `<t>.<corpo cru>` com `CARRIERS_WEBHOOK_SECRET`, verificado do mesmo jeito que o `PayFake-Signature` (veja [Assinatura](#assinatura) do PayFake, acima). O webhook leva o `X-Correlation-Id` do request que fez a coleta.
+
+### Controles de caos
+
+| Controle | O que faz |
+|---|---|
+| `failureRate` | fração das visitas que falham com o destinatário ausente ou o endereço não encontrado |
+| `refusalRate` | fração das visitas em que o destinatário recusa a encomenda. Some com `failureRate` até no máximo 1 |
+| `webhooks.dropRate` | fração dos webhooks que nunca saem, como no PayFake |
+| `webhooks.duplicateRate` | fração dos webhooks mandados duas vezes, com o mesmo `id` |
+| `webhooks.delayMs` | espera antes da primeira tentativa de todo webhook |
+
+O `PUT` também descreve o experimento inteiro, com a mesma regra do PayFake: o controle que fica de fora volta para o calmo, e `failureRate` mais `refusalRate` acima de 1 responde `422`.
+
+```bash
+# metade das visitas falha, um quinto é recusada
+curl -s -X PUT localhost:4000/_chaos/carriers -H 'Content-Type: application/json' \
+  -d '{"failureRate": 0.5, "refusalRate": 0.2}'
+
+curl -s localhost:4000/_chaos/carriers              # o que está valendo
+curl -s -X DELETE localhost:4000/_chaos/carriers    # tudo calmo de novo
+```
+
 ## O que vem depois
 
-- **Transportadoras**: criação de envio e eventos de rastreio para o logistics, cada transportadora com o próprio formato, que o logistics traduz na borda (ACL).
 - **Entregadores**: aparelhos simulados que mandam posição de GPS ao tracking por WebSocket e confirmam as entregas, com entregas malsucedidas entre os controles de caos.
 
 ## Onde ele fica na rede
@@ -172,12 +275,16 @@ Segue as mesmas regras do bff: o Node 24 executa os `.ts` direto (type stripping
 | `src/config.ts` | variáveis de ambiente, com defaults e validação na subida |
 | `src/clock.ts`, `src/chance.ts` | o relógio e o sorteio, injetados em tudo que espera ou decide ao acaso |
 | `src/expiring-map.ts` | o `Map` com validade e limite de tamanho onde fica o estado |
-| `src/payfake/` | o PayFake: ciclo de vida, idempotência, caos, webhooks, assinatura e as rotas |
+| `src/ids.ts` | os ids com prefixo e 26 caracteres em Base32 de Crockford |
+| `src/idempotency.ts` | as chaves `Idempotency-Key`, com o mesmo prazo de 24 horas para todo simulador |
+| `src/webhooks/` | o remetente de webhook com retentativa, a assinatura e o plano de caos (drop, duplicata, atraso), compartilhados entre os simuladores |
+| `src/payfake/` | o PayFake: ciclo de vida, caos e as rotas |
+| `src/carriers/` | o CarrierFake: a jornada da encomenda, hubs, caos e as rotas |
 | `src/platform/` | a cola com o Fastify: correlation id, logs, problem details, `DomainError` e health checks |
 | `test/` | testes com `node:test`, pelo `app.inject()` e, nos webhooks e timeouts, com servidor HTTP de verdade |
-| `test/support/` | relógio instantâneo, receptor de webhooks e atalhos dos testes |
+| `test/support/` | relógio instantâneo, receptor de webhooks, sequência de sorteios e atalhos dos testes |
 
-O layout é o mesmo do [`bff`](../bff/README.md), e a pasta `src/platform/` é idêntica nos dois de propósito: a CI compara as cópias ([ADR 0016](../../docs/adr/0016-copied-node-platform.md)). Cada parceiro simulado entra como uma pasta em `src/`, com suas rotas registradas como plugin do Fastify.
+O layout é o mesmo do [`bff`](../bff/README.md), e a pasta `src/platform/` é idêntica nos dois de propósito: a CI compara as cópias ([ADR 0016](../../docs/adr/0016-copied-node-platform.md)). Cada parceiro simulado entra como uma pasta em `src/`, com suas rotas registradas como plugin do Fastify; o que é genérico entre os parceiros (webhook, idempotência, id) mora fora dessas pastas.
 
 ## Health, erros e logs
 
@@ -209,6 +316,10 @@ Os logs são do pino que já vem no Fastify: uma linha JSON por evento, com `tim
 | `PAYFAKE_WEBHOOK_SECRET` | `whsec_local_payfake` | segredo do HMAC da assinatura, o mesmo que o commerce usa para verificar |
 | `PAYFAKE_PROCESSING_MIN_MS` | `300` | menor tempo de processamento de uma cobrança ou de um estorno |
 | `PAYFAKE_PROCESSING_MAX_MS` | `1500` | maior tempo de processamento; não pode ser menor que o mínimo, e os dois vão até 600000 |
+| `CARRIERS_WEBHOOK_URL` | `http://kong:8000/api/logistics/v1/webhooks/carriers` | para onde vão os webhooks, `http` ou `https` |
+| `CARRIERS_WEBHOOK_SECRET` | `whsec_local_carriers` | segredo do HMAC da assinatura, o mesmo que o logistics usa para verificar |
+| `CARRIERS_STEP_MIN_MS` | `1000` | menor tempo entre um passo da jornada e o seguinte |
+| `CARRIERS_STEP_MAX_MS` | `4000` | maior tempo entre os passos; não pode ser menor que o mínimo, e os dois vão até 600000 |
 
 Valor inválido impede a subida: o processo sai com código 1 e uma linha `fatal` que lista cada problema. Variável vazia conta como não definida.
 

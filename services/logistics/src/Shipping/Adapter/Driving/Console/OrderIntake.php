@@ -13,14 +13,14 @@ use Tucano\Messaging\Kafka\RdKafkaConsumer;
 use Tucano\Messaging\Kafka\RetryPolicy;
 use Tucano\Messaging\Worker\StopSignal;
 
-#[AsCommand(name: 'logistics:order-intake', description: 'Create and cancel shipments from commerce.orders.v1 until SIGTERM')]
+#[AsCommand(name: 'logistics:order-intake', description: 'Create and cancel shipments from commerce.orders.v2 until SIGTERM')]
 final class OrderIntake extends Command
 {
     private const string GROUP = 'logistics.order-intake';
 
     public function handle(OrderEventHandler $handler, Producer $deadLetters, LoggerInterface $logger): int
     {
-        $consumer = new RdKafkaConsumer((string) config('messaging.brokers'), self::GROUP, ['commerce.orders.v1'], $deadLetters, $logger, self::patience());
+        $consumer = new RdKafkaConsumer((string) config('messaging.brokers'), self::GROUP, ['commerce.orders.v2'], $deadLetters, $logger, self::patience());
         $consumer->run($handler, StopSignal::onTermination());
 
         return self::SUCCESS;

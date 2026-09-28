@@ -7,9 +7,14 @@ namespace Commerce\Ordering\Domain\Customer;
 /** Who bought, frozen in the order: later profile changes do not rewrite history. */
 final readonly class Customer
 {
-    public function __construct(
+    private function __construct(
         public CustomerId $id,
         public PersonName $name,
         public EmailAddress $email,
     ) {}
+
+    public static function of(CustomerId $id, PersonName $name, EmailAddress $email): self
+    {
+        return new self($id, $name, $email);
+    }
 }

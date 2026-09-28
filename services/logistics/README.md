@@ -2,7 +2,7 @@
 
 Serviço de remessas da Tucano, em Laravel 13 sobre PHP 8.4 (FPM). Aqui fica o núcleo logístico: criar a remessa quando o pedido é pago, escolher a transportadora, gerar a etiqueta e conduzir a entrega pela máquina de estados até o cliente (ou de volta ao CD).
 
-A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois núcleos, um jeito só de organizar. Nesta fatia a remessa nasce do `order.paid` e pode ser cancelada pelo `order.cancelled`; a etiqueta e a entrega entram nas próximas.
+A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois núcleos, um jeito só de organizar. Hoje a remessa nasce do `order.paid`, pode ser cancelada pelo `order.cancelled` e ganha a etiqueta pela fila SQS; a coleta e a entrega entram nas próximas fatias.
 
 ## Como está organizado
 
@@ -57,11 +57,11 @@ flowchart LR
 
 - Falta de evidência (etiqueta, hub, comprovante ou motivo da falha) é `InvalidInput`; estourar as tentativas ou voltar sem justificativa é `Conflict`. Transição fora da tabela é `TransitionNotAllowed`, também `Conflict`.
 - Cada transição aplicada muda o estado, sobe a versão, acrescenta uma linha ao histórico (`shipment_transitions`, com o motivo e o hub) e registra um evento de domínio. O tipo do evento é o nome do estado alcançado (`tucano.logistics.shipment.picked_up`), exatamente a lista de `docs/architecture/events.md`.
-- A máquina inteira já mora no domínio e cada transição e cada guard têm teste de unidade, mas nesta fatia só `created` e `cancelled` são movidos por casos de uso.
+- A máquina inteira já mora no domínio e cada transição e cada guard têm teste de unidade, mas por enquanto só `created`, `ready_for_pickup` e `cancelled` são movidos por casos de uso.
 
 ## Criar e cancelar a remessa
 
-O worker `logistics:order-intake` lê `commerce.orders.v1` no consumer group `logistics.order-intake`.
+O worker `logistics:order-intake` lê `commerce.orders.v2` no consumer group `logistics.order-intake`. O endereço chega no modelo da [ADR 0020](../../docs/adr/0020-address-by-thoroughfare-and-divisions.md) e vira o destino da remessa pelo `Address::fromArray`.
 
 | Evento | O que acontece |
 |---|---|
@@ -121,9 +121,54 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 
 | Serviço no compose | Comando | O que faz |
 |---|---|---|
-| `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v1` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
+| `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v2` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
 | `logistics-catalog-sync` | `php artisan logistics:sync-catalog` | mantém peso e dimensões em `product_snapshots` a partir de `catalog.products.v1` ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)); snapshot ilegível vai para `dlq.logistics.catalog-sync` |
-| `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v1`; roda com `SNOWFLAKE_WORKER_ID=12` |
+| `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v2`; roda com `SNOWFLAKE_WORKER_ID=12` |
+| `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v2` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
+| `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
+| `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
+
+## A etiqueta
+
+A etiqueta sai em ZPL, a linguagem das impressoras térmicas: é texto, e a impressora desenha o código de barras Code 128 do código de rastreio. Ela vai para o bucket `tucano-labels`, em `labels/<código de rastreio>.zpl`, e só então a remessa passa para `ready_for_pickup`, com o `ShipmentReadyForPickup` na outbox.
+
+```mermaid
+sequenceDiagram
+  participant K as Kafka (logistics.shipments.v2)
+  participant R as logistics-label-requests
+  participant Q as SQS (label-jobs)
+  participant W as logistics-label-worker
+  participant S as S3 (tucano-labels)
+  participant P as PostgreSQL
+  K->>R: ShipmentCreated
+  R->>Q: job com o id da remessa
+  Q->>W: job (invisível por 60 s)
+  W->>S: labels/TX....zpl
+  W->>P: ready_for_pickup + ShipmentReadyForPickup na outbox
+  W->>Q: apaga a mensagem
+```
+
+- O Kafka é o log e o SQS a fila de trabalho: o pedido de etiqueta parte do evento que a outbox já garantiu, sem dual write.
+- O job tenta três vezes (espera 5 s e depois 20 s), com timeout de 30 s, abaixo da visibilidade de 60 s da fila. Esgotadas as tentativas, ele fica em `failed_jobs`, e o `php artisan queue:retry all` o devolve à fila. Um worker que morre no meio não registra nada; depois de três entregas, o SQS move a mensagem para `label-jobs-dlq`.
+- A flag `chaos.logistics.label-failure-rate` faz parte das gravações falhar. O experimento está no [laboratório da fila de etiquetas](../../docs/labs/label-queue.md).
+
+## A jornada até a porta
+
+Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierFake, que faz o papel de todas as transportadoras do laboratório. Daí em diante quem conta a jornada é a transportadora, por webhook assinado (`POST /v1/webhooks/carriers`, com `Carrier-Signature`), e cada evento vira um passo da máquina de estados:
+
+| Evento da transportadora | Passo da remessa | Caso de uso |
+|---|---|---|
+| `parcel.picked_up` | `picked_up` | [UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md) |
+| `parcel.hub_scanned` | `in_transit`, com o hub no histórico | [UC-SHP-05](../../docs/use-cases/UC-SHP-05-record-hub-scan.md) |
+| `parcel.out_for_delivery` | `out_for_delivery`, com o número da visita | [UC-SHP-06](../../docs/use-cases/UC-SHP-06-dispatch-for-delivery.md) |
+| `parcel.delivered` | `delivered`, com o comprovante em `delivery_attempts` | [UC-SHP-07](../../docs/use-cases/UC-SHP-07-record-delivery-outcome.md) |
+| `parcel.delivery_failed` | `delivery_failed`, com o motivo em `delivery_attempts` | [UC-SHP-07](../../docs/use-cases/UC-SHP-07-record-delivery-outcome.md) |
+| `parcel.returning` e `parcel.returned` | `returning` e `returned` | [UC-SHP-08](../../docs/use-cases/UC-SHP-08-return-to-sender.md) |
+
+- Os cinco casos de uso dividem o `ShipmentProgress`: numa transação só, a marca na inbox, a remessa travada pelo código de rastreio, o passo pelos guards, o histórico, a visita e o evento na outbox. Um passo recusado desfaz tudo, inclusive a marca na inbox.
+- A transportadora manda os eventos de uma remessa um de cada vez. Um evento que chega antes da vez dele (porque o anterior se perdeu ou atrasou) recebe `409`, e a transportadora reenvia depois.
+- Quem recebeu a encomenda fica em `delivery_attempts`; os eventos publicados não levam o nome nem o documento.
+- Um evento que a transportadora dá como perdido ainda trava a jornada naquele passo. A conciliação com a transportadora é o próximo passo desta parte.
 
 ## Eventos publicados
 
@@ -131,8 +176,16 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 |---|---|
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
+| `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |
+| `tucano.logistics.shipment.picked_up` | [`logistics.shipment.picked_up.schema.json`](../../contracts/events/logistics.shipment.picked_up.schema.json) |
+| `tucano.logistics.shipment.in_transit` | [`logistics.shipment.in_transit.schema.json`](../../contracts/events/logistics.shipment.in_transit.schema.json) |
+| `tucano.logistics.shipment.out_for_delivery` | [`logistics.shipment.out_for_delivery.schema.json`](../../contracts/events/logistics.shipment.out_for_delivery.schema.json) |
+| `tucano.logistics.shipment.delivered` | [`logistics.shipment.delivered.schema.json`](../../contracts/events/logistics.shipment.delivered.schema.json) |
+| `tucano.logistics.shipment.delivery_failed` | [`logistics.shipment.delivery_failed.schema.json`](../../contracts/events/logistics.shipment.delivery_failed.schema.json) |
+| `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
+| `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
-O `ShipmentCreated` leva o destino só com cidade, estado e CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa da rua nem do nome de quem recebe, então esses dados ficam no banco da logística. Os outros eventos da máquina já existem no domínio e ganham contrato quando os casos de uso deles entrarem.
+O `ShipmentCreated` leva o destino até o município, com as divisões de estado e município e o CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato.
 
 ## Rodando
 

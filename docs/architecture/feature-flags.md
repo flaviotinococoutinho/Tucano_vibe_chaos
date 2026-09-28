@@ -90,7 +90,16 @@ Por isso o desenho ficou com **uma fonte só**:
 2. o flagd observa só essa cópia (`/flags/runtime/flags.flagd.json`) e recarrega a cada escrita;
 3. o painel de caos edita a flag dentro da cópia; para resetar, regrava a definição original daquela flag, sem nunca remover chaves.
 
-Os overrides são efêmeros: o próximo `make up` volta ao que está versionado. Para experimentos de caos é o comportamento que eu quero.
+Os overrides são efêmeros: o próximo `make up` volta ao que está versionado. Para experimentos de caos é o comportamento que eu quero. Vale o mesmo para qualquer `docker compose up` que suba o flagd como dependência: o `flags-init` roda de novo e recopia o arquivo. Para recriar um worker no meio de um experimento, use `docker compose up -d --no-deps <serviço>`.
+
+Da linha de comando, sem o painel:
+
+```bash
+make flag key=chaos.logistics.label-failure-rate variant=most   # serve outra variante, na hora
+make flag-reset key=chaos.logistics.label-failure-rate          # volta ao que está no repositório
+```
+
+O `make flag` só aceita variantes que a flag já tem, e lista as válidas quando recebe outra.
 
 ## Testando na mão
 

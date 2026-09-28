@@ -7,7 +7,7 @@ namespace Tests\Fixtures;
 use Tucano\Messaging\Kafka\ReceivedMessage;
 
 /**
- * Order events as Commerce publishes them on commerce.orders.v1. The contract
+ * Order events as Commerce publishes them on commerce.orders.v2. The contract
  * test keeps these fixtures in the shape of contracts/events/commerce.order.*,
  * so the handler is tested against what Commerce really sends.
  */
@@ -31,12 +31,14 @@ final class OrderEvents
             'orderNumber' => '97663530295234560',
             'customer' => ['id' => self::CUSTOMER, 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => [
-                'street' => 'Avenida Paulista',
+                'thoroughfare' => ['type' => 'Avenida', 'name' => 'Paulista'],
                 'number' => '1000',
                 'complement' => 'Apto 12',
-                'district' => 'Bela Vista',
-                'city' => 'São Paulo',
-                'state' => 'SP',
+                'divisions' => [
+                    ['kind' => 'state', 'code' => 'SP', 'name' => 'São Paulo'],
+                    ['kind' => 'municipality', 'code' => '3550308', 'name' => 'São Paulo'],
+                    ['kind' => 'neighborhood', 'code' => null, 'name' => 'Bela Vista'],
+                ],
                 'postalCode' => '01310100',
                 'latitude' => -23.561414,
                 'longitude' => -46.655881,
@@ -52,15 +54,23 @@ final class OrderEvents
     }
 
     /**
-     * An address with no complement and no coordinates, both optional in the contract.
+     * An address with no complement, no coordinates and no geocodes, all optional in the contract.
      *
-     * @return array<string, string|null>
+     * @return array<string, mixed>
      */
     public static function plainAddress(): array
     {
         return [
-            'street' => 'Rua da Bahia', 'number' => '1200', 'complement' => null, 'district' => 'Centro',
-            'city' => 'Belo Horizonte', 'state' => 'MG', 'postalCode' => '30160011', 'latitude' => null, 'longitude' => null,
+            'thoroughfare' => ['type' => 'Rua', 'name' => 'da Bahia'],
+            'number' => '1200',
+            'complement' => null,
+            'divisions' => [
+                ['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'],
+                ['kind' => 'municipality', 'code' => null, 'name' => 'Belo Horizonte'],
+            ],
+            'postalCode' => '30160011',
+            'latitude' => null,
+            'longitude' => null,
         ];
     }
 
@@ -93,7 +103,7 @@ final class OrderEvents
 
     public static function message(string $payload, int $offset = 7): ReceivedMessage
     {
-        return new ReceivedMessage('commerce.orders.v1', 2, $offset, self::ORDER, $payload);
+        return new ReceivedMessage('commerce.orders.v2', 2, $offset, self::ORDER, $payload);
     }
 
     /** @param array<string, mixed> $data */

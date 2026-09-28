@@ -77,6 +77,12 @@ final readonly class EventFields
         return $objects;
     }
 
+    /** @return array<mixed> the fields as they came, for a value object that reads its own shape, like Address::fromArray */
+    public function toArray(): array
+    {
+        return $this->fields;
+    }
+
     private function missing(string $type, string $name): InvalidArgumentException
     {
         return new InvalidArgumentException(sprintf('The event has no %s %s.', $type, $this->pathTo($name)));

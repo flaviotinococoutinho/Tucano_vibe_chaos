@@ -11,7 +11,7 @@ Cada serviço guarda as suas migrations em `database/mongo` e roda `php artisan 
 
 ## Por que versionar a projeção
 
-Os eventos de um pedido chegam por dois tópicos (`commerce.orders.v1` e `logistics.shipments.v1`) e podem ser reentregues. Não existe ordem garantida entre tópicos. Guardando a versão no documento e filtrando por `version < nova`, a projeção converge para o estado certo, seja qual for a ordem de chegada. Isso é consistência eventual com convergência, e não "qualquer coisa eventualmente".
+Os eventos de um pedido chegam por dois tópicos (`commerce.orders.v2` e `logistics.shipments.v2`) e podem ser reentregues. Não existe ordem garantida entre tópicos. Guardando a versão no documento e filtrando por `version < nova`, a projeção converge para o estado certo, seja qual for a ordem de chegada. Isso é consistência eventual com convergência, e não "qualquer coisa eventualmente".
 
 ## Testes
 

@@ -15,6 +15,6 @@ final readonly class SnowflakeTrackingCodes implements ForIssuingTrackingCodes
 
     public function next(): TrackingCode
     {
-        return new TrackingCode($this->generator->next());
+        return TrackingCode::fromSnowflake($this->generator->next());
     }
 }

@@ -57,4 +57,4 @@
 
 ## No código
 
-- Port `ForSettlingPayments`, caso de uso `SettlePayment`, pacote `Commerce\Payments`. O webhook é o `PayFakeWebhookController`, com `PayFakeSignature` e o tradutor `PayFakeEvents`.
+- Port `ForSettlingPayments`, caso de uso `SettlePayment`, pacote `Commerce\Payments`. O webhook é o `PayFakeWebhookController`, com o `WebhookSignature` do pacote de mensageria (o mesmo que confere os webhooks das transportadoras) e o tradutor `PayFakeEvents`.

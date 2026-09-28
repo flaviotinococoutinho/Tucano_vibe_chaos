@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Domain\Order;
 
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Error\OrderTransitionNotAllowed;
 use Commerce\Ordering\Domain\Event\OrderCancelled;
@@ -14,6 +13,7 @@ use Commerce\Ordering\Domain\Event\OrderPlaced;
 use Commerce\Ordering\Domain\Event\OrderReturned;
 use Commerce\Ordering\Domain\Event\OrderShipped;
 use DateTimeImmutable;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\AggregateRoot;
 use Tucano\SharedKernel\Money\Money;
 
@@ -32,7 +32,7 @@ final class Order extends AggregateRoot
         private readonly OrderId $id,
         private readonly OrderNumber $number,
         private readonly Customer $customer,
-        private readonly ShippingAddress $address,
+        private readonly Address $address,
         private readonly OrderLines $lines,
         private readonly FulfillmentCenterCode $fulfillmentCenter,
         private readonly DateTimeImmutable $placedAt,
@@ -45,14 +45,14 @@ final class Order extends AggregateRoot
         OrderId $id,
         OrderNumber $number,
         Customer $customer,
-        ShippingAddress $address,
+        Address $address,
         OrderLines $lines,
         FulfillmentCenterCode $fulfillmentCenter,
         DateTimeImmutable $placedAt,
         DateTimeImmutable $reservationExpiresAt,
     ): self {
         $order = new self($id, $number, $customer, $address, $lines, $fulfillmentCenter, $placedAt, $reservationExpiresAt, OrderStatus::PendingPayment, 1);
-        $order->transitions[] = new StatusTransition(null, OrderStatus::PendingPayment, $placedAt);
+        $order->transitions[] = StatusTransition::initial(OrderStatus::PendingPayment, $placedAt);
         $order->recordThat(new OrderPlaced($id, $number, $customer->id, $lines, $fulfillmentCenter, $reservationExpiresAt, $placedAt));
 
         return $order;
@@ -155,7 +155,7 @@ final class Order extends AggregateRoot
         if (!$this->status->canMoveTo($target)) {
             throw OrderTransitionNotAllowed::from($this->status, $target);
         }
-        $this->transitions[] = new StatusTransition($this->status, $target, $at, $reason);
+        $this->transitions[] = StatusTransition::between($this->status, $target, $at, $reason);
         $this->status = $target;
         $this->version++;
     }

@@ -49,6 +49,26 @@ src/Shipping/
 - Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Assim, se o outro pacote virar um serviço, só o adapter muda.
 - Nada de `Manager`, `Helper`, `Util` ou abreviações.
 
+### Criar objetos: construtores nomeados, builders e domínio rico
+
+- **Construtor privado e construtores nomeados** que dizem de onde o objeto vem:
+  - `of(...)` monta a partir das partes: `Money::of(1500, Currency::brl())`, `Thoroughfare::of('Rua', 'da Bahia')`, `Quantity::of(2)`.
+  - `from...(...)` converte de outra representação: `fromString`, `fromArray`, `fromJson`, `fromSnapshot`. Os enums já trazem `from` e `tryFrom`.
+  - Um verbo do negócio quando criar é um fato do domínio: `Order::place(...)`, `Shipment::create(...)`, `Division::state(BrazilianState::MG)`, `ShippingLabel::storedAt(...)`.
+- **`to...()` na saída**, simétrico ao `from...`: `toArray()`, `toJson()`, `toSnapshot()`, `toInt()`, `toBase32()`. O `jsonSerialize()` só repassa o `toArray()`.
+- **Builder quando o objeto tem muitas partes ou partes opcionais.** O builder é mutável e fluente, recebe as partes na ordem em que as pessoas falam e valida o todo no `build()`, que devolve o objeto imutável (o Builder de Joshua Bloch). A mutabilidade fica no andaime, nunca no objeto pronto:
+
+  ```php
+  $address = Address::builder()
+      ->thoroughfare('Rodovia', 'Fernão Dias')->number('KM 500')->complement('Galpão 3')
+      ->state(BrazilianState::MG)->municipality('Betim', '3106705')
+      ->postalCode('32669-000')
+      ->build();
+  ```
+
+- **Domínio rico.** O comportamento mora junto dos dados, e quem usa pergunta ao objeto em vez de refazer a regra com os campos dele: `$address->state()`, `$address->thoroughfareLine()`, `$divisions->upTo(DivisionKind::Municipality)`, `$order->cancel(...)`. Nada de getter e setter para tudo.
+- **Nos testes, test data builders** (`OrderBuilder`, `ShipmentBuilder`, `Addresses`) com padrões sensatos, para que cada teste escreva só o que importa para ele.
+
 ### Object Calisthenics no domínio
 
 Aplico as nove regras de Jeff Bay com pragmatismo, principalmente nos pacotes de domínio: um nível de indentação por método, nada de `else`, primitivos embrulhados em value objects, coleções de primeira classe, um `->` por linha, nomes sem abreviação, classes pequenas, poucas variáveis de instância e tell, don't ask. Onde abro mão de alguma regra (DTOs, adapters, models do Eloquent), o motivo está em `docs/concepts/object-calisthenics.md`.

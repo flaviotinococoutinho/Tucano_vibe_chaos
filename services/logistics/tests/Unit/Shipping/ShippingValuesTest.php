@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Shipping;
 
 use Closure;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
-use Logistics\Shipping\Domain\Destination\Coordinates;
-use Logistics\Shipping\Domain\Destination\Destination;
-use Logistics\Shipping\Domain\Destination\PostalCode;
 use Logistics\Shipping\Domain\Error\InvalidShipment;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Parcels;
@@ -38,7 +34,7 @@ final class ShippingValuesTest extends TestCase
     public function the_tracking_code_is_the_snowflake_in_crockford_base32(): void
     {
         // The example of docs/architecture/identifiers.md.
-        $code = new TrackingCode(Snowflake::fromInt(97663548934766595));
+        $code = TrackingCode::fromSnowflake(Snowflake::fromInt(97663548934766595));
 
         self::assertSame('TX02PQRFBTW5G03', (string) $code);
         self::assertSame(15, strlen((string) $code));
@@ -81,7 +77,6 @@ final class ShippingValuesTest extends TestCase
     #[Test]
     public function values_are_normalized(): void
     {
-        self::assertSame('01310100', (string) PostalCode::of('01310-100'));
         self::assertSame('BOOK-DDD-001', (string) Sku::of(' book-ddd-001 '));
         self::assertSame('Hub Cajamar', Hub::named('  Hub Cajamar ')->name);
         self::assertSame(['Ana Souza', 'ana@example.com'], [Recipient::of(' Ana Souza ', ' ana@example.com')->name, Recipient::of('Ana Souza', 'ana@example.com')->email]);
@@ -100,11 +95,6 @@ final class ShippingValuesTest extends TestCase
         yield 'a carrier in capitals' => [static fn() => CarrierCode::of('Tucano-Express')];
         yield 'a warehouse in lowercase' => [static fn() => FulfillmentCenterCode::of('gru1')];
         yield 'a SKU with spaces' => [static fn() => Sku::of('BOOK DDD')];
-        yield 'a short CEP' => [static fn() => PostalCode::of('0131010')];
-        yield 'coordinates off the globe' => [static fn() => new Coordinates(91.0, 0.0)];
-        yield 'a street longer than the column' => [static fn() => new Destination(str_repeat('a', 161), '1', null, 'Centro', 'São Paulo', BrazilianState::SP, PostalCode::of('01310100'))];
-        yield 'a blank city' => [static fn() => new Destination('Rua A', '1', null, 'Centro', '  ', BrazilianState::SP, PostalCode::of('01310100'))];
-        yield 'a long complement' => [static fn() => new Destination('Rua A', '1', str_repeat('b', 81), 'Centro', 'São Paulo', BrazilianState::SP, PostalCode::of('01310100'))];
         yield 'a recipient without a name' => [static fn() => Recipient::of(' ', 'ana@example.com')];
         yield 'a recipient without an e-mail' => [static fn() => Recipient::of('Ana Souza', '')];
         yield 'a label without a key' => [static fn() => ShippingLabel::storedAt('')];
