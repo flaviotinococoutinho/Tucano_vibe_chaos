@@ -88,6 +88,10 @@ export function getPickup(app: FastifyInstance, id: string): Promise<LightMyRequ
   return app.inject({ method: 'GET', url: `/carriers/v1/pickups/${id}` });
 }
 
+export function getPickupEvents(app: FastifyInstance, id: string): Promise<LightMyRequestResponse> {
+  return app.inject({ method: 'GET', url: `/carriers/v1/pickups/${id}/events` });
+}
+
 /** The lookup a merchant makes when it lost the id of a pickup but kept its own reference. */
 export function findPickups(
   app: FastifyInstance,
