@@ -10,6 +10,7 @@
     "statusLabel": "Entregue",
     "tone": "success",
     "carrier": "correio-nacional",
+    "carrierLabel": "Correio Nacional",
     "destination": {
       "municipality": "Salvador",
       "state": "BA"

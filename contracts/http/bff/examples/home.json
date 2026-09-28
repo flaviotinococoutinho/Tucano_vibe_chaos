@@ -21,8 +21,8 @@
           "title": "Código de rastreio",
           "required": true,
           "placeholder": "TX02PX83Y5M5G00",
-          "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$",
-          "maxlength": 15,
+          "pattern": "^\\s*[Tt][Xx][0-9A-Za-z]{13}\\s*$",
+          "maxlength": 20,
           "autocomplete": "off"
         }
       ]

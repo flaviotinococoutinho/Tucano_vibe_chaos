@@ -1,15 +1,16 @@
 {
   "class": [
     "screen",
-    "order"
+    "order",
+    "live"
   ],
   "title": "Pedido 97856663872212992",
   "properties": {
     "orderId": "0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20",
     "orderNumber": "97856663872212992",
-    "status": "pending_payment",
-    "statusLabel": "Aguardando pagamento",
-    "tone": "waiting",
+    "status": "paid",
+    "statusLabel": "Preparando o envio",
+    "tone": "info",
     "placedAt": "2026-09-28T05:10:11.000Z",
     "reservationExpiresAt": "2026-09-28T05:25:11.000Z",
     "total": {
@@ -17,7 +18,12 @@
       "currency": "BRL",
       "formatted": "R$ 159,90"
     },
-    "trackingCode": null
+    "trackingCode": null,
+    "refreshAfterSeconds": 5,
+    "notice": {
+      "tone": "success",
+      "text": "Pagamento aprovado."
+    }
   },
   "entities": [
     {
@@ -42,43 +48,6 @@
           "formatted": "R$ 159,90"
         }
       }
-    }
-  ],
-  "actions": [
-    {
-      "name": "pay",
-      "title": "Pagar",
-      "method": "POST",
-      "href": "/bff/v1/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20/payments",
-      "type": "application/json",
-      "fields": [
-        {
-          "name": "idempotencyKey",
-          "type": "hidden",
-          "value": "0199a2b4-9b21-7d62-a1e3-4f5a6b7c8d9e"
-        },
-        {
-          "name": "cardToken",
-          "type": "select",
-          "title": "Cartão",
-          "required": true,
-          "value": "tok_visa",
-          "options": [
-            {
-              "value": "tok_visa",
-              "title": "Cartão de teste que aprova"
-            },
-            {
-              "value": "tok_decline",
-              "title": "Cartão de teste recusado"
-            },
-            {
-              "value": "tok_insufficient",
-              "title": "Cartão de teste sem saldo"
-            }
-          ]
-        }
-      ]
     }
   ],
   "links": [
