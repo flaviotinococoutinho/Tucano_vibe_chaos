@@ -103,10 +103,12 @@ Pelo Kong, tudo fica sob `/bff`: o Kong tira o prefixo, então o BFF serve `/v1`
 | `GET /v1/orders/{id}` | o pedido; com `?awaiting=payment`, acompanha o pagamento |
 | `POST /v1/orders/{id}/payments` | `202`, `Location` e o pedido acompanhando o pagamento |
 | `GET /v1/tracking?code=` | `303` para a página da entrega |
-| `GET /v1/tracking/{código}` | a página da entrega, com a linha do tempo |
+| `GET /v1/tracking/{código}` | a página da entrega, com a linha do tempo; enquanto uma encomenda da frota própria está a caminho da porta, também o link `live` para o entregador ao vivo |
 | `GET /health/live` e `GET /health/ready` | o processo está de pé; o ready não depende dos serviços |
 
 Todo erro sai como `application/problem+json` (RFC 9457) com os campos dos serviços PHP: `type`, `title`, `status`, `detail`, `instance` e `correlationId`. Os erros que o BFF cria falam com a pessoa, em português, no `detail`, e um formulário com problemas volta com `errors`, as mensagens por campo, todas de uma vez. Um `DomainError` pode levar `retryAfterSeconds`, que vira o header `Retry-After`, e um 503 de domínio mostra o `detail`, porque diz o que fazer; só o erro inesperado esconde o detalhe e manda o stack para o log.
+
+O link `live` da página da entrega aponta para fora do BFF: `TRACKING_LIVE_PATH` (por padrão `/api/tracking/v1/live`) é o WebSocket do tracking, na mesma origem, pelo Kong ([ADR 0028](../../docs/adr/0028-live-delivery-by-tracking-code.md)). O BFF não segura nenhuma conexão longa; ele só diz, pela hipermídia, onde a web encontra a posição, e só quando ela existe. O exemplo `tracking-live.json` do contrato mostra a tela com o link.
 
 O `X-Correlation-Id` que o Kong coloca no request vira o id do request no Fastify, volta na resposta e segue para cada serviço chamado, então um id só amarra os logs de todos. Uma chamada que falha deixa uma linha `warn` com o serviço, a chamada, o tempo gasto e o erro.
 
@@ -150,6 +152,6 @@ A imagem sai de `docker build -f services/bff/Dockerfile -t chaos-playground/bff
 
 ## O que vem depois
 
-- **Tempo real por WebSocket**: hoje a tela viva pede de novo a cada poucos segundos. Um consumer group `bff.live` lendo `commerce.orders.v2` e `logistics.shipments.v2` pode avisar o navegador na hora, e a tela só busca quando algo mudou.
+- **Tela viva empurrada**: a posição do entregador já chega na hora, pelo tracking; o resto da tela viva ainda pede de novo a cada poucos segundos. Um consumer group `bff.live` lendo `commerce.orders.v2` e `logistics.shipments.v2` pode avisar o navegador na hora, e a tela só busca quando algo mudou.
 - **Circuit breaker por serviço**: o timeout já protege a web de um serviço lento; um breaker em memória pouparia o serviço doente de receber chamadas enquanto se recupera.
 - **Flags de interface**: avaliadas in-process com o provider do flagd, e a web recebe só o valor já resolvido.
