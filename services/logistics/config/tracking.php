@@ -10,7 +10,10 @@ return [
         'key' => env('AWS_ACCESS_KEY_ID', 'test'),
         'secret' => env('AWS_SECRET_ACCESS_KEY', 'test'),
         'table' => env('TRACKING_TABLE', 'tracking_lookup'),
+        // The page answers a person waiting: a slow DynamoDB is a 503, not a hanging request.
+        'timeout_ms' => (int) env('DYNAMODB_TIMEOUT_MS', 3000),
+        'connect_timeout_ms' => (int) env('DYNAMODB_CONNECT_TIMEOUT_MS', 1000),
     ],
     // A page is kept this many days after its last step; DynamoDB's TTL removes it afterwards.
-    'keep_days' => (int) env('TRACKING_KEEP_DAYS', 90),
+    'page_retention_days' => (int) env('TRACKING_PAGE_RETENTION_DAYS', 90),
 ];

@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 return [
+    // UC-SHP-12: a shipment with a carrier and no news for this long is compared with the carrier's history.
+    'reconciliation' => [
+        'quiet_seconds' => (int) env('JOURNEYS_RECONCILIATION_QUIET_SECONDS', 60),
+        // The pause of the reconciler when no shipment is due, and after a failed round.
+        'idle_pause_ms' => (int) env('JOURNEYS_RECONCILIATION_IDLE_PAUSE_MS', 5000),
+        'failure_pause_ms' => (int) env('JOURNEYS_RECONCILIATION_FAILURE_PAUSE_MS', 2000),
+    ],
     // UC-SHP-13: a shipment with a carrier and no new step for this long is stalled.
     'stalled' => [
         'after_seconds' => (int) env('JOURNEYS_STALLED_AFTER_SECONDS', 3600),

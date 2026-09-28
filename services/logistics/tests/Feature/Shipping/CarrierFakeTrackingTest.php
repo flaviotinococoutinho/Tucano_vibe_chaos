@@ -94,7 +94,7 @@ final class CarrierFakeTrackingTest extends TestCase
             return $request;
         }));
 
-        return new CarrierFakeTracking(new Client(['handler' => $stack, 'base_uri' => 'http://carriers.test']), 2_000, $this->logger);
+        return new CarrierFakeTracking(new Client(['handler' => $stack, 'base_uri' => 'http://carriers.test']), 2_000, 500, $this->logger);
     }
 
     /**

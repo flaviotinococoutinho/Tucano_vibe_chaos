@@ -124,7 +124,7 @@ x-logistics: &logistics
     CARRIERS_URL: http://toxiproxy:14002
     CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
     # UC-SHP-12: a shipment with a carrier is checked against the carrier's history after this long without news.
-    CARRIERS_RECONCILIATION_QUIET_SECONDS: "60"
+    JOURNEYS_RECONCILIATION_QUIET_SECONDS: "60"
     # UC-SHP-13: no step for this long with a carrier is a stalled journey; the watch alerts by log and e-mail.
     JOURNEYS_STALLED_AFTER_SECONDS: "3600"
     JOURNEYS_STALLED_WATCH_EVERY_SECONDS: "900"
@@ -676,8 +676,8 @@ services:
   # --max-time recycles it every hour; the restart policy brings it back.
   logistics-label-worker:
     <<: [*service, *logistics]
-    # --quiet: the job logs its outcome in JSON, like every other line of the stack.
-    command: ["php", "artisan", "queue:work", "sqs", "--queue=label-jobs", "--sleep=3", "--max-time=3600", "--quiet"]
+    # No --queue: the sqs connection reads LABELS_QUEUE. --quiet: the job logs its outcome in JSON, like every other line of the stack.
+    command: ["php", "artisan", "queue:work", "sqs", "--sleep=3", "--max-time=3600", "--quiet"]
     stop_signal: SIGTERM
     depends_on:
       logistics-migrate:

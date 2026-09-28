@@ -20,7 +20,7 @@ use Logistics\Shipping\Domain\Error\PickupRefused;
  */
 final readonly class CarrierFakePickups implements ForSchedulingPickups
 {
-    public function __construct(private ClientInterface $http, private int $timeoutMilliseconds) {}
+    public function __construct(private ClientInterface $http, private int $timeoutMilliseconds, private int $connectTimeoutMilliseconds) {}
 
     public function schedule(PickupOrder $order): void
     {
@@ -46,7 +46,7 @@ final readonly class CarrierFakePickups implements ForSchedulingPickups
                     'weightGrams' => $shipment->parcels->totalWeight()->grams(),
                 ],
                 'timeout' => $this->timeoutMilliseconds / 1_000,
-                'connect_timeout' => min(0.5, $this->timeoutMilliseconds / 1_000),
+                'connect_timeout' => min($this->connectTimeoutMilliseconds, $this->timeoutMilliseconds) / 1_000,
                 'http_errors' => false,
             ]);
         } catch (GuzzleException $failure) {
