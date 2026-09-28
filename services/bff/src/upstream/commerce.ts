@@ -66,10 +66,14 @@ export type NewOrder = {
   readonly items: readonly { readonly sku: string; readonly quantity: number }[];
 };
 
-/** Commerce said no: its status, and the fields it named when it named any (`customer.email`). */
+/**
+ * Commerce said no: its status, the name of the problem when it has one
+ * (contracts/http/problems.md), and the fields it named when it named any (`customer.email`).
+ */
 export type Refusal = {
   readonly outcome: 'refused';
   readonly status: 409 | 422;
+  readonly problem: string | null;
   readonly fields: readonly string[];
 };
 
@@ -116,7 +120,12 @@ export function commerceAt(upstream: Upstream): Commerce {
         return { outcome: 'placed', order: orderOf(answer.fields()) };
       }
       if (answer.status === 409 || answer.status === 422) {
-        return { outcome: 'refused', status: answer.status, fields: answer.fieldsInError() };
+        return {
+          outcome: 'refused',
+          status: answer.status,
+          problem: answer.problem(),
+          fields: answer.fieldsInError(),
+        };
       }
       throw answer.unexpected();
     },
@@ -135,7 +144,12 @@ export function commerceAt(upstream: Upstream): Commerce {
         return { outcome: 'unknown_order' };
       }
       if (answer.status === 409 || answer.status === 422) {
-        return { outcome: 'refused', status: answer.status, fields: answer.fieldsInError() };
+        return {
+          outcome: 'refused',
+          status: answer.status,
+          problem: answer.problem(),
+          fields: answer.fieldsInError(),
+        };
       }
       throw answer.unexpected();
     },

@@ -10,7 +10,7 @@ Shared kernel dos serviços PHP (catalog, commerce, logistics e tracking). Fica 
 | `Address` | `Address` com `Thoroughfare` (tipo e nome do logradouro), número em texto, `Divisions` (estado, município, distrito, subdistrito e bairro, com o geocódigo do IBGE), `PostalCode` e `Coordinates`, montado pelo `AddressBuilder` e lido e escrito por `fromArray` e `toArray` ([ADR 0020](../../../docs/adr/0020-address-by-thoroughfare-and-divisions.md)) |
 | `Privacy` | `Sensitive`, o proxy de proteção que mostra só a máscara de um dado pessoal ou de cartão, e `DataCategory`, as categorias que sabem se mascarar e a que regra respondem, LGPD ou PCI DSS ([ADR 0024](../../../docs/adr/0024-sensitive-data-behind-a-proxy.md)) |
 | `Time` | `Clock`, `SystemClock` (sempre UTC) e `FrozenClock` para testes |
-| `Domain` | `AggregateRoot` e `DomainEvent` |
+| `Domain` | `AggregateRoot`, `DomainEvent`, `DomainError` com a sua `ErrorCategory`, e o atributo `ProblemType`, que dá a um erro o nome pelo qual os clientes o reconhecem (o `type` do RFC 9457) |
 | `Messaging` | `CloudEvent`, o envelope CloudEvents 1.0 dos tópicos Kafka, e `EventFields`, a leitura tipada e tolerante do `data` que os consumidores fazem |
 | `Documentation` | atributo `#[UseCase('UC-ORD-01')]`, que liga o código à ficha do caso de uso |
 

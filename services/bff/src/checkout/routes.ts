@@ -11,7 +11,6 @@ import {
   sendScreen,
 } from '../hypermedia/index.ts';
 import { orderScreen } from '../orders/index.ts';
-import { DomainError } from '../platform/domain-error.ts';
 import { ProductNotFound, SKU } from '../storefront/index.ts';
 import {
   type Catalog,
@@ -20,6 +19,7 @@ import {
   type Product,
   traceOf,
 } from '../upstream/index.ts';
+import { ProductOutOfLine } from './errors.ts';
 import { guestOf } from './guest.ts';
 import { newOrderOf, placeOrderAction, readOrderForm, refusalError } from './order-form.ts';
 
@@ -29,14 +29,6 @@ export type CheckoutOptions = {
   readonly newId: KeyMaker;
   readonly secureCookies: boolean;
 };
-
-export class ProductOutOfLine extends DomainError {
-  readonly category = 'conflict';
-
-  constructor(name: string) {
-    super(`${name} saiu de linha e não está mais à venda.`);
-  }
-}
 
 export function checkoutScreen(product: Product, quantity: number, key: string): Entity {
   const { amount, currency } = product.price;

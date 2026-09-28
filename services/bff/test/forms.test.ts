@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { newOrderOf, readOrderForm, refusalError } from '../src/checkout/index.ts';
+import {
+  FormAlreadyUsed,
+  newOrderOf,
+  OrderNotPlaced,
+  ProductOutOfLine,
+  readOrderForm,
+  refusalError,
+} from '../src/checkout/index.ts';
 import { href, InvalidForm, money, path } from '../src/hypermedia/index.ts';
 import { canonicalCode } from '../src/tracking/code.ts';
 
@@ -92,6 +99,7 @@ describe('the order form', () => {
     const error = refusalError({
       outcome: 'refused',
       status: 422,
+      problem: null,
       fields: ['customer.email', 'shippingAddress.divisions.1.name', 'items.0.sku'],
     });
 
@@ -102,11 +110,20 @@ describe('the order form', () => {
     });
   });
 
-  it('turns a refusal about the stock into a conflict', () => {
-    assert.equal(
-      refusalError({ outcome: 'refused', status: 409, fields: [] }).category,
-      'conflict',
-    );
+  it('tells apart the conflicts Commerce names, which share a status', () => {
+    const refused = (status: 409 | 422, problem: string) =>
+      refusalError({ outcome: 'refused', status, problem, fields: [] });
+
+    assert.ok(refused(409, 'product-unavailable') instanceof ProductOutOfLine);
+    assert.ok(refused(409, 'stock-not-reserved') instanceof OrderNotPlaced);
+    assert.ok(refused(422, 'idempotency-key-reused') instanceof FormAlreadyUsed);
+  });
+
+  it('reads an unnamed 409 as a stock that ran out', () => {
+    const error = refusalError({ outcome: 'refused', status: 409, problem: null, fields: [] });
+
+    assert.ok(error instanceof OrderNotPlaced);
+    assert.equal(error.category, 'conflict');
   });
 });
 

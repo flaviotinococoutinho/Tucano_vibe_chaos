@@ -13,6 +13,7 @@ import {
   inSeconds,
   type Order,
   type PaymentRequest,
+  type Refusal,
   ServiceUnavailable,
   type Trace,
   traceOf,
@@ -42,6 +43,17 @@ export class OrderNotPayable extends DomainError {
 
   constructor() {
     super('Este pedido não espera mais pagamento. Abra o pedido de novo para ver como ele está.');
+  }
+}
+
+/** The same pay form went again with another card after the first payment left. */
+export class PaymentAlreadySent extends DomainError {
+  readonly category = 'invalid_input';
+
+  constructor() {
+    super(
+      'Este pagamento já foi enviado com outro cartão. Abra o pedido de novo para ver como ele está.',
+    );
   }
 }
 
@@ -84,9 +96,7 @@ export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, { com
         throw new OrderNotFound();
       }
       if (payment.outcome === 'refused') {
-        throw payment.status === 409
-          ? new OrderNotPayable()
-          : new InvalidForm({ cardToken: [CARD_MESSAGE] });
+        throw refusalOf(payment);
       }
 
       const order = await orderOf(commerce, orderId, trace);
@@ -96,6 +106,16 @@ export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, { com
     },
   );
 };
+
+/** The type of the problem first: a status alone does not tell a reused form from a bad card. */
+function refusalOf(refusal: Refusal): DomainError {
+  if (refusal.problem === 'idempotency-key-reused') {
+    return new PaymentAlreadySent();
+  }
+  return refusal.status === 409
+    ? new OrderNotPayable()
+    : new InvalidForm({ cardToken: [CARD_MESSAGE] });
+}
 
 async function orderOf(commerce: Commerce, orderId: string, trace: Trace): Promise<Order> {
   const order = UUID.test(orderId) ? await commerce.order(orderId, trace) : null;
