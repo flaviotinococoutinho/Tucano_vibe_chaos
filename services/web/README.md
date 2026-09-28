@@ -80,8 +80,8 @@ Vitest, `@testing-library/react` e `user-event`, ambiente `jsdom`. `test/support
 ## Rodando os checks
 
 ```bash
-make check s=web      # npm ci e npm run check
-make dev s=web
+make check s=web      # roda dentro do node:24-alpine: npm ci e npm run check
+cd services/web && npm run dev      # a stack local não tem alvo de dev no Makefile
 ```
 
 | Script | O que faz |
