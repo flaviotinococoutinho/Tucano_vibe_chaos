@@ -21,9 +21,14 @@ logger = logging.getLogger("chaostoolkit")
 STORE = os.environ.get("TUCANO_STORE", "http://kong:8000")
 
 # The mug has the deepest stock, and the probes pay with a card the PSP declines, so a
-# run gives every unit back: an experiment can run all day without emptying a shelf.
+# run gives every unit back: an experiment can run all day without emptying a shelf. Only
+# the tracking probe pays with the card that approves, because a parcel has to ship.
 PRODUCT = "HOME-MUG-001"
 DECLINED_CARD = "tok_decline"
+APPROVED_CARD = "tok_visa"
+
+# The relation of the link from an order to the public tracking of its parcel.
+TRACK = "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-track"
 
 GUEST = {
     "name": "Cliente do Caos",
@@ -107,7 +112,15 @@ def action_named(screen: dict[str, Any], name: str) -> dict[str, Any]:
 
 
 def self_link(screen: dict[str, Any]) -> str:
+    href = link_to(screen, "self")
+    if href is None:
+        raise RuntimeError(f"the screen {screen.get('title')!r} has no self link")
+    return href
+
+
+def link_to(screen: dict[str, Any], rel: str) -> str | None:
+    """The link of a relation, when the screen offers it: the order offers tracking only after pickup."""
     for link in screen.get("links", []):
-        if "self" in link["rel"]:
+        if rel in link["rel"]:
             return link["href"]
-    raise RuntimeError(f"the screen {screen.get('title')!r} has no self link")
+    return None

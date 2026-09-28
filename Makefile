@@ -95,7 +95,7 @@ flag-reset: ## Put a flag back as it is in the repository (key=<flag>)
 
 experiments: ## List the chaos experiments, each with the steady state it defends
 	@for file in chaos/experiments/*.json; do \
-		printf '%-28s %s\n' "$$(basename $$file .json)" "$$(jq -r '."steady-state-hypothesis".title' $$file)"; \
+		printf '%-30s %s\n' "$$(basename $$file .json)" "$$(jq -r '."steady-state-hypothesis".title' $$file)"; \
 	done
 
 experiment: ## Run a chaos experiment against the running stack (e=<name>); rollbacks always run

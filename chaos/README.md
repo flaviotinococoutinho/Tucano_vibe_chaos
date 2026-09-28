@@ -29,7 +29,7 @@ flowchart LR
 3. **O estado estável de novo**, com a falha ainda ativa. É aqui que o experimento dá o veredito: a hipótese se manteve ou o sistema se desviou.
 4. **Os rollbacks** tiram a falha.
 
-As sondas compram na loja do jeito que a web compra: abrem as telas do BFF e seguem os links e as ações que vêm nelas, sem montar nenhum endereço. Elas pagam com o cartão de teste recusado, então cada pedido cancela e devolve o estoque, e dá para rodar os experimentos o dia inteiro sem esvaziar prateleira nenhuma.
+As sondas compram na loja do jeito que a web compra: abrem as telas do BFF e seguem os links e as ações que vêm nelas, sem montar nenhum endereço. Elas pagam com o cartão de teste recusado, então cada pedido cancela e devolve o estoque, e dá para rodar os experimentos o dia inteiro sem esvaziar prateleira nenhuma. A exceção é o `tracking-without-its-database`, que precisa de uma encomenda coletada: cada execução compra e entrega uma caneca, de um estoque de 200.
 
 ## Os experimentos
 
@@ -38,6 +38,8 @@ As sondas compram na loja do jeito que a web compra: abrem as telas do BFF e seg
 | [`psp-slow`](experiments/psp-slow.json) | 3 s de latência entre o commerce e o PSP, com o timeout do commerce em 2 s | pagar responde em até 1 s, aceito ou recusado com `Retry-After`, e o catálogo continua abrindo | antes, pagar respondia `202` em 0,15 s. As cinco tentativas com o PSP lento levaram 2,1 s cada, e o circuit breaker abriu: depois delas, pagar respondeu `503` em 0,10 s, com "tente em 20 s" |
 | [`commerce-cut-from-the-web`](experiments/commerce-cut-from-the-web.json) | o BFF perde a conexão com o commerce | toda tela responde em até 6 s, com o conteúdo ou com `503` e `Retry-After`, e o catálogo continua abrindo | a tela do pedido respondeu `503` em 0,02 s, com "tente em 5 s"; o catálogo, `200` em 0,07 s |
 | [`catalog-slow-for-the-web`](experiments/catalog-slow-for-the-web.json) | 7 s de latência entre o BFF e o catálogo, com o prazo do BFF em 5 s | a tela do catálogo responde em até 6 s, com o catálogo ou com `503` e `Retry-After`, e a do pedido continua respondendo | a tela do catálogo desistiu em 5,06 s e disse quando tentar de novo; a do pedido abriu em 0,06 s |
+| [`commerce-database-out`](experiments/commerce-database-out.json) | o commerce perde o PostgreSQL | fechar um pedido responde em até 2 s, com o pedido ou com `503` e `Retry-After`, e o catálogo continua abrindo | a primeira execução pegou uma fraqueza: `500` em 0,19 s, sem dizer quando voltar. Depois da correção ([ADR 0026](../docs/adr/0026-a-database-outage-is-unavailability.md)), `503` em 0,13 s, com "tente em 5 s" |
+| [`tracking-without-its-database`](experiments/tracking-without-its-database.json) | a logistics perde o PostgreSQL, onde a remessa é escrita | a página de rastreio de uma encomenda coletada responde em até 1 s | a transportadora coletou em 13,2 s; com o banco fora, o rastreio respondeu `200` em 0,03 s, lendo a cópia no DynamoDB |
 | [`lost-psp-webhooks`](experiments/lost-psp-webhooks.json) | o PSP cobra, mas nenhum webhook sai | todo pagamento chega a um desfecho em até 100 s, com ou sem webhook | com webhook, o pedido chegou ao desfecho em 2,1 s; sem nenhum, a conciliação o trouxe em 62,4 s, logo depois do silêncio de 60 s que ela espera antes de perguntar ao PSP |
 
 Cada número vem de uma execução de verdade contra a stack local. Eles mudam de máquina para máquina; a hipótese não.
