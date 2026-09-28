@@ -20,7 +20,8 @@ area_of() {
   case "$1" in
     .github/*|scripts/ci/*)         echo "$ALL_AREAS" ;;
     packages/php/*)                 echo "$PHP_AREAS" ;;
-    contracts/*)                    echo "contracts catalog commerce logistics bff partners-sim" ;;
+    # The web renders the examples of the BFF contract in its tests.
+    contracts/*)                    echo "contracts catalog commerce logistics bff partners-sim web" ;;
     # A variable read or dropped in a config file must still agree with compose and the reference.
     services/*/config/*|services/*/src/config.ts|services/tracking/src/Platform/Config.php)
                                     echo "compose $(echo "$1" | cut -d/ -f2)" ;;
