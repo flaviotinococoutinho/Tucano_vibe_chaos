@@ -4,6 +4,14 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Rastreio pelo código (UC-SHP-10), o lado de leitura das remessas no pacote `Timeline`: o projetor `logistics-timeline-projector` leva cada evento de `logistics.shipments.v2` para a linha do tempo no MongoDB e para a página pública no DynamoDB, cada um deduplicando pelo id do evento, e `GET /v1/tracking/{código}` lê a página por chave.
+
+### Fixed
+
+- O README da logística agora lista o webhook das transportadoras entre os endpoints.
+
 ## [0.6.0] - 2026-09-27
 
 ### Added

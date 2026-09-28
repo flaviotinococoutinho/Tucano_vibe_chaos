@@ -620,6 +620,20 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  # UC-SHP-10: every shipment event becomes a step of the timeline (MongoDB) and of the public page (DynamoDB).
+  logistics-timeline-projector:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:project-timelines"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
+    mem_limit: 128m
+
   # UC-SHP-12 in a loop: shipments quiet for too long are caught up with the history of their carrier.
   logistics-journey-reconciler:
     <<: [*service, *logistics]

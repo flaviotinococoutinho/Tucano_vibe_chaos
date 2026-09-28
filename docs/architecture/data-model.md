@@ -235,6 +235,8 @@ As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`.
 | `tracking_lookup` | `trackingCode` (partição) | página pública de rastreio: uma leitura por código, sem tocar nos bancos dos serviços |
 | `notification_log` | `pk` (partição) e `sk` (ordenação) | registro das notificações enviadas, para o mesmo evento não gerar dois e-mails |
 
+O item do `tracking_lookup` guarda `status`, `updatedAt`, `carrier`, `destination` (município e UF), `steps` (a lista dos passos, que cresce com `list_append`), `shipmentId`, `seen` (o conjunto dos ids de evento já aplicados, que a condição do `UpdateItem` consulta para não repetir passo) e `expiresAt`, 90 dias depois do último passo.
+
 ## Objetos (S3 no Floci)
 
 | Bucket | Chave | O que guarda |
