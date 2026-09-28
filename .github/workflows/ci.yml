@@ -60,7 +60,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Ansible and ansible-lint
         run: |
-          pipx install --include-deps ansible
+          # --force: the runner brings an ansible-core of its own, with no community collections.
+          pipx install --force --include-deps ansible
           pipx install ansible-lint
       - name: Lint the playbooks and roles
         run: ansible-lint --profile production

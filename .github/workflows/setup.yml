@@ -21,7 +21,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
       - name: Install Ansible
-        run: pipx install --include-deps ansible
+        run: pipx install --force --include-deps ansible
       - name: Prepare the machine and bring the stack up
         working-directory: infra/ansible
         run: ansible-playbook playbooks/setup.yml
