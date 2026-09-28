@@ -24,9 +24,21 @@ O custo é ter duas representações do mesmo fato e um caminho entre elas. Esse
 
 ## Eventos são fatos, no passado
 
-`order.paid`, `shipment.picked_up`, `shipment.delivered`. Um evento conta o que já aconteceu e não muda depois. Todos usam o envelope CloudEvents, e o formato do `data` de cada tipo está em JSON Schema em `contracts/events`, conferido no CI ([ADR 0010](../adr/0010-cloudevents-contracts.md)).
+`order.paid`, `shipment.picked_up`, `shipment.delivered`. Um evento conta o que já aconteceu e não muda depois. É a ideia que Greg Young repete desde que deu nome ao CQRS: a informação de um negócio é, antes de tudo, uma sequência de fatos, e o estado atual é uma conta feita sobre eles. Um fato errado não se apaga, se corrige com outro fato: um pagamento que volta é um estorno, e não um pagamento que deixou de existir. Por isso o histórico de status do pedido só ganha linha nova. Todos usam o envelope CloudEvents, e o formato do `data` de cada tipo está em JSON Schema em `contracts/events`, conferido no CI ([ADR 0010](../adr/0010-cloudevents-contracts.md)).
 
 Quando um contrato precisa quebrar, ele não quebra no lugar: nasce um tópico novo (`logistics.shipments.v2`), e os consumidores migram no ritmo deles. O catálogo usa um tópico compactado, em que o Kafka guarda só a última versão de cada produto: quem chega depois lê o estado atual sem precisar da história inteira.
+
+## Quando a rede se parte
+
+Eric Brewer apresentou em 2000 a conjectura que virou o teorema CAP: quando a rede se parte, um sistema distribuído precisa escolher entre responder com o que tem (disponibilidade) e recusar para não errar (consistência). Doze anos depois, ele mesmo lembrou que essa escolha não é uma só para o sistema inteiro: ela se faz operação por operação. Na Tucano, a mesma queda de banco leva a escolhas diferentes, e cada uma tem um experimento que prova:
+
+| Operação | O que ela escolhe | O que acontece sem o banco dela | Experimento |
+|---|---|---|---|
+| fechar um pedido | consistência: sem o PostgreSQL, não há como prometer estoque | o commerce recusa na hora, com `503` e `Retry-After`, em 0,13 s | [`commerce-database-out`](../../chaos/experiments/commerce-database-out.json) |
+| rastrear uma entrega | disponibilidade: a cópia no DynamoDB pode estar alguns segundos atrás | o rastreio continua respondendo, em 0,03 s | [`tracking-without-its-database`](../../chaos/experiments/tracking-without-its-database.json) |
+| abrir uma tela da web | isolamento: cada tela depende só dos serviços dela | com o commerce cortado, só as telas do commerce respondem `503`, e o catálogo continua abrindo | [`commerce-cut-from-the-web`](../../chaos/experiments/commerce-cut-from-the-web.json) |
+
+Daniel Abadi completou a ideia em 2012 com o PACELC: mesmo sem partição, sobra a escolha entre latência e consistência. É a mesma conta da tabela do começo deste capítulo: a lista de pedidos aceita atraso para ser barata, e a tela de um pedido específico paga a leitura no PostgreSQL para mostrar o fato.
 
 ## Identidade
 
