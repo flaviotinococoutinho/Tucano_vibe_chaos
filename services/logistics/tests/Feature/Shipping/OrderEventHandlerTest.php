@@ -50,7 +50,7 @@ final class OrderEventHandlerTest extends TestCase
         self::assertCount(1, $this->shipments->paid);
         $order = $this->shipments->paid[0];
         self::assertSame([OrderEvents::PAID_EVENT, OrderEvents::ORDER, 'GRU1'], [$order->eventId, $order->orderId->toString(), (string) $order->origin]);
-        self::assertSame(['Ana Souza', 'ana@example.com'], [$order->recipient->name, $order->recipient->email]);
+        self::assertSame(['Ana Souza', 'ana@example.com'], [$order->recipient->name->reveal(), $order->recipient->email->reveal()]);
         self::assertEquals(self::paulista(), $order->destination);
         self::assertSame([['BOOK-DDD-001', 2], ['HOME-MUG-001', 1]], array_map(
             static fn(OrderLine $line): array => [(string) $line->sku, $line->quantity->value],

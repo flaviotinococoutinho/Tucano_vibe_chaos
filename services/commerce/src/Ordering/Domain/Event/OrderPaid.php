@@ -41,8 +41,8 @@ final readonly class OrderPaid extends OrderEvent
         return [
             'customer' => [
                 'id' => $this->customer->id->toString(),
-                'name' => (string) $this->customer->name,
-                'email' => (string) $this->customer->email,
+                'name' => $this->customer->name->reveal(),
+                'email' => $this->customer->email->reveal(),
             ],
             'shippingAddress' => $this->address->toArray(),
             'fulfillmentCenter' => (string) $this->center,

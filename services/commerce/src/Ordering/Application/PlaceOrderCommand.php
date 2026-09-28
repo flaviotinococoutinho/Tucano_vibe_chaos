@@ -25,7 +25,8 @@ final readonly class PlaceOrderCommand
     public function fingerprint(): string
     {
         return hash('sha256', json_encode([
-            'customer' => [(string) $this->customer->id, (string) $this->customer->name, (string) $this->customer->email],
+            // The real values: two masks can match (A*** S*** is Ana Souza and Ana Silva) where the people do not.
+            'customer' => [(string) $this->customer->id, $this->customer->name->reveal(), $this->customer->email->reveal()],
             'address' => $this->address->toArray(),
             'items' => array_map(static fn(RequestedItem $item): array => [(string) $item->sku, $item->quantity->value], $this->items),
         ], JSON_THROW_ON_ERROR));

@@ -32,7 +32,7 @@ final class DeliveryVisitsTest extends TestCase
         $visits = $shipment->releaseVisits();
 
         self::assertSame([[1, AttemptOutcome::Failed, DeliveryFailure::RecipientAbsent, null], [2, AttemptOutcome::Delivered, null, 'Carlos Lima']], array_map(
-            static fn($visit): array => [$visit->number, $visit->outcome, $visit->failure, $visit->proof?->receiverName],
+            static fn($visit): array => [$visit->number, $visit->outcome, $visit->failure, $visit->proof?->receiverName->reveal()],
             $visits,
         ));
         self::assertSame([], $shipment->releaseVisits());

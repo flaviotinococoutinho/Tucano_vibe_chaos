@@ -25,6 +25,8 @@ final readonly class OrderDetails
             'orderId' => $order->id->toString(),
             'orderNumber' => (string) $order->number,
             'status' => $order->status->value,
+            // Masked on purpose (LGPD, minimization): there is no login, so whoever has the
+            // id of an order sees the order, not who bought it.
             'customer' => [
                 'id' => $order->customer->id->toString(),
                 'name' => (string) $order->customer->name,

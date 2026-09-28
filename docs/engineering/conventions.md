@@ -107,6 +107,8 @@ Aplico as nove regras de Jeff Bay com pragmatismo, principalmente nos pacotes de
 
 Uma linha JSON por evento, sempre com `timestamp`, `level`, `service`, `message` e `correlation_id`.
 
+Dado pessoal e de cartão entra no log só como máscara. Nome, e-mail, documento e token de cartão moram num `Sensitive` do shared kernel, que se imprime mascarado; o valor de verdade sai pelo `reveal()`, e só nos adapters e nos eventos de domínio. Mensagem de erro não repete o valor que recebeu. A fitness function `SensitiveDataLeavesOnPurposeTest` cobra a regra ([ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md)).
+
 ## Testes
 
 | Nível | O que cobre | Onde roda |
