@@ -1,6 +1,6 @@
 # 5. Abstrações que seguram a entropia
 
-![O tucano guardando uma caixa num armário de gavetas hexagonais, cada uma com um ícone; ao lado, uma pilha emaranhada de cabos e caixas](../assets/guia/abstracoes.png)
+![Uma casinha de passarinho em forma de hexágono, com o tucano dentro; de uma abertura sai um cabo com plugue, e na outra se apoia uma escada](../assets/guia/abstracoes.png)
 
 Código cresce para o emaranhado sozinho, sem ninguém querer. Cada atalho parece barato no dia e cobra juros depois. As abstrações deste projeto existem para uma coisa só: fazer uma mudança continuar local conforme o sistema cresce. Quando uma abstração não ajuda nisso, ela não entra.
 

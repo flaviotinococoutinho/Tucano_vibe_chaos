@@ -11,6 +11,7 @@
   width: min(220px, 60vw);
   height: auto;
   margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg);
 }
 
 .problem-view__detail {

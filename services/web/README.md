@@ -58,7 +58,7 @@ Uma tela com `"live"` na classe pede para ser buscada de novo pelo link `self`, 
 
 ## A home
 
-A home usa o banner da identidade, o arquivo original de `docs/assets`, copiado byte a byte para `public/illustrations`. Ele é decorativo (`alt=""`), vem com largura e altura para a página não pular, e o texto fica sobre o terço vazio dele em tela larga. No celular, o banner vai para baixo do texto, recortado em volta do tucano. Como o banner é claro nos dois temas, o herói é um cartão claro também no tema escuro, e o texto por cima dele fica na cor tinta da paleta.
+A home usa o banner da identidade. O original mora em `docs/assets`, com 2688 px e 4 MB; a web serve uma cópia em WebP com 1600 px e menos de 60 KB, que o `make web-art` gera a partir dele junto com as ilustrações das telas e os ícones. O banner é decorativo (`alt=""`), vem com largura e altura para a página não pular, e o texto fica sobre o terço vazio dele em tela larga. No celular, o banner vai para baixo do texto, recortado em volta do tucano. Como o banner é claro nos dois temas, o herói é um cartão claro também no tema escuro, e o texto por cima dele fica na cor tinta da paleta.
 
 ## Tokens e tema
 
