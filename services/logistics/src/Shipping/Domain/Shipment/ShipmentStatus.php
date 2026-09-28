@@ -48,4 +48,16 @@ enum ShipmentStatus: string
     {
         return $this->next() === [];
     }
+
+    /** The parcels left the last hub for the door: a hub scan from now on is old news, not a step. */
+    public function isPastTheHubs(): bool
+    {
+        return in_array($this, [self::OutForDelivery, self::DeliveryFailed, self::Delivered, self::Returning, self::Returned], true);
+    }
+
+    /** From here on the carrier moves it: what comes next is an event of the carrier, by webhook or from its history. */
+    public function awaitsCarrier(): bool
+    {
+        return $this !== self::Created && !$this->isFinal();
+    }
 }

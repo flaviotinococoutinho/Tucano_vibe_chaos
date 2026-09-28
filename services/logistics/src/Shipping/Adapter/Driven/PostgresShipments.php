@@ -112,6 +112,32 @@ final readonly class PostgresShipments implements ForStoringShipments
         return $row === null ? null : Shipment::fromSnapshot($this->snapshotOf($row));
     }
 
+    public function claimQuiet(DateTimeImmutable $quietSince, DateTimeImmutable $now): ?ShipmentReference
+    {
+        // One statement claims and touches, like the payment reconciliation: SKIP LOCKED gives each
+        // shipment to one copy of the job, and the touch keeps it away until it is quiet again. The
+        // statuses are the ones of ShipmentStatus::awaitsCarrier(), the predicate of
+        // shipments_awaiting_carrier_idx, so the planner can use it.
+        $row = $this->connection->selectOne(<<<'SQL'
+            UPDATE shipments SET updated_at = ?
+            WHERE id = (
+                SELECT id FROM shipments
+                WHERE status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'out_for_delivery', 'delivery_failed', 'returning')
+                  AND updated_at <= ?
+                ORDER BY updated_at
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING id, tracking_code, order_id
+            SQL, [$now->format(DATE_RFC3339_EXTENDED), $quietSince->format(DATE_RFC3339_EXTENDED)]);
+
+        return $row instanceof stdClass ? ShipmentReference::of(
+            ShipmentId::fromString((string) $row->id),
+            TrackingCode::fromSnowflake(Snowflake::fromInt((int) $row->tracking_code)),
+            OrderId::fromString((string) $row->order_id),
+        ) : null;
+    }
+
     public function save(Shipment $shipment): void
     {
         $transitions = $shipment->releaseTransitions();

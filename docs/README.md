@@ -30,6 +30,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 - [Conciliação de pagamentos](labs/payment-reconciliation.md): webhooks descartados e cobranças perdidas, e como a conciliação chega à palavra final do PSP.
 - [Banco fora do ar](labs/database-outage.md): o relay que não voltava, o consumidor que desistia cedo, e o que mudou nos dois.
 - [Fila de etiquetas](labs/label-queue.md): o bucket falha, o job tenta de novo, o `failed_jobs` guarda o resto e o replay do Kafka recupera o que sumiu.
+- [Webhooks perdidos](labs/lost-carrier-events.md): a transportadora derruba avisos, as remessas travam no meio da jornada, e a conciliação com o histórico dela põe tudo no lugar.
 
 ## 5. Casos de uso
 

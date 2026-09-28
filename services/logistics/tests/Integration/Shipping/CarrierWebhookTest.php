@@ -105,6 +105,20 @@ final class CarrierWebhookTest extends TestCase
     }
 
     #[Test]
+    public function a_hub_scan_that_arrives_after_the_dispatch_is_old_news(): void
+    {
+        $this->event('parcel.picked_up');
+        $this->event('parcel.out_for_delivery', ['attempt' => 1]);
+        $late = self::eventId();
+
+        $this->event('parcel.hub_scanned', ['hub' => 'Hub Contagem (MG)'], $late)->assertOk()->assertJsonPath('result', 'obsolete');
+        $this->event('parcel.hub_scanned', ['hub' => 'Hub Contagem (MG)'], $late)->assertOk()->assertJsonPath('result', 'duplicate');
+
+        self::assertSame('out_for_delivery', $this->shipmentStatus());
+        self::assertCount(2, $this->published());
+    }
+
+    #[Test]
     public function three_failed_visits_send_the_parcels_back(): void
     {
         $this->event('parcel.picked_up');

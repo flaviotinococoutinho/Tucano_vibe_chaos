@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\Factory as Queues;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Logistics\Shipping\Adapter\Driven\CarrierFakePickups;
+use Logistics\Shipping\Adapter\Driven\CarrierFakeTracking;
 use Logistics\Shipping\Adapter\Driven\CarrierSelectionChoices;
 use Logistics\Shipping\Adapter\Driven\LaravelLabelQueue;
 use Logistics\Shipping\Adapter\Driven\PostgresCancelledOrders;
@@ -21,6 +22,7 @@ use Logistics\Shipping\Adapter\Driven\SnowflakeTrackingCodes;
 use Logistics\Shipping\Adapter\Driven\ZplLabels;
 use Logistics\Shipping\Adapter\Driving\Console\BookPickups;
 use Logistics\Shipping\Adapter\Driving\Console\OrderIntake;
+use Logistics\Shipping\Adapter\Driving\Console\ReconcileJourneysWorker;
 use Logistics\Shipping\Adapter\Driving\Console\RequestLabels;
 use Logistics\Shipping\Adapter\Driving\Console\SyncCatalog;
 use Logistics\Shipping\Adapter\Driving\Http\CarrierWebhookController;
@@ -35,11 +37,13 @@ use Logistics\Shipping\Application\Port\Driven\ForStoringCancelledOrders;
 use Logistics\Shipping\Application\Port\Driven\ForStoringCatalogCopies;
 use Logistics\Shipping\Application\Port\Driven\ForStoringLabels;
 use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
+use Logistics\Shipping\Application\Port\Driven\ForTrackingPickups;
 use Logistics\Shipping\Application\Port\Driving\ForBookingPickups;
 use Logistics\Shipping\Application\Port\Driving\ForCancellingShipments;
 use Logistics\Shipping\Application\Port\Driving\ForCreatingShipments;
 use Logistics\Shipping\Application\Port\Driving\ForDispatchingDeliveries;
 use Logistics\Shipping\Application\Port\Driving\ForGeneratingLabels;
+use Logistics\Shipping\Application\Port\Driving\ForReconcilingJourneys;
 use Logistics\Shipping\Application\Port\Driving\ForRecordingDeliveryOutcomes;
 use Logistics\Shipping\Application\Port\Driving\ForRecordingHubScans;
 use Logistics\Shipping\Application\Port\Driving\ForRecordingPickups;
@@ -51,12 +55,14 @@ use Logistics\Shipping\Application\UseCase\CancelShipment;
 use Logistics\Shipping\Application\UseCase\CreateShipment;
 use Logistics\Shipping\Application\UseCase\DispatchForDelivery;
 use Logistics\Shipping\Application\UseCase\GenerateLabel;
+use Logistics\Shipping\Application\UseCase\ReconcileJourneys;
 use Logistics\Shipping\Application\UseCase\RecordDeliveryOutcome;
 use Logistics\Shipping\Application\UseCase\RecordHubScan;
 use Logistics\Shipping\Application\UseCase\RecordPickup;
 use Logistics\Shipping\Application\UseCase\RequestLabel;
 use Logistics\Shipping\Application\UseCase\ReturnToSender;
 use Logistics\Shipping\Application\UseCase\SyncCatalogProduct;
+use Psr\Log\LoggerInterface;
 use Tucano\FeatureFlags\FeatureFlags;
 use Tucano\Messaging\Webhook\WebhookSignature;
 
@@ -84,6 +90,7 @@ final class ShippingServiceProvider extends ServiceProvider
         ForDispatchingDeliveries::class => DispatchForDelivery::class,
         ForRecordingDeliveryOutcomes::class => RecordDeliveryOutcome::class,
         ForReturningToSender::class => ReturnToSender::class,
+        ForReconcilingJourneys::class => ReconcileJourneys::class,
     ];
 
     public function register(): void
@@ -106,6 +113,12 @@ final class ShippingServiceProvider extends ServiceProvider
             new Client(['base_uri' => (string) config('carriers.url')]),
             (int) config('carriers.timeout_ms'),
         ));
+        $this->app->bind(ForTrackingPickups::class, fn(): ForTrackingPickups => new CarrierFakeTracking(
+            new Client(['base_uri' => (string) config('carriers.url')]),
+            (int) config('carriers.timeout_ms'),
+            $this->app->make(LoggerInterface::class),
+        ));
+        $this->app->when(ReconcileJourneys::class)->needs('$quietSeconds')->giveConfig('carriers.reconciliation.quiet_seconds');
         $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('carriers.webhook_secret')));
         $this->app->bind(ForQueuingLabels::class, fn(): ForQueuingLabels => new LaravelLabelQueue(
             $this->app->make(Queues::class),
@@ -116,7 +129,7 @@ final class ShippingServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
-        $this->commands([SyncCatalog::class, OrderIntake::class, RequestLabels::class, BookPickups::class]);
+        $this->commands([SyncCatalog::class, OrderIntake::class, RequestLabels::class, BookPickups::class, ReconcileJourneysWorker::class]);
         $router->middleware('api')->group(static function (Router $router): void {
             // No Idempotency-Key here: the event id, through the inbox, plays that part.
             $router->post('/v1/webhooks/carriers', CarrierWebhookController::class);

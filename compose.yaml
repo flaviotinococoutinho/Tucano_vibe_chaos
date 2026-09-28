@@ -123,6 +123,8 @@ x-logistics: &logistics
     # CarrierFake, the carriers of the lab, and the secret of their webhooks.
     CARRIERS_URL: http://toxiproxy:14002
     CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
+    # UC-SHP-12: a shipment with a carrier is checked against the carrier's history after this long without news.
+    CARRIERS_RECONCILIATION_QUIET_SECONDS: "60"
   depends_on:
     postgres:
       condition: service_healthy
@@ -601,6 +603,18 @@ services:
       logistics-migrate:
         condition: service_completed_successfully
       kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # UC-SHP-12 in a loop: shipments quiet for too long are caught up with the history of their carrier.
+  logistics-journey-reconciler:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:reconcile-journeys"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
         condition: service_completed_successfully
       toxiproxy:
         condition: service_started

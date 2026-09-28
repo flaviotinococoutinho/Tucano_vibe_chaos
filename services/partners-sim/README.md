@@ -155,6 +155,7 @@ O CarrierFake faz o papel de toda transportadora que a Tucano usa: a frota próp
 | `POST /carriers/v1/pickups` | agenda a coleta de uma remessa, que nasce `scheduled` e começa a jornada na hora |
 | `GET /carriers/v1/pickups?reference=` | acha a coleta pela referência do lojista, o mesmo papel da busca por referência do PayFake |
 | `GET /carriers/v1/pickups/{id}` | mostra a coleta como ela está agora |
+| `GET /carriers/v1/pickups/{id}/events` | o histórico de rastreio: todos os eventos da coleta, do mais antigo ao mais novo, no formato dos webhooks, inclusive os que o caos derrubou no caminho |
 | `GET`, `PUT` e `DELETE /_chaos/carriers` | os controles de caos |
 
 Uma coleta, do host:

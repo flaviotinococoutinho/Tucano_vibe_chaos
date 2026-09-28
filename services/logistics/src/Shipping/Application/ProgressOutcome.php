@@ -13,4 +13,7 @@ enum ProgressOutcome: string
 
     /** The tracking code is not a shipment of ours. */
     case UnknownShipment = 'unknown_shipment';
+
+    /** The shipment already went past what the event tells, like a hub scan after the parcels left for the door: handled, nothing to move. */
+    case Obsolete = 'obsolete';
 }

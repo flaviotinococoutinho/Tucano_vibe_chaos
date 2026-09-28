@@ -4,6 +4,20 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Conciliação da jornada com a transportadora (UC-SHP-12): o worker `logistics-journey-reconciler` pega a remessa que passa 60 s sem notícia (lease pelo `updated_at` com `SKIP LOCKED` e índice parcial), lê o histórico da coleta na transportadora e aplica em ordem os passos que faltam, pelos mesmos casos de uso do webhook.
+- `GET /carriers/v1/pickups/{id}/events` na CarrierFake: o histórico de rastreio, com os eventos cujo webhook o caos derrubou.
+- Laboratório dos webhooks perdidos, com a leva de 12 pedidos que travou 10 remessas e a conciliação que recuperou todas.
+
+### Changed
+
+- O webhook da transportadora e o histórico dela passam pelo mesmo tradutor (`CarrierFakeEvents`) e chegam aos casos de uso como `CarrierEvent`, com um construtor nomeado por passo.
+
+### Fixed
+
+- Um hub scan que chegava depois da saída para entrega era recusado para sempre, e na conciliação travava a remessa antes da entrega. Agora ele é `obsolete`: fica na inbox e não move nada.
+
 ## [0.5.0] - 2026-09-27
 
 ### Added

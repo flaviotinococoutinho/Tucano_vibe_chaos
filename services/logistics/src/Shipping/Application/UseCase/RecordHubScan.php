@@ -19,6 +19,10 @@ final readonly class RecordHubScan implements ForRecordingHubScans
 
     public function recordHubScan(CarrierReport $report, ?Hub $hub): ProgressOutcome
     {
-        return $this->progress->apply($report, static fn(Shipment $shipment) => $shipment->recordHubScan($hub, $report->at));
+        return $this->progress->apply(
+            $report,
+            static fn(Shipment $shipment) => $shipment->recordHubScan($hub, $report->at),
+            static fn(Shipment $shipment): bool => $shipment->hasLeftTheHubs(),
+        );
     }
 }
