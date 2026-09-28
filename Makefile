@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies php packages-check kong-reload check lint-workflows
+.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check lint-workflows
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -86,6 +86,9 @@ lint-workflows: ## Validate the GitHub Actions workflows with actionlint
 
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
+
+stalled: ## Run one round of the stalled journey watch now and print what it found (UC-SHP-13)
+	$(COMPOSE) exec logistics-stalled-journeys-watch php artisan logistics:watch-stalled-journeys --once
 
 php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.4 net=<docker network>)
 	@docker image inspect chaos-playground/php-base:$(PHP) >/dev/null 2>&1 || $(MAKE) --no-print-directory base

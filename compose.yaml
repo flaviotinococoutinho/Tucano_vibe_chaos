@@ -125,6 +125,18 @@ x-logistics: &logistics
     CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
     # UC-SHP-12: a shipment with a carrier is checked against the carrier's history after this long without news.
     CARRIERS_RECONCILIATION_QUIET_SECONDS: "60"
+    # UC-SHP-13: no step for this long with a carrier is a stalled journey; the watch alerts by log and e-mail.
+    JOURNEYS_STALLED_AFTER_SECONDS: "3600"
+    JOURNEYS_STALLED_WATCH_EVERY_SECONDS: "900"
+    JOURNEYS_STALLED_ALERT_LIMIT: "50"
+    JOURNEYS_STALLED_ALERT_REPEAT_SECONDS: "14400"
+    ALERTS_EMAIL_TO: ops@tucano.local
+    # The alerts of the operation land in Mailpit (http://localhost:8025), through Toxiproxy like every other dependency.
+    MAIL_MAILER: smtp
+    MAIL_HOST: toxiproxy
+    MAIL_PORT: "11025"
+    MAIL_FROM_ADDRESS: logistics@tucano.local
+    MAIL_FROM_NAME: Tucano logistics
   depends_on:
     postgres:
       condition: service_healthy
@@ -642,6 +654,20 @@ services:
     depends_on:
       logistics-migrate:
         condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
+  # UC-SHP-13 on a schedule: the analytical read of the stalled journeys, and the alert when it finds any.
+  logistics-stalled-journeys-watch:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:watch-stalled-journeys"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
       toxiproxy:
         condition: service_started
     mem_limit: 128m

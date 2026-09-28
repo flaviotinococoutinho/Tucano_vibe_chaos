@@ -27,6 +27,7 @@
 ## Garantias de sucesso
 
 - Os passos que faltavam entram em ordem, cada um com o histórico, a visita e o evento na outbox, como se o webhook tivesse chegado.
+- O resultado da rodada fica em `journey_checks`, para a vigia das jornadas paradas (UC-SHP-13).
 
 ## Cenário principal de sucesso
 
@@ -34,12 +35,13 @@
 2. O sistema pede à transportadora a coleta da remessa, pela referência, e o histórico de eventos dela.
 3. O sistema aplica cada evento do histórico, do mais antigo ao mais novo, pelo caso de uso do passo dele (UC-SHP-04 a 08).
 4. Os eventos que já tinham entrado voltam como `duplicate`; os que faltavam entram, e o resultado é `caught_up`, com a contagem de passos aplicados.
+5. O sistema grava o resultado da rodada em `journey_checks`: a mesma resposta de antes soma uma rodada à sequência, e uma resposta diferente começa outra.
 
 ## Extensões
 
 - 1a. Nenhuma remessa quieta além do prazo: o worker espera 5 s e olha de novo.
 - 2a. A transportadora não responde ou responde com erro: o resultado é `carrier_unreachable`, e a remessa fica para quando estiver quieta de novo.
-- 2b. A transportadora não tem coleta para a remessa (o agendamento ainda não saiu, ou a coleta passou da retenção): histórico vazio, resultado `up_to_date`.
+- 2b. A transportadora não tem coleta para a remessa (o agendamento ainda não saiu, ou a coleta passou da retenção): histórico vazio, resultado `unknown_to_carrier`.
 - 2c. Um evento do histórico não se deixa ler: ele é pulado com um warning, e os outros seguem.
 - 3a. Todos os eventos já estavam na remessa: a jornada só está lenta, e o resultado é `up_to_date`.
 - 3b. Um hub scan do histórico chega depois da saída para entrega: ele é `obsolete` (UC-SHP-05, 3b), e a conciliação segue para o próximo evento.
