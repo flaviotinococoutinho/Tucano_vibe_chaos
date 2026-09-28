@@ -1,0 +1,45 @@
+.generic-screen__properties {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-5);
+}
+
+.generic-screen__property {
+  display: contents;
+}
+
+.generic-screen__properties dt {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.generic-screen__properties dd {
+  margin: 0;
+}
+
+.generic-screen__entities {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+}
+
+.generic-screen__entity-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.generic-screen__links ul {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.generic-screen__empty-value {
+  color: var(--color-text-muted);
+}

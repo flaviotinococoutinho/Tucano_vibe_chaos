@@ -1,0 +1,9 @@
+.screen-router {
+  padding: var(--space-6) var(--space-4) var(--space-7);
+  min-height: 60vh;
+}
+
+.screen-router h1 {
+  font-size: 1.75rem;
+  margin: 0 0 var(--space-4);
+}

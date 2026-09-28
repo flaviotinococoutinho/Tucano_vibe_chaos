@@ -1,0 +1,22 @@
+.error-summary {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-danger-text);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-elevated);
+}
+
+.error-summary__detail {
+  margin: 0 0 var(--space-2);
+  font-weight: 700;
+  color: var(--color-danger-text);
+}
+
+.error-summary__list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.error-summary__list li {
+  margin-bottom: var(--space-1);
+}
