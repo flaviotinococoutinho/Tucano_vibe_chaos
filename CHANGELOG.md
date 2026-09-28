@@ -4,6 +4,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-27
+
 ### Added
 
 - Etiqueta da remessa (UC-SHP-03): a ponte `logistics-label-requests` transforma cada `ShipmentCreated` em job na fila `label-jobs` do SQS, e o worker gera a etiqueta em ZPL (com escape contra injeção de comandos da impressora), grava no bucket `tucano-labels` e move a remessa para `ready_for_pickup`, com `ShipmentReadyForPickup` na outbox e contrato em JSON Schema. O SDK da AWS entra podado para S3 e SQS.
@@ -106,7 +108,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...develop
+[0.5.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.1.0...v0.2.0
