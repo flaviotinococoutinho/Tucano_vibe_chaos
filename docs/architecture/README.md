@@ -54,7 +54,7 @@ C4Container
   System_Boundary(edge, "Borda") {
     Container(kong, "API Gateway", "Kong 3.9, DB-less", "Rotas, rate limit, correlation id")
     Container(web, "Web", "React 19 + Vite", "Loja, operações e laboratórios")
-    Container(bff, "BFF", "Node 24 + Fastify", "Agregação e WebSocket ao vivo")
+    Container(bff, "BFF", "Node 24 + Fastify", "Telas em hipermídia (Siren) sobre os serviços")
   }
 
   System_Boundary(services, "Serviços") {
@@ -99,8 +99,8 @@ C4Container
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
 | `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
-| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
-| `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | esqueleto rodando (health, erros) |
+| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | a loja rodando: um intérprete das telas Siren do BFF, com vitrine, checkout, pedido que se atualiza sozinho e rastreio; o console e os painéis vêm depois |
+| `bff` | Node 24 + Fastify | monta as telas da web em Siren (HATEOAS) sobre catalog, commerce e logistics, para a web só desenhar e seguir links | vitrine, checkout, pedido que se atualiza sozinho e rastreio; cada serviço pelo seu proxy no Toxiproxy, com timeout e 503 com `Retry-After` quando um deles cai |
 | `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, coleta e jornada até a entrega ou a devolução pelos webhooks das transportadoras, conciliação com o histórico delas, alerta das jornadas paradas no log e por e-mail, página pública de rastreio no DynamoDB e linha do tempo no MongoDB, cópia do catálogo, outbox |

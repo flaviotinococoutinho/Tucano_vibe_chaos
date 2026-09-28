@@ -1,0 +1,16 @@
+{
+  "type": "about:blank",
+  "title": "Unprocessable Content",
+  "status": 422,
+  "detail": "Alguns campos precisam de atenção.",
+  "instance": "/bff/v1/orders",
+  "correlationId": "0199a2b4-a032-7e73-b2f4-5a6b7c8d9e0f",
+  "errors": {
+    "email": [
+      "Informe um e-mail válido."
+    ],
+    "postalCode": [
+      "O CEP tem 8 números."
+    ]
+  }
+}

@@ -2,6 +2,10 @@
 
 Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de estudo**, de cima para baixo.
 
+## 0. O guia
+
+- [Guia do chaos playground](guia/README.md): a porta de entrada amigável, em oito capítulos curtos, da jornada de um pedido ao roteiro de uma entrevista. Comece por aqui; o resto desta página é a referência.
+
 ## 1. Engenharia
 
 - [Convenções de engenharia](engineering/conventions.md): como o código é organizado e por quê.

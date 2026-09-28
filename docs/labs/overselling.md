@@ -42,14 +42,16 @@ As estratégias corretas venderam exatamente as 100 unidades das 20 rodadas. No 
 
 O `ConcurrentReservationsTest` roda essa corrida no `make check s=commerce` (com `pcntl_fork`, oito processos por estratégia) e falha se alguma estratégia correta vender uma unidade duas vezes. O `naive` fica fora do teste de propósito: o lost update depende de tempo, e um teste que só às vezes falha não prova nada.
 
-Na stack, a estratégia vem da flag `inventory.reservation-strategy`. Com `labs.enabled` ligada (só em local e staging; o `ProductionGuard` desliga `labs.*` em produção), o header `X-Inventory-Strategy` escolhe a estratégia de um request:
+Na stack, a estratégia vem da flag `inventory.reservation-strategy`. Com `labs.enabled` ligada (só em local e staging; o `ProductionGuard` desliga `labs.*` em produção), a preferência `reservation-strategy` do header `Prefer` escolhe a estratégia de um request:
 
 ```bash
-curl -s -X POST localhost:8000/api/commerce/v1/orders \
+curl -si -X POST localhost:8000/api/commerce/v1/orders \
   -H 'Content-Type: application/json' \
   -H "Idempotency-Key: $(uuidgen)" \
-  -H 'X-Inventory-Strategy: naive' \
-  -d @pedido.json
+  -H 'Prefer: reservation-strategy=naive' \
+  -d @pedido.json | grep -i preference-applied
 ```
+
+O `Prefer` é o header do RFC 7240 para exatamente isso: uma dica de como o cliente gostaria que o servidor se comportasse, que o servidor pode seguir ou ignorar. Quando o laboratório segue a dica, a resposta traz `Preference-Applied: reservation-strategy=naive`; fora do laboratório, ou com um nome de estratégia que não existe, a dica é ignorada e a resposta não diz nada. Antes era um header `X-Inventory-Strategy`, e o RFC 6648 desaconselha o prefixo `X-` em nome novo.
 
 A estratégia escolhida entra no contexto do request e aparece em toda linha de log dele (`inventory_strategy`). A carga concorrente de verdade pela API, com k6 e a conferência da invariante, entra junto com o laboratório de caos.

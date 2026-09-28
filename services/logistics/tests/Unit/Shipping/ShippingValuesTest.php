@@ -79,7 +79,20 @@ final class ShippingValuesTest extends TestCase
     {
         self::assertSame('BOOK-DDD-001', (string) Sku::of(' book-ddd-001 '));
         self::assertSame('Hub Cajamar', Hub::named('  Hub Cajamar ')->name);
-        self::assertSame(['Ana Souza', 'ana@example.com'], [Recipient::of(' Ana Souza ', ' ana@example.com')->name, Recipient::of('Ana Souza', 'ana@example.com')->email]);
+        $recipient = Recipient::of(' Ana Souza ', ' ana@example.com');
+        self::assertSame(['Ana Souza', 'ana@example.com'], [$recipient->name->reveal(), $recipient->email->reveal()]);
+    }
+
+    #[Test]
+    public function who_receives_shows_only_a_mask_when_printed_by_accident(): void
+    {
+        $recipient = Recipient::of('Ana Souza', 'ana@example.com');
+        $proof = ProofOfDelivery::of('Carlos Lima', '123.456.789-09');
+
+        self::assertSame(
+            'A*** S*** <a***@example.com>, received by C*** L*** (***09)',
+            sprintf('%s <%s>, received by %s (%s)', $recipient->name, $recipient->email, $proof->receiverName, $proof->receiverDocument),
+        );
     }
 
     /** @return iterable<string, array{Closure(): mixed}> */

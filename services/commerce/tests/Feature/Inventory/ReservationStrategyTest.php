@@ -55,31 +55,49 @@ final class ReservationStrategyTest extends TestCase
     }
 
     #[Test]
-    public function in_the_lab_a_header_picks_the_strategy_of_one_request(): void
+    public function in_the_lab_a_preference_picks_the_strategy_of_one_request(): void
     {
         $this->flags->set('labs.enabled', true);
 
-        $this->placeOrder(['X-Inventory-Strategy' => 'optimistic'])->assertCreated();
+        $this->placeOrder(['Prefer' => 'respond-async, Reservation-Strategy="optimistic"; lab=overselling'])
+            ->assertCreated()
+            ->assertHeader('Preference-Applied', 'reservation-strategy=optimistic');
 
         self::assertSame(ReservationStrategy::Optimistic, $this->chosen());
     }
 
     #[Test]
-    public function outside_the_lab_the_header_is_ignored(): void
+    public function outside_the_lab_the_preference_is_ignored_and_the_answer_says_nothing(): void
     {
-        $this->placeOrder(['X-Inventory-Strategy' => 'naive'])->assertCreated();
+        $this->placeOrder(['Prefer' => 'reservation-strategy=naive'])
+            ->assertCreated()
+            ->assertHeaderMissing('Preference-Applied');
 
         self::assertSame(ReservationStrategy::Atomic, $this->chosen());
     }
 
     #[Test]
-    public function a_strategy_that_does_not_exist_is_a_bad_request(): void
+    public function a_strategy_that_does_not_exist_is_a_hint_the_server_ignores(): void
+    {
+        $this->flags->set('labs.enabled', true);
+        $this->flags->set('inventory.reservation-strategy', 'pessimistic');
+
+        $this->placeOrder(['Prefer' => 'reservation-strategy=magic'])
+            ->assertCreated()
+            ->assertHeaderMissing('Preference-Applied');
+
+        self::assertSame(ReservationStrategy::Pessimistic, $this->chosen());
+    }
+
+    #[Test]
+    public function only_the_first_of_a_repeated_preference_counts(): void
     {
         $this->flags->set('labs.enabled', true);
 
-        $this->placeOrder(['X-Inventory-Strategy' => 'magic'])
-            ->assertBadRequest()
-            ->assertJsonPath('detail', 'X-Inventory-Strategy must be one of atomic, pessimistic, optimistic, serializable, naive.');
+        $this->placeOrder(['Prefer' => 'reservation-strategy=naive, reservation-strategy=serializable'])
+            ->assertHeader('Preference-Applied', 'reservation-strategy=naive');
+
+        self::assertSame(ReservationStrategy::Naive, $this->chosen());
     }
 
     #[Test]

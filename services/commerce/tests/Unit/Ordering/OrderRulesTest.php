@@ -13,6 +13,7 @@ use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\Quantity;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use Commerce\Ordering\Domain\Product\CatalogProduct;
 use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
@@ -60,9 +61,19 @@ final class OrderRulesTest extends TestCase
     #[Test]
     public function values_are_normalized(): void
     {
-        self::assertSame('ana@example.com', (string) EmailAddress::of('  Ana@Example.com '));
+        self::assertSame('ana@example.com', EmailAddress::of('  Ana@Example.com ')->reveal());
         self::assertSame('BOOK-DDD-001', (string) Sku::of('book-ddd-001'));
-        self::assertSame('Ana Souza', (string) PersonName::of('  Ana   Souza '));
+        self::assertSame('Ana Souza', PersonName::of('  Ana   Souza ')->reveal());
+    }
+
+    #[Test]
+    public function a_customer_printed_by_accident_shows_only_a_mask(): void
+    {
+        $name = PersonName::of('Ana Souza');
+        $email = EmailAddress::of('ana@example.com');
+
+        self::assertSame('A*** S*** <a***@example.com>', sprintf('%s <%s>', $name, $email));
+        self::assertStringNotContainsString('Souza', print_r($name, true));
     }
 
     /** @return iterable<string, array{Closure(): mixed}> */
@@ -75,6 +86,8 @@ final class OrderRulesTest extends TestCase
         yield 'blank name' => [static fn() => PersonName::of('   ')];
         yield 'bad SKU' => [static fn() => Sku::of('a b')];
         yield 'bad warehouse' => [static fn() => FulfillmentCenterCode::of('gru1')];
+        yield 'tracking code with symbols Crockford leaves out' => [static fn() => TrackingCode::of('TX02PWW6JFR5GIL')];
+        yield 'tracking code in lowercase' => [static fn() => TrackingCode::of('tx02pww6jfr5g00')];
     }
 
     /** @param Closure(): mixed $build */

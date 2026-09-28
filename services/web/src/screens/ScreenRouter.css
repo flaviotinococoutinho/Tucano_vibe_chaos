@@ -1,0 +1,44 @@
+.screen-router {
+  padding-block: var(--space-6) var(--space-7);
+  min-height: 60vh;
+}
+
+.screen-router h1 {
+  font-size: 1.75rem;
+  margin: 0 0 var(--space-4);
+}
+
+/* The title takes focus after a navigation so a screen reader announces the new screen. It is
+   not something to activate, so it gets no ring (WCAG 2.4.7 asks one of interactive controls). */
+.screen-router h1:focus {
+  outline: none;
+}
+
+.screen-router__back {
+  margin-bottom: var(--space-3);
+  font-size: 0.9375rem;
+}
+
+.screen-router__back a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.screen-router__back a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* A chevron drawn with borders: no icon font, no character a screen reader would spell out. */
+.screen-router__back a::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}

@@ -1,0 +1,14 @@
+.checkout-screen__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-elevated);
+}
+
+.checkout-screen__subtotal {
+  font-size: 1.125rem;
+}

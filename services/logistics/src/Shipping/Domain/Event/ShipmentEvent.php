@@ -7,8 +7,8 @@ namespace Logistics\Shipping\Domain\Event;
 use DateTimeImmutable;
 use Logistics\Shipping\Domain\Shipment\ShipmentReference;
 use Logistics\Shipping\Domain\Shipment\StatusTransition;
-use Ramsey\Uuid\Uuid;
 use Tucano\SharedKernel\Domain\DomainEvent;
+use Tucano\SharedKernel\Identity\EventId;
 
 /**
  * What every shipment event carries. The type comes from the status the
@@ -21,7 +21,7 @@ abstract readonly class ShipmentEvent implements DomainEvent
 
     public function __construct(private ShipmentReference $shipment, protected StatusTransition $transition)
     {
-        $this->eventId = Uuid::uuid7()->toString();
+        $this->eventId = EventId::generate()->toString();
     }
 
     final public function eventId(): string

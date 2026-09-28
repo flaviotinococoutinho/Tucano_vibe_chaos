@@ -171,7 +171,7 @@ O Compose junta o override com o `compose.yaml` sozinho. O `--no-deps` evita rec
 
 As outras variáveis do tracking (`HOST`, `PORT`, `REDIS_*`, `FLAGD_*`) estão nas tabelas comuns. Um valor inválido derruba o boot com uma mensagem que diz qual variável e por quê.
 
-## partners-sim e bff
+## partners-sim
 
 | Variável | Padrão | O que faz |
 |---|---|---|
@@ -185,7 +185,16 @@ As outras variáveis do tracking (`HOST`, `PORT`, `REDIS_*`, `FLAGD_*`) estão n
 | `WEBHOOKS_RETRY_DELAYS_MS` | `1000,2000,4000,8000,16000` | a espera antes de cada nova tentativa de um webhook; depois da última, ele é abandonado |
 | `WEBHOOKS_ATTEMPT_TIMEOUT_MS` | `5000` | quanto uma tentativa espera a resposta de quem recebe |
 
-Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos do commerce e da logistics. O bff, por enquanto, só lê as variáveis comuns.
+Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos do commerce e da logistics.
+
+## bff
+
+| Variável | Padrão | O que faz |
+|---|---|---|
+| `CATALOG_URL`, `COMMERCE_URL` e `LOGISTICS_URL` | `http://toxiproxy:18081`, `http://toxiproxy:18082` e `http://toxiproxy:18083` | onde o BFF encontra cada serviço, cada um pelo seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`), para um laboratório cortar uma tela de cada vez |
+| `UPSTREAM_TIMEOUT_MS` | `5000` | a troca inteira com um serviço, corpo incluído; passou disso, a tela responde 503 com `Retry-After`. Fica acima dos 2 s que o commerce dá ao PSP, para o BFF não desistir de um pagamento que o commerce ainda espera |
+
+Um endereço que não é URL http ou https, ou um timeout fora de 1 a 60000, impede a subida, com a lista do que está errado.
 
 ## Só nos testes
 

@@ -37,13 +37,20 @@ deptrac:
       collectors:
         - type: classLike
           value: ^(Illuminate|Laravel|Symfony|Monolog|Psr)\\.*
+    # SDKs and drivers of third parties. Only adapters (and the App wiring) may
+    # touch them, so the core never depends on a vendor and swapping one is a
+    # change in a single layer.
+    - name: Vendor
+      collectors:
+        - type: classLike
+          value: ^(Aws|GuzzleHttp|MongoDB|Ramsey|RdKafka|OpenFeature)\\.*
   ruleset:
     Domain:
       - SharedKernel
+    # The use cases ask their ports; flags, brokers and SDKs answer from the adapters.
     Application:
       - Domain
       - SharedKernel
-      - FeatureFlags
     Adapter:
       - Application
       - Domain
@@ -51,6 +58,7 @@ deptrac:
       - FeatureFlags
       - Messaging
       - Framework
+      - Vendor
     App:
       - Adapter
       - Application
@@ -59,3 +67,4 @@ deptrac:
       - FeatureFlags
       - Messaging
       - Framework
+      - Vendor

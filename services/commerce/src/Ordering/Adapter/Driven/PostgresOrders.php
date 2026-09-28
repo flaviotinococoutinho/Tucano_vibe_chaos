@@ -11,6 +11,7 @@ use Commerce\Ordering\Domain\Customer\EmailAddress;
 use Commerce\Ordering\Domain\Customer\PersonName;
 use Commerce\Ordering\Domain\Error\OrderChangedMeanwhile;
 use Commerce\Ordering\Domain\Error\OrderNotFound;
+use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderId;
@@ -21,6 +22,7 @@ use Commerce\Ordering\Domain\Order\OrderSnapshot;
 use Commerce\Ordering\Domain\Order\OrderStatus;
 use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Order\StatusTransition;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use Commerce\Ordering\Domain\Product\Sku;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -48,9 +50,11 @@ final readonly class PostgresOrders implements ForStoringOrders
             'id' => $snapshot->id->toString(),
             'order_number' => $snapshot->number->snowflake->toInt(),
             'customer_id' => $snapshot->customer->id->toString(),
-            'customer_name' => (string) $snapshot->customer->name,
-            'customer_email' => (string) $snapshot->customer->email,
+            'customer_name' => $snapshot->customer->name->reveal(),
+            'customer_email' => $snapshot->customer->email->reveal(),
             'status' => $snapshot->status->value,
+            'tracking_code' => self::code($snapshot->trackingCode),
+            'cancellation_reason' => $snapshot->cancellationReason?->value,
             'fulfillment_center' => (string) $snapshot->fulfillmentCenter,
             'ship_thoroughfare_type' => $address->thoroughfare->type,
             'ship_thoroughfare_name' => $address->thoroughfare->name,
@@ -93,8 +97,8 @@ final readonly class PostgresOrders implements ForStoringOrders
         // Optimistic lock: the row must still be at the version this order was loaded with.
         $loadedAt = $snapshot->version - count($transitions);
         $updated = $this->connection->update(
-            'UPDATE orders SET status = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
-            [$snapshot->status->value, $snapshot->version, $transitions[array_key_last($transitions)]->at->format(DATE_RFC3339_EXTENDED), $snapshot->id->toString(), $loadedAt],
+            'UPDATE orders SET status = ?, tracking_code = ?, cancellation_reason = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
+            [$snapshot->status->value, self::code($snapshot->trackingCode), $snapshot->cancellationReason?->value, $snapshot->version, $transitions[array_key_last($transitions)]->at->format(DATE_RFC3339_EXTENDED), $snapshot->id->toString(), $loadedAt],
         );
         if ($updated !== 1) {
             throw OrderChangedMeanwhile::withId($snapshot->id->toString(), $loadedAt);
@@ -160,6 +164,8 @@ final readonly class PostgresOrders implements ForStoringOrders
             self::instant((string) $row->placed_at),
             self::instant((string) $row->reservation_expires_at),
             (int) $row->version,
+            $row->tracking_code === null ? null : TrackingCode::of((string) $row->tracking_code),
+            $row->cancellation_reason === null ? null : CancellationReason::from((string) $row->cancellation_reason),
         ));
     }
 
@@ -184,5 +190,10 @@ final readonly class PostgresOrders implements ForStoringOrders
     private static function decimal(mixed $column): ?float
     {
         return $column === null ? null : (float) $column;
+    }
+
+    private static function code(?TrackingCode $trackingCode): ?string
+    {
+        return $trackingCode === null ? null : (string) $trackingCode;
     }
 }

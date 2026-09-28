@@ -10,6 +10,7 @@ use Commerce\Ordering\Application\UseCase\FollowShipment;
 use Commerce\Ordering\Domain\Error\OrderTransitionNotAllowed;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderStatus;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -49,6 +50,7 @@ final class FollowShipmentTest extends TestCase
         self::assertSame(FollowOutcome::Applied, $this->follow->recordDelivered($this->news('evt_2', '15:00')));
 
         self::assertSame(OrderStatus::Delivered, $this->order->toSnapshot()->status);
+        self::assertSame('TX02PWW6JFR5G00', (string) $this->order->toSnapshot()->trackingCode);
         self::assertSame(['tucano.commerce.order.shipped', 'tucano.commerce.order.delivered'], $this->events->types());
         self::assertSame([], $this->refunds->orders);
     }
@@ -84,6 +86,6 @@ final class FollowShipmentTest extends TestCase
 
     private function news(string $eventId, string $time): ShipmentNews
     {
-        return ShipmentNews::of($eventId, $this->order->id(), new DateTimeImmutable('2026-09-27T' . $time . ':00Z'));
+        return ShipmentNews::of($eventId, $this->order->id(), TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable('2026-09-27T' . $time . ':00Z'));
     }
 }

@@ -1,0 +1,43 @@
+.problem-view--page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+}
+
+.problem-view__illustration {
+  width: min(220px, 60vw);
+  height: auto;
+  margin-bottom: var(--space-2);
+}
+
+.problem-view__detail {
+  max-width: 48ch;
+  font-size: 1.0625rem;
+}
+
+.problem-view__hint,
+.problem-view__correlation {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.problem-view--inline {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-danger-text);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-elevated);
+}
+
+.problem-view--inline .problem-view__detail {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-danger-text);
+}
+
+.problem-view--inline .problem-view__hint {
+  margin: var(--space-1) 0 0;
+}

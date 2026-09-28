@@ -48,7 +48,10 @@ final class ShipmentEventHandlerTest extends TestCase
         self::assertSame(['shipped', 'delivered', 'returned'], array_column($this->orders->calls, 0));
         $news = $this->orders->calls[0][1];
         self::assertInstanceOf(ShipmentNews::class, $news);
-        self::assertSame(['01999a31-0000-7000-8000-000000000001', self::ORDER, '2026-09-27T13:00:00+00:00'], [$news->eventId, $news->orderId->toString(), $news->at->format(DATE_ATOM)]);
+        self::assertSame(
+            ['01999a31-0000-7000-8000-000000000001', self::ORDER, 'TX02PWW6JFR5G00', '2026-09-27T13:00:00+00:00'],
+            [$news->eventId, $news->orderId->toString(), (string) $news->trackingCode, $news->at->format(DATE_ATOM)],
+        );
     }
 
     /** @return iterable<string, array{string}> */
@@ -68,12 +71,21 @@ final class ShipmentEventHandlerTest extends TestCase
         self::assertSame([], $this->orders->calls);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function unreadable(): iterable
+    {
+        yield 'an order id that is not a UUID' => [ShipmentEvents::of('picked_up', 'order-1')];
+        yield 'no tracking code' => [ShipmentEvents::of('picked_up', self::ORDER, details: ['trackingCode' => null])];
+        yield 'a tracking code in another shape' => [ShipmentEvents::of('picked_up', self::ORDER, details: ['trackingCode' => 'TX-2PWW6'])];
+    }
+
     #[Test]
-    public function an_event_without_a_readable_order_goes_to_the_dead_letters(): void
+    #[DataProvider('unreadable')]
+    public function an_event_the_order_cannot_read_goes_to_the_dead_letters(string $payload): void
     {
         $this->expectException(PermanentFailure::class);
 
-        $this->handler->handle(self::message(ShipmentEvents::of('picked_up', 'order-1')));
+        $this->handler->handle(self::message($payload));
     }
 
     #[Test]

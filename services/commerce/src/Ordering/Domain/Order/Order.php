@@ -39,6 +39,8 @@ final class Order extends AggregateRoot
         private readonly DateTimeImmutable $reservationExpiresAt,
         public private(set) OrderStatus $status,
         public private(set) int $version,
+        private ?TrackingCode $trackingCode = null,
+        private ?CancellationReason $cancellationReason = null,
     ) {}
 
     public static function place(
@@ -71,6 +73,8 @@ final class Order extends AggregateRoot
             $snapshot->reservationExpiresAt,
             $snapshot->status,
             $snapshot->version,
+            $snapshot->trackingCode,
+            $snapshot->cancellationReason,
         );
     }
 
@@ -87,6 +91,8 @@ final class Order extends AggregateRoot
             $this->placedAt,
             $this->reservationExpiresAt,
             $this->version,
+            $this->trackingCode,
+            $this->cancellationReason,
         );
     }
 
@@ -115,12 +121,15 @@ final class Order extends AggregateRoot
     {
         $previous = $this->status;
         $this->moveTo(OrderStatus::Cancelled, $cancelledAt, $reason->value);
+        $this->cancellationReason = $reason;
         $this->recordThat(new OrderCancelled($this->id, $this->number, $reason, $previous, $cancelledAt));
     }
 
-    public function markAsShipped(DateTimeImmutable $shippedAt): void
+    /** The carrier picked the parcels up: the order learns the code of its shipment and keeps it from then on. */
+    public function markAsShipped(TrackingCode $trackingCode, DateTimeImmutable $shippedAt): void
     {
         $this->moveTo(OrderStatus::Shipped, $shippedAt);
+        $this->trackingCode = $trackingCode;
         $this->recordThat(new OrderShipped($this->id, $this->number, $shippedAt));
     }
 

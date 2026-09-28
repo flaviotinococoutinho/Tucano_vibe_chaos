@@ -7,7 +7,9 @@ namespace Commerce\Ordering\Domain\Error;
 use Commerce\Ordering\Domain\Product\Sku;
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Domain\ErrorCategory;
+use Tucano\SharedKernel\Domain\ProblemType;
 
+#[ProblemType('product-unavailable')]
 final class ProductUnavailable extends DomainError
 {
     public static function unknown(Sku $sku): self

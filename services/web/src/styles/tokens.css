@@ -1,0 +1,106 @@
+/*
+ * Design tokens: the Tucano palette from docs/assets/README.md, plus the semantic layer
+ * components actually style with. Dark mode swaps paper and ink; two colors that only work
+ * as text on paper (teal-deep, coral-deep) are swapped for a lighter, verified pair on ink.
+ *
+ * Contrast (WCAG 2.2 relative-luminance formula, text on its usual background):
+ *   ink/paper 16.03, ink/beak 7.00, ink/sun 11.10, teal-deep/paper 5.88, coral-deep/paper 5.36,
+ *   paper/teal-deep 5.88 (the filled "success" chip, both themes).
+ * Dark-mode-only pair, chosen and verified here because coral-deep and teal-deep themselves
+ * fall short of 4.5:1 on ink (2.99 and, once tinted, worse):
+ *   teal-light (#3FC7C7) / ink 8.34, coral (not coral-deep) / ink 4.66.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Raw palette. Nothing outside this block should spell out a hex value. */
+  --palette-ink: #1b1b1f;
+  --palette-paper: #fff6e9;
+  --palette-beak: #f28c28;
+  --palette-sun: #ffc83d;
+  --palette-coral: #e4572e;
+  --palette-coral-deep: #b83a1b;
+  --palette-teal: #138a8a;
+  --palette-teal-deep: #0e6b6b;
+  --palette-teal-light: #3fc7c7;
+
+  /* Semantic tokens: light theme is the default. */
+  --color-surface: var(--palette-paper);
+  --color-surface-elevated: color-mix(in srgb, var(--palette-ink) 5%, var(--palette-paper));
+  --color-text: var(--palette-ink);
+  --color-text-muted: color-mix(in srgb, var(--palette-ink) 65%, var(--palette-paper));
+  --color-border: color-mix(in srgb, var(--palette-ink) 18%, var(--palette-paper));
+  --color-link: var(--palette-teal-deep);
+  --color-focus-ring: var(--palette-ink);
+  --color-primary-bg: var(--palette-beak);
+  --color-primary-text: var(--palette-ink);
+  --color-accent-bg: var(--palette-sun);
+  --color-accent-text: var(--palette-ink);
+  --color-danger-text: var(--palette-coral-deep);
+  --color-info-text: var(--palette-teal-deep);
+  --color-success-bg: var(--palette-teal-deep);
+  --color-success-text: var(--palette-paper);
+
+  --font-family-base: "Nunito Variable", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --shadow-card:
+    0 1px 2px color-mix(in srgb, var(--palette-ink) 6%, transparent),
+    0 10px 24px color-mix(in srgb, var(--palette-ink) 8%, transparent);
+
+  --content-width: 1080px;
+  --motion-fast: 150ms;
+  --motion-base: 240ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: var(--palette-ink);
+    --color-surface-elevated: color-mix(in srgb, var(--palette-paper) 7%, var(--palette-ink));
+    --color-text: var(--palette-paper);
+    --color-text-muted: color-mix(in srgb, var(--palette-paper) 65%, var(--palette-ink));
+    --color-border: color-mix(in srgb, var(--palette-paper) 20%, var(--palette-ink));
+    --color-link: var(--palette-teal-light);
+    --color-focus-ring: var(--palette-paper);
+    --color-danger-text: var(--palette-coral);
+    --color-info-text: var(--palette-teal-light);
+  }
+}
+
+/* The toggle in the header wins over the OS setting once the visitor has picked one. */
+[data-theme="light"] {
+  --color-surface: var(--palette-paper);
+  --color-surface-elevated: color-mix(in srgb, var(--palette-ink) 5%, var(--palette-paper));
+  --color-text: var(--palette-ink);
+  --color-text-muted: color-mix(in srgb, var(--palette-ink) 65%, var(--palette-paper));
+  --color-border: color-mix(in srgb, var(--palette-ink) 18%, var(--palette-paper));
+  --color-link: var(--palette-teal-deep);
+  --color-focus-ring: var(--palette-ink);
+  --color-danger-text: var(--palette-coral-deep);
+  --color-info-text: var(--palette-teal-deep);
+}
+
+[data-theme="dark"] {
+  --color-surface: var(--palette-ink);
+  --color-surface-elevated: color-mix(in srgb, var(--palette-paper) 7%, var(--palette-ink));
+  --color-text: var(--palette-paper);
+  --color-text-muted: color-mix(in srgb, var(--palette-paper) 65%, var(--palette-ink));
+  --color-border: color-mix(in srgb, var(--palette-paper) 20%, var(--palette-ink));
+  --color-link: var(--palette-teal-light);
+  --color-focus-ring: var(--palette-paper);
+  --color-danger-text: var(--palette-coral);
+  --color-info-text: var(--palette-teal-light);
+}

@@ -58,8 +58,8 @@ final readonly class PostgresShipments implements ForStoringShipments
             'status' => $snapshot->status->value,
             'carrier_code' => (string) $snapshot->carrier,
             'origin' => (string) $snapshot->origin,
-            'recipient_name' => $snapshot->recipient->name,
-            'recipient_email' => $snapshot->recipient->email,
+            'recipient_name' => $snapshot->recipient->name->reveal(),
+            'recipient_email' => $snapshot->recipient->email->reveal(),
             'dest_thoroughfare_type' => $destination->thoroughfare->type,
             'dest_thoroughfare_name' => $destination->thoroughfare->name,
             'dest_number' => $destination->number,
@@ -235,8 +235,8 @@ final readonly class PostgresShipments implements ForStoringShipments
             'attempt_number' => $visit->number,
             'outcome' => $visit->outcome->value,
             'reason' => $visit->failure?->value,
-            'receiver_name' => $visit->proof?->receiverName,
-            'receiver_document' => $visit->proof?->receiverDocument,
+            'receiver_name' => $visit->proof?->receiverName->reveal(),
+            'receiver_document' => $visit->proof?->receiverDocument->reveal(),
             'occurred_at' => $visit->at->format(self::TIMESTAMP),
         ], $visits));
     }

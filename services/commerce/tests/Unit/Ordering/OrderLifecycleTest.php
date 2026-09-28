@@ -11,6 +11,7 @@ use Commerce\Ordering\Domain\Event\OrderPlaced;
 use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderStatus;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -77,6 +78,18 @@ final class OrderLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function a_cancelled_order_remembers_why(): void
+    {
+        $order = OrderBuilder::anOrder()->place();
+        self::assertNull($order->toSnapshot()->cancellationReason);
+
+        $order->cancel(CancellationReason::PaymentDeclined, new DateTimeImmutable('2026-09-27T12:06:00Z'));
+
+        self::assertSame(CancellationReason::PaymentDeclined, $order->toSnapshot()->cancellationReason);
+        self::assertSame(CancellationReason::PaymentDeclined, Order::fromSnapshot($order->toSnapshot())->toSnapshot()->cancellationReason);
+    }
+
+    #[Test]
     public function a_delivered_order_is_final(): void
     {
         $order = $this->delivered();
@@ -105,6 +118,19 @@ final class OrderLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function the_order_learns_its_tracking_code_when_it_ships(): void
+    {
+        $order = OrderBuilder::anOrder()->place();
+        $order->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00Z'));
+        self::assertNull($order->toSnapshot()->trackingCode);
+
+        $order->markAsShipped(TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable('2026-09-27T13:00:00Z'));
+        $order->markAsDelivered(new DateTimeImmutable('2026-09-27T15:00:00Z'));
+
+        self::assertSame('TX02PWW6JFR5G00', (string) $order->toSnapshot()->trackingCode);
+    }
+
+    #[Test]
     public function the_snapshot_rebuilds_the_same_order(): void
     {
         $order = $this->delivered();
@@ -119,7 +145,7 @@ final class OrderLifecycleTest extends TestCase
     {
         $order = OrderBuilder::anOrder()->place();
         $order->markAsPaid(new DateTimeImmutable());
-        $order->markAsShipped(new DateTimeImmutable());
+        $order->markAsShipped(TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable());
         $order->markAsDelivered(new DateTimeImmutable());
 
         return $order;

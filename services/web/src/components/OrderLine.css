@@ -1,0 +1,24 @@
+.order-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.order-line:last-child {
+  border-bottom: none;
+}
+
+.order-line__name {
+  font-weight: 700;
+}
+
+.order-line__quantity {
+  color: var(--color-text-muted);
+}
+
+.order-line__subtotal {
+  font-weight: 700;
+}

@@ -86,18 +86,23 @@ final class PayOrderHttpTest extends TestCase
     #[Test]
     public function only_an_order_waiting_for_payment_can_be_paid(): void
     {
-        DB::table('orders')->where('id', $this->orderId)->update(['status' => 'cancelled']);
+        DB::table('orders')->where('id', $this->orderId)->update(['status' => 'cancelled', 'cancellation_reason' => 'customer_request']);
 
-        $this->pay('key-1')->assertConflict()->assertJsonPath('detail', sprintf('Order %s cannot be paid: it is cancelled.', $this->orderId));
+        $this->pay('key-1')
+            ->assertConflict()
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#order-not-payable')
+            ->assertJsonPath('detail', sprintf('Order %s cannot be paid: it is cancelled.', $this->orderId));
         $this->postJson('/v1/orders/' . Str::uuid7() . '/payments', ['cardToken' => 'tok_visa'], ['Idempotency-Key' => 'key-2'])->assertNotFound();
     }
 
     #[Test]
-    public function a_card_token_outside_the_format_is_refused(): void
+    public function a_card_number_sent_as_a_token_is_refused_without_being_repeated(): void
     {
-        $this->postJson('/v1/orders/' . $this->orderId . '/payments', ['cardToken' => '4111 1111 1111 1111'], ['Idempotency-Key' => 'key-1'])
-            ->assertUnprocessable()
-            ->assertJsonPath('detail', '"4111 1111 1111 1111" is not a card token.');
+        $response = $this->postJson('/v1/orders/' . $this->orderId . '/payments', ['cardToken' => '4111 1111 1111 1111'], ['Idempotency-Key' => 'key-1']);
+
+        $response->assertUnprocessable()->assertJsonPath('detail', 'The card token is not in the format of the payment provider.');
+        // PCI DSS: a card number that reaches Tucano by mistake must not travel back, nor into a log.
+        self::assertStringNotContainsString('4111', (string) $response->getContent());
     }
 
     /** @return TestResponse<\Illuminate\Http\JsonResponse> */

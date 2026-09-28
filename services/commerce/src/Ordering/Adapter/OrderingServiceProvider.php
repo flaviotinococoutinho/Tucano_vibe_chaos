@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Adapter;
 
-use Commerce\Inventory\Adapter\Driving\Http\ChooseReservationStrategy;
 use Commerce\Ordering\Adapter\Driven\InventoryStockReservations;
 use Commerce\Ordering\Adapter\Driven\PaymentsRefunds;
 use Commerce\Ordering\Adapter\Driven\PostgresCatalogSnapshots;
@@ -69,7 +68,7 @@ final class OrderingServiceProvider extends ServiceProvider
     {
         $this->commands([SyncCatalog::class, ExpireOrdersWorker::class, SyncShipments::class]);
         $router->middleware('api')->group(static function (Router $router): void {
-            $router->post('/v1/orders', PlaceOrderController::class)->middleware([RequireIdempotencyKey::class, ChooseReservationStrategy::class]);
+            $router->post('/v1/orders', PlaceOrderController::class)->middleware([RequireIdempotencyKey::class, 'reserves-stock']);
             $router->get('/v1/orders/{orderId}', ViewOrderController::class);
         });
     }

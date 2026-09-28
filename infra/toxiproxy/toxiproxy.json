@@ -10,5 +10,8 @@
   { "name": "payfake", "listen": "0.0.0.0:14001", "upstream": "partners-sim:4000", "enabled": true },
   { "name": "carriers", "listen": "0.0.0.0:14002", "upstream": "partners-sim:4000", "enabled": true },
   { "name": "tracking", "listen": "0.0.0.0:19501", "upstream": "tracking:9501", "enabled": true },
+  { "name": "bff-catalog", "listen": "0.0.0.0:18081", "upstream": "nginx:8081", "enabled": true },
+  { "name": "bff-commerce", "listen": "0.0.0.0:18082", "upstream": "nginx:8082", "enabled": true },
+  { "name": "bff-logistics", "listen": "0.0.0.0:18083", "upstream": "nginx:8083", "enabled": true },
   { "name": "mailpit", "listen": "0.0.0.0:11025", "upstream": "mailpit:1025", "enabled": true }
 ]

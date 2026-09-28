@@ -1,0 +1,71 @@
+{
+  "class": [
+    "screen",
+    "product"
+  ],
+  "title": "Domain-Driven Design",
+  "properties": {
+    "sku": "BOOK-DDD-001",
+    "name": "Domain-Driven Design",
+    "category": "books",
+    "categoryLabel": "Livros",
+    "price": {
+      "amount": 15990,
+      "currency": "BRL",
+      "formatted": "R$ 159,90"
+    },
+    "weightGrams": 1100,
+    "dimensions": {
+      "lengthMm": 240,
+      "widthMm": 170,
+      "heightMm": 40
+    }
+  },
+  "actions": [
+    {
+      "name": "buy",
+      "title": "Comprar",
+      "method": "GET",
+      "href": "/bff/v1/checkout",
+      "fields": [
+        {
+          "name": "sku",
+          "type": "hidden",
+          "value": "BOOK-DDD-001"
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "title": "Quantidade",
+          "value": 1,
+          "min": 1,
+          "max": 10,
+          "required": true,
+          "inputmode": "numeric"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/products/BOOK-DDD-001"
+    },
+    {
+      "rel": [
+        "collection"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Voltar ao catálogo"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1",
+      "title": "Início"
+    }
+  ]
+}

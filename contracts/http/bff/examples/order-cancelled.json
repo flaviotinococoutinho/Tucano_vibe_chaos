@@ -1,0 +1,66 @@
+{
+  "class": [
+    "screen",
+    "order"
+  ],
+  "title": "Pedido 97856663872212992",
+  "properties": {
+    "orderId": "0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20",
+    "orderNumber": "97856663872212992",
+    "status": "cancelled",
+    "statusLabel": "Cancelado",
+    "tone": "danger",
+    "placedAt": "2026-09-28T05:10:11.000Z",
+    "reservationExpiresAt": null,
+    "total": {
+      "amount": 15990,
+      "currency": "BRL",
+      "formatted": "R$ 159,90"
+    },
+    "trackingCode": null,
+    "notice": {
+      "tone": "danger",
+      "text": "O pagamento foi recusado, e o pedido foi cancelado. O estoque voltou para a prateleira."
+    }
+  },
+  "entities": [
+    {
+      "class": [
+        "order-line"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "sku": "BOOK-DDD-001",
+        "name": "Domain-Driven Design",
+        "quantity": 1,
+        "unitPrice": {
+          "amount": 15990,
+          "currency": "BRL",
+          "formatted": "R$ 159,90"
+        },
+        "subtotal": {
+          "amount": 15990,
+          "currency": "BRL",
+          "formatted": "R$ 159,90"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Continuar comprando"
+    }
+  ]
+}

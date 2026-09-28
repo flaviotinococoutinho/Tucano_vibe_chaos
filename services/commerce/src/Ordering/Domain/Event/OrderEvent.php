@@ -7,8 +7,8 @@ namespace Commerce\Ordering\Domain\Event;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderNumber;
 use DateTimeImmutable;
-use Ramsey\Uuid\Uuid;
 use Tucano\SharedKernel\Domain\DomainEvent;
+use Tucano\SharedKernel\Identity\EventId;
 
 /** What every order event carries; subclasses add their own facts. */
 abstract readonly class OrderEvent implements DomainEvent
@@ -20,7 +20,7 @@ abstract readonly class OrderEvent implements DomainEvent
         private OrderNumber $orderNumber,
         private DateTimeImmutable $occurredAt,
     ) {
-        $this->eventId = Uuid::uuid7()->toString();
+        $this->eventId = EventId::generate()->toString();
     }
 
     final public function eventId(): string

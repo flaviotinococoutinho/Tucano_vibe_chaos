@@ -17,6 +17,7 @@ final readonly class PayOrderCommand
 
     public function fingerprint(): string
     {
-        return hash('sha256', json_encode([$this->orderId, $this->card->value], JSON_THROW_ON_ERROR));
+        // The token itself: tok_*** is every card of the provider.
+        return hash('sha256', json_encode([$this->orderId, $this->card->reveal()], JSON_THROW_ON_ERROR));
     }
 }

@@ -22,9 +22,9 @@ flowchart LR
   psp -- "ACL" --> commerce
   carriers -- "ACL" --> logistics
   tracking -- "OHS<br/>protocolo da frota" --> devices
-  commerce -. "Conformist" .-> bff
-  logistics -. "Conformist" .-> bff
-  catalog -. "Conformist" .-> bff
+  commerce -. "ACL" .-> bff
+  logistics -. "ACL" .-> bff
+  catalog -. "ACL" .-> bff
   kernel --- commerce
   kernel --- logistics
   kernel --- catalog
@@ -60,7 +60,7 @@ No diagrama, cada seta vai do upstream para o downstream.
 | PayFake para Commerce | **Anticorruption Layer** | o vocabulário do PSP (charge, webhook e códigos próprios) é traduzido para `Payment` e seus estados na borda do contexto |
 | Transportadoras para Logistics | **Anticorruption Layer** | cada transportadora tem seu próprio formato; o adapter converte tudo em transições da máquina de estados da remessa |
 | Tracking para App da frota | **Open Host Service** | o protocolo WebSocket da frota é definido e documentado pelo Tracking; o app se adapta a ele |
-| Serviços para o BFF | **Conformist** | o BFF não tem domínio próprio: adota os modelos de quem consulta e só os combina para a tela |
+| Serviços para o BFF | **Anticorruption Layer** | o BFF não tem domínio próprio, mas não adota o modelo de ninguém de olhos fechados: o `src/upstream/` lê o JSON de cada serviço campo a campo e o traduz para o vocabulário das telas. Um serviço que muda o contrato sem avisar quebra ali, com o nome da chamada e do campo, e não no meio de uma tela |
 
 ## Shared Kernel
 

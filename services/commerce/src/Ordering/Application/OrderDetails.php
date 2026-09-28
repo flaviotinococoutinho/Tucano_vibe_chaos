@@ -25,6 +25,8 @@ final readonly class OrderDetails
             'orderId' => $order->id->toString(),
             'orderNumber' => (string) $order->number,
             'status' => $order->status->value,
+            // Masked on purpose (LGPD, minimization): there is no login, so whoever has the
+            // id of an order sees the order, not who bought it.
             'customer' => [
                 'id' => $order->customer->id->toString(),
                 'name' => (string) $order->customer->name,
@@ -32,6 +34,10 @@ final readonly class OrderDetails
             ],
             'shippingAddress' => $order->address->toArray(),
             'fulfillmentCenter' => (string) $order->fulfillmentCenter,
+            // Null until the carrier picks the order up; from then on, the way to the tracking page.
+            'trackingCode' => $order->trackingCode === null ? null : (string) $order->trackingCode,
+            // Null unless the order was cancelled: payment_declined, reservation_expired or customer_request.
+            'cancellationReason' => $order->cancellationReason?->value,
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
                 'name' => $line->productName,

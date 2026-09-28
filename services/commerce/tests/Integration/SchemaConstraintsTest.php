@@ -58,6 +58,37 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['status' => 'shipped_and_cancelled']));
     }
 
+    /** @return iterable<string, array{array<string, string>}> */
+    public static function misplacedTrackingCodes(): iterable
+    {
+        yield 'an order that has not shipped' => [['status' => 'paid', 'tracking_code' => 'TX02PWW6JFR5G00']];
+        yield 'a code in another shape' => [['status' => 'shipped', 'tracking_code' => 'tx02pww6jfr5g00']];
+    }
+
+    /** @param array<string, string> $row */
+    #[Test]
+    #[DataProvider('misplacedTrackingCodes')]
+    public function only_an_order_that_shipped_has_a_tracking_code(array $row): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
+    }
+
+    /** @return iterable<string, array{array<string, string|null>}> */
+    public static function misplacedCancellationReasons(): iterable
+    {
+        yield 'a cancelled order that does not say why' => [['status' => 'cancelled', 'cancellation_reason' => null]];
+        yield 'a reason on an order that goes on' => [['status' => 'paid', 'cancellation_reason' => 'customer_request']];
+        yield 'a reason the domain does not know' => [['status' => 'cancelled', 'cancellation_reason' => 'bored']];
+    }
+
+    /** @param array<string, string|null> $row */
+    #[Test]
+    #[DataProvider('misplacedCancellationReasons')]
+    public function only_a_cancelled_order_has_a_reason_and_it_always_has_one(array $row): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
+    }
+
     #[Test]
     public function postal_codes_are_eight_digits(): void
     {

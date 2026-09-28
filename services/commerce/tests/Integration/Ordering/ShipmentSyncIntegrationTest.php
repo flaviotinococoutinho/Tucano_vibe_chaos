@@ -53,7 +53,7 @@ final class ShipmentSyncIntegrationTest extends TestCase
         $this->handle($pickedUp);
         $this->handle(ShipmentEvents::of('delivered', $orderId, '2026-09-27T15:00:00.000Z', details: ['attempt' => 1]));
 
-        self::assertSame('delivered', DB::table('orders')->where('id', $orderId)->value('status'));
+        self::assertSame(['status' => 'delivered', 'tracking_code' => 'TX02PWW6JFR5G00'], (array) DB::table('orders')->where('id', $orderId)->first(['status', 'tracking_code']));
         self::assertSame(['shipped', 'delivered'], DB::table('order_status_transitions')->where('order_id', $orderId)->orderBy('occurred_at')->pluck('to_status')->all());
         $published = $this->published();
         self::assertSame(['tucano.commerce.order.shipped', 'tucano.commerce.order.delivered'], array_map(static fn(stdClass $event): string => $event->type, $published));

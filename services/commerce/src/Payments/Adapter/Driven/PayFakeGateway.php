@@ -41,7 +41,7 @@ final readonly class PayFakeGateway implements ForChargingCards
             'headers' => ['Idempotency-Key' => $payment->toString()],
             'json' => [
                 'amount' => self::money($amount),
-                'cardToken' => $card->value,
+                'cardToken' => $card->reveal(),
                 'reference' => $payment->toString(),
             ],
         ]);
