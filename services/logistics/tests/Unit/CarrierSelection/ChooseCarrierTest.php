@@ -6,23 +6,24 @@ namespace Tests\Unit\CarrierSelection;
 
 use Logistics\CarrierSelection\Application\CarrierRequest;
 use Logistics\CarrierSelection\Application\UseCase\ChooseCarrier;
+use Logistics\CarrierSelection\Domain\DispatchMode;
 use Logistics\CarrierSelection\Domain\UnknownFulfillmentCenter;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Doubles\CarrierSelection\FixedDispatchMode;
 use Tests\Doubles\CarrierSelection\InMemoryCarriers;
 use Tests\Doubles\CarrierSelection\InMemoryFulfillmentCenters;
-use Tucano\FeatureFlags\InMemoryFlags;
 
 final class ChooseCarrierTest extends TestCase
 {
-    private InMemoryFlags $flags;
+    private FixedDispatchMode $dispatch;
 
     private ChooseCarrier $chooseCarrier;
 
     protected function setUp(): void
     {
-        $this->flags = new InMemoryFlags(['logistics.own-fleet-dispatch' => true]);
-        $this->chooseCarrier = new ChooseCarrier(new InMemoryCarriers(), new InMemoryFulfillmentCenters(), $this->flags);
+        $this->dispatch = new FixedDispatchMode(DispatchMode::OwnFleetFirst);
+        $this->chooseCarrier = new ChooseCarrier(new InMemoryCarriers(), new InMemoryFulfillmentCenters(), $this->dispatch);
     }
 
     #[Test]
@@ -39,19 +40,11 @@ final class ChooseCarrierTest extends TestCase
     }
 
     #[Test]
-    public function with_the_flag_off_the_partners_take_everything(): void
+    public function with_partners_only_the_partners_take_everything(): void
     {
-        $this->flags->set('logistics.own-fleet-dispatch', false);
+        $this->dispatch->mode = DispatchMode::PartnersOnly;
 
         self::assertSame('correio-nacional', $this->chooseCarrier->choose(new CarrierRequest('GRU1', 'SP', 1_100))->code);
-    }
-
-    #[Test]
-    public function when_the_flags_do_not_answer_the_partners_take_everything(): void
-    {
-        $chooseCarrier = new ChooseCarrier(new InMemoryCarriers(), new InMemoryFulfillmentCenters(), new InMemoryFlags());
-
-        self::assertSame('correio-nacional', $chooseCarrier->choose(new CarrierRequest('GRU1', 'SP', 1_100))->code);
     }
 
     #[Test]

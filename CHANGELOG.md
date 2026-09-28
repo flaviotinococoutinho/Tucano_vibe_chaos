@@ -4,6 +4,11 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Changed
+
+- Fornecedor mora só nos adapters (ADR 0022): o Deptrac ganhou a camada `Vendor` e tirou da aplicação a licença de usar feature flags. Os eventos de domínio pegam o id do `EventId` do shared kernel, e o `ChooseCarrier` pergunta o `DispatchMode` (enum rico) a um port, em vez de ler a flag.
+- Pacotes só se encontram pelas fachadas: o teste `PackagesMeetThroughTheirFacadesTest` cobra que o núcleo de um pacote não conheça outro, e o Ordering declara que reserva estoque pelo nome `reserves-stock`, em vez de importar o middleware do Inventory.
+
 ## [0.7.0] - 2026-09-28
 
 ### Added
