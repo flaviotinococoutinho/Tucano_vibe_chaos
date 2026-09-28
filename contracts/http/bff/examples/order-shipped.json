@@ -12,7 +12,7 @@
     "statusLabel": "A caminho",
     "tone": "info",
     "placedAt": "2026-09-28T05:10:11.000Z",
-    "reservationExpiresAt": "2026-09-28T05:25:11.000Z",
+    "reservationExpiresAt": null,
     "total": {
       "amount": 15990,
       "currency": "BRL",
