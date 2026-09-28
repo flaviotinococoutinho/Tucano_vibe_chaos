@@ -1,0 +1,23 @@
+---
+# Prepares this machine for the chaos playground and brings the stack up:
+#   ansible-playbook playbooks/setup.yml                  everything
+#   ansible-playbook playbooks/setup.yml --tags machine   only tools and the Docker VM
+#   ansible-playbook playbooks/setup.yml --check --diff   what would change, changing nothing
+- name: Prepare the machine and bring the chaos playground up
+  hosts: local
+  gather_facts: true
+  roles:
+    - role: preflight
+      tags: [always]
+    - role: toolchain
+      tags: [machine, toolchain]
+    - role: runtime
+      tags: [machine, runtime]
+    - role: project
+      tags: [project]
+    - role: stack
+      tags: [stack]
+      when: start_stack | bool
+    - role: smoke
+      tags: [stack, smoke]
+      when: start_stack | bool and run_smoke_checks | bool

@@ -1,0 +1,35 @@
+---
+- name: Start the Docker VM on macOS
+  ansible.builtin.include_tasks: darwin.yml
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: Start Docker Engine on Debian or Ubuntu
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Wait for the Docker daemon to answer
+  ansible.builtin.command:
+    argv: [docker, info, --format, "{{ '{{' }}.MemTotal{{ '}}' }} {{ '{{' }}.NCPU{{ '}}' }}"]
+  register: runtime_docker
+  changed_when: false
+  check_mode: false
+  retries: 20
+  delay: 3
+  until: runtime_docker.rc == 0
+
+- name: Keep what the daemon reports
+  ansible.builtin.set_fact:
+    runtime_memory_mb: "{{ (runtime_docker.stdout.split()[0] | int / 1048576) | int }}"
+    runtime_cpus: "{{ runtime_docker.stdout.split()[1] | int }}"
+
+- name: Warn when Docker has less than the lab needs
+  ansible.builtin.debug:
+    msg: >-
+      Docker has {{ runtime_memory_mb }} MB and {{ runtime_cpus }} CPUs; the stack is sized for
+      {{ docker_min_memory_mb }} MB and {{ docker_min_cpus }} CPUs. On a Mac:
+      colima stop and colima start --cpu {{ colima_cpus }} --memory {{ colima_memory_gb }}.
+  when: runtime_memory_mb | int < docker_min_memory_mb | int or runtime_cpus | int < docker_min_cpus | int

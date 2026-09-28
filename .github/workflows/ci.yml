@@ -49,6 +49,35 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
 
+  ansible:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'ansible')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/ansible
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Ansible and ansible-lint
+        run: |
+          # --force: the runner brings an ansible-core of its own, with no community collections.
+          pipx install --force --include-deps ansible
+          pipx install ansible-lint
+      - name: Lint the playbooks and roles
+        run: ansible-lint --profile production
+      - name: Syntax of both playbooks
+        run: |
+          ansible-playbook playbooks/setup.yml --syntax-check
+          ansible-playbook playbooks/check.yml --syntax-check
+      # The Docker of the runner stays as it is, and the stack itself runs in the manual setup
+      # workflow; without images to build, 5 GB free is plenty here.
+      - name: The machine part of the setup runs on a clean Ubuntu
+        run: ansible-playbook playbooks/setup.yml -e start_stack=false -e host_min_free_gb=5
+      - name: A second run changes nothing
+        run: |
+          ansible-playbook playbooks/setup.yml -e start_stack=false -e host_min_free_gb=5 | tee second-run.txt
+          grep -Eq 'changed=0 ' second-run.txt
+
   contracts:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'contracts')
@@ -370,7 +399,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
+    needs: [changes, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

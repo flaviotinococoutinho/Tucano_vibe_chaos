@@ -1,0 +1,5 @@
+---
+# ansible-core needs these; the full "ansible" package (brew install ansible) already has them.
+collections:
+  - name: community.general
+    version: ">=9.0.0"

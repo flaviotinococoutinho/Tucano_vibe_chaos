@@ -5,7 +5,18 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 ## Requisitos
 
 - Docker com Compose v2. No Colima: `colima start --cpu 4 --memory 4 --disk 40`.
-- `make doctor` confere memória, CPU e disco livre da VM antes de subir.
+- Pelo menos 10 GB livres no disco do Mac (20 GB é o confortável). O disco da VM do Colima é um arquivo que cresce dentro do disco do Mac, e um Mac sem espaço vira erro de I/O dentro da VM.
+- `make doctor` confere o disco do Mac, a memória, a CPU e o disco livre da VM antes de subir.
+
+## Numa máquina nova
+
+O `make setup` prepara tudo com Ansible: confere disco e memória, instala o Colima, o Docker CLI, o Compose e o jq (ou o Docker Engine, no Linux), liga a VM, escreve o `.env` e roda o `make up` até tudo ficar saudável. Rodar de novo não muda nada numa máquina pronta. Os detalhes, e como mudar o tamanho da VM ou as flags, estão no [README do Ansible](../../infra/ansible/README.md).
+
+```bash
+brew install ansible     # uma vez; no Linux, pipx install --include-deps ansible
+make setup
+make setup-check         # a qualquer momento: confere a máquina e a saúde da stack, sem mudar nada
+```
 - As imagens de infraestrutura ocupam cerca de 5 GB. Os serviços vão somar mais conforme entram.
 
 ## Subir e descer
@@ -21,6 +32,7 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 | `make ps` e `make logs s=kafka` | estado dos containers e logs de um serviço |
 | `make check s=commerce` | Pint, PHPStan, Deptrac e PHPUnit de um serviço PHP, dentro da rede da stack |
 | `make kong-reload` | aplica o `infra/kong/kong.yml` no Kong em execução, sem downtime |
+| `make trim` | devolve ao Mac o espaço liberado dentro da VM do Colima (depois de um `docker image prune`) |
 
 Um boot a frio, com volumes vazios, leva uns 20 segundos até tudo ficar saudável.
 
