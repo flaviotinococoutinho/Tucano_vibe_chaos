@@ -47,6 +47,15 @@ final class WebhookSignatureTest extends TestCase
     }
 
     #[Test]
+    public function the_tolerance_is_the_service_s_to_choose(): void
+    {
+        $header = sprintf('t=%d,v1=%s', self::SIGNED_AT, self::HMAC);
+
+        self::assertSame(SignatureVerdict::Valid, (new WebhookSignature(self::SECRET, 600))->verify(self::BODY, $header, self::SIGNED_AT + 301));
+        self::assertSame(SignatureVerdict::Stale, (new WebhookSignature(self::SECRET, 60))->verify(self::BODY, $header, self::SIGNED_AT + 61));
+    }
+
+    #[Test]
     public function a_header_without_time_or_signature_is_malformed(): void
     {
         self::assertSame(SignatureVerdict::Malformed, $this->verify(self::BODY, 'v1=' . self::HMAC));
