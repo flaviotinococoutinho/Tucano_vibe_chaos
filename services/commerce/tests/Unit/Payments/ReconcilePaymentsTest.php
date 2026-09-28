@@ -130,15 +130,30 @@ final class ReconcilePaymentsTest extends TestCase
     }
 
     #[Test]
-    public function a_charge_the_provider_lost_needs_a_person(): void
+    public function a_charge_the_provider_lost_gets_a_window_to_turn_up(): void
     {
         $payment = $this->pendingPayment();
         $payment->chargedAs('ch_lost', new DateTimeImmutable('2026-09-27T12:05:01Z'));
 
         $reconciled = $this->reconciliation()->reconcileNext();
 
-        self::assertSame(ReconcileResult::NeedsAttention, $reconciled?->result);
+        self::assertSame(ReconcileResult::ChargeMissing, $reconciled?->result);
         self::assertSame(PaymentStatus::Pending, $this->statusOf($payment));
+    }
+
+    #[Test]
+    public function past_the_window_a_lost_charge_fails_and_the_waiting_order_is_cancelled(): void
+    {
+        $payment = $this->pendingPayment();
+        $payment->chargedAs('ch_lost', new DateTimeImmutable('2026-09-27T12:05:01Z'));
+        // The window of this test is 60 s; the clock is at 12:10, and the payment began at 12:05.
+
+        $reconciled = $this->reconciliation(lostChargeAfterSeconds: 60)->reconcileNext();
+
+        self::assertSame(ReconcileResult::ChargeLost, $reconciled?->result);
+        self::assertSame(PaymentStatus::Failed, $this->statusOf($payment));
+        self::assertSame('charge_lost', $this->payments->get($payment->id)->failureReason);
+        self::assertSame([self::ORDER], $this->orders->cancelled);
     }
 
     #[Test]
@@ -241,7 +256,7 @@ final class ReconcilePaymentsTest extends TestCase
     }
 
     /** @param list<string> $waitingOrders the orders that can still be paid */
-    private function reconciliation(array $waitingOrders = []): ReconcilePayments
+    private function reconciliation(array $waitingOrders = [], int $lostChargeAfterSeconds = 3_600): ReconcilePayments
     {
         $transactions = new DirectTransactions();
 
@@ -254,6 +269,7 @@ final class ReconcilePaymentsTest extends TestCase
             new RefundPayment($this->payments, $this->gateway),
             $this->clock,
             60,
+            $lostChargeAfterSeconds,
         );
     }
 

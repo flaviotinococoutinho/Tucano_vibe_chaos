@@ -35,6 +35,9 @@ use Tucano\SharedKernel\Time\Clock;
 #[UseCase('UC-PAY-03')]
 final readonly class ReconcilePayments implements ForReconcilingPayments
 {
+    /** The failure reason of a payment whose charge the provider lost. */
+    private const string CHARGE_LOST = 'charge_lost';
+
     public function __construct(
         private ForRunningTransactions $transactions,
         private ForStoringPayments $payments,
@@ -44,6 +47,7 @@ final readonly class ReconcilePayments implements ForReconcilingPayments
         private ForRefundingPayments $refunds,
         private Clock $clock,
         private int $quietSeconds,
+        private int $lostChargeAfterSeconds,
     ) {}
 
     public function reconcileNext(): ?ReconciledPayment
@@ -89,8 +93,11 @@ final readonly class ReconcilePayments implements ForReconcilingPayments
 
     private function withoutCharge(Payment $payment): ReconcileResult
     {
-        // Only a charge that never reached the provider can be missing there. One the provider
-        // took and then lost, or a refund without a charge, is for a person to look at.
+        if ($payment->status === PaymentStatus::Pending && $payment->chargeId !== null) {
+            return $this->lostCharge($payment);
+        }
+        // A refund without a charge, or money that turned up for an abandoned payment and then
+        // vanished, may still be money at the provider: that is for a person to look at.
         if (!$payment->awaitsCharge()) {
             return ReconcileResult::NeedsAttention;
         }
@@ -100,6 +107,31 @@ final readonly class ReconcilePayments implements ForReconcilingPayments
         }
 
         return $this->abandon($payment->id);
+    }
+
+    /**
+     * The provider took the charge and no longer shows it. A search can lag behind the charges,
+     * so the charge gets a window to turn up; once it closes, the payment fails the way a
+     * declined one does, and an order still waiting for it is cancelled.
+     */
+    private function lostCharge(Payment $payment): ReconcileResult
+    {
+        if ($payment->createdAt > $this->clock->now()->modify(sprintf('-%d seconds', $this->lostChargeAfterSeconds))) {
+            return ReconcileResult::ChargeMissing;
+        }
+        $result = $this->settlements->settle(new ProviderOutcome(
+            sprintf('reconciliation:%s:charge_lost', $payment->id->toString()),
+            $payment->id,
+            (string) $payment->chargeId,
+            OutcomeKind::Failed,
+            self::CHARGE_LOST,
+        ));
+
+        return match ($result) {
+            SettleResult::Applied => ReconcileResult::ChargeLost,
+            SettleResult::Duplicate, SettleResult::AlreadySettled => ReconcileResult::AlreadySettled,
+            SettleResult::UnknownPayment => ReconcileResult::NeedsAttention,
+        };
     }
 
     private function abandon(PaymentId $id): ReconcileResult

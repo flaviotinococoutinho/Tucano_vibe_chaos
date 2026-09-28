@@ -61,7 +61,8 @@ final class ReconcilePaymentsWorker extends Command
     private static function report(LoggerInterface $logger, ReconciledPayment $reconciled): void
     {
         $logger->log(
-            $reconciled->result === ReconcileResult::NeedsAttention ? LogLevel::WARNING : LogLevel::INFO,
+            // A lost charge ends the payment, but it also says the provider is inconsistent: worth a look.
+            in_array($reconciled->result, [ReconcileResult::NeedsAttention, ReconcileResult::ChargeLost], true) ? LogLevel::WARNING : LogLevel::INFO,
             'Payment {paymentId} was {status}, the provider has {charge}: {result}',
             [
                 'paymentId' => $reconciled->paymentId->toString(),

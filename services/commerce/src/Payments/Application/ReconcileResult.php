@@ -28,6 +28,12 @@ enum ReconcileResult: string
     /** The provider did not answer; the payment is looked at again in a later round. */
     case NoAnswer = 'no_answer';
 
+    /** The provider took the charge and does not show it now; it is asked again until the lost charge window closes. */
+    case ChargeMissing = 'charge_missing';
+
+    /** The provider lost a charge it had taken and the window closed: the payment failed, as charge_lost. */
+    case ChargeLost = 'charge_lost';
+
     /** What the provider says makes no sense for this payment: a person has to look. */
     case NeedsAttention = 'needs_attention';
 }
