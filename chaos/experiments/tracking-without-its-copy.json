@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "title": "A cópia do rastreio cai, e a página recusa na hora em vez de pendurar",
+  "description": "O DynamoDB, onde mora a cópia pública do rastreio, some pelo proxy floci do Toxiproxy (o Floci faz o papel da AWS, então o S3 e o SQS das etiquetas somem junto). A página de rastreio lê só essa cópia: sem ela, não há o que mostrar, e recusar é a resposta certa. A hipótese é que a recusa seja rápida e honesta, um 503 com Retry-After em até 1 s, e não um request pendurado até o BFF desistir. Como o outro experimento do rastreio, este compra e entrega uma caneca para ter o que rastrear.",
+  "tags": [
+    "tucano",
+    "logistics",
+    "dynamodb",
+    "read-models",
+    "graceful-degradation"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "A página de rastreio responde em até 1 s, com a entrega ou com 503 e Retry-After",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-tracking-screen-answers-or-refuses",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "tracking_screen_answers",
+          "arguments": {
+            "within_seconds": 1,
+            "pickup_within_seconds": 90,
+            "or_refuses": true
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-the-aws-of-the-stack",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/floci",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "bring-the-aws-of-the-stack-back",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/floci",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

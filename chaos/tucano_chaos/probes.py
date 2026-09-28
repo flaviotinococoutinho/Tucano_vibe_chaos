@@ -86,12 +86,16 @@ def placing_answers_quickly(within_seconds: float = 2.0) -> bool:
     return order.seconds <= within_seconds and (order.status == 201 or _is_honest_refusal(order))
 
 
-def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: float = 90.0) -> bool:
+def tracking_screen_answers(
+    within_seconds: float = 1.0, pickup_within_seconds: float = 90.0, or_refuses: bool = False
+) -> bool:
     """The public tracking screen answers in time, read from its copy in DynamoDB.
 
     The first check buys a mug with the card that approves and follows the order until the
-    carrier picks it up and the order offers its tracking link: the one probe that spends
-    stock. The next check only opens that link, while the database behind it may be out.
+    carrier picks it up and the order offers its tracking link: the probe that spends stock.
+    The next check only opens that link, while what is behind it may be out. With or_refuses,
+    a 503 that says when to come back counts as an answer: when the copy itself is out, there
+    is nothing to show, and refusing at once is the right thing to do.
     """
     global _remembered_tracking
     if _remembered_tracking is None:
@@ -100,6 +104,8 @@ def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: 
             return False
     answer = Shopper().open(_remembered_tracking)
     logger.info("the tracking screen answered %s", answer.described())
+    if or_refuses:
+        return _content_or_honest_refusal(answer, within_seconds)
     return answer.status == 200 and answer.seconds <= within_seconds
 
 

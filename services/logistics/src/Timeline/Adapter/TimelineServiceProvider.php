@@ -38,16 +38,26 @@ final class TimelineServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(DynamoTrackingViews::class, static fn(): DynamoTrackingViews => new DynamoTrackingViews(
-            new DynamoDbClient([
-                'version' => 'latest',
-                'region' => (string) config('tracking.dynamodb.region'),
-                'endpoint' => (string) config('tracking.dynamodb.endpoint'),
-                'credentials' => ['key' => (string) config('tracking.dynamodb.key'), 'secret' => (string) config('tracking.dynamodb.secret')],
-                'http' => ['timeout' => (int) config('tracking.dynamodb.timeout_ms') / 1_000, 'connect_timeout' => (int) config('tracking.dynamodb.connect_timeout_ms') / 1_000],
-            ]),
+            self::dynamo((int) config('tracking.dynamodb.timeout_ms'), retries: 3),
+            self::dynamo((int) config('tracking.dynamodb.read_timeout_ms'), retries: 0),
             (string) config('tracking.dynamodb.table'),
             (int) config('tracking.page_retention_days'),
         ));
+    }
+
+    private static function dynamo(int $timeoutMilliseconds, int $retries): DynamoDbClient
+    {
+        return new DynamoDbClient([
+            'version' => 'latest',
+            'region' => (string) config('tracking.dynamodb.region'),
+            'endpoint' => (string) config('tracking.dynamodb.endpoint'),
+            'credentials' => ['key' => (string) config('tracking.dynamodb.key'), 'secret' => (string) config('tracking.dynamodb.secret')],
+            'retries' => $retries,
+            'http' => [
+                'timeout' => $timeoutMilliseconds / 1_000,
+                'connect_timeout' => min((int) config('tracking.dynamodb.connect_timeout_ms'), $timeoutMilliseconds) / 1_000,
+            ],
+        ]);
     }
 
     public function boot(Router $router): void
