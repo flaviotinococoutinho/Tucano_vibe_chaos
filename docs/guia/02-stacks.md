@@ -1,8 +1,8 @@
 # 2. Stacks e ferramentas transversais
 
-![O tucano regendo uma orquestra de máquinas: engrenagens, um ventilador, uma esteira de envelopes, um arquivo, um farol e um tambor](../assets/guia/stacks.png)
+![O tucano pondo um triângulo no alto de uma pilha de blocos de formas diferentes: uma laje, um cubo e um cilindro](../assets/guia/stacks.png)
 
-O projeto calibra e relembra stacks. Cada linguagem está onde o trabalho dela faz mais sentido, e não onde ficaria mais bonito num diagrama. E cada ferramenta transversal entrou porque um problema de verdade pedia, nunca para completar uma lista.
+O projeto é um reencontro: com o PHP, que eu conhecia de perto antes de passar um tempo mais no Java e no Kotlin, e com o Node, para ver o quanto os dois evoluíram. Cada linguagem está onde o trabalho dela faz mais sentido, e não onde ficaria mais bonito num diagrama. E cada ferramenta transversal entrou porque um problema de verdade pedia, nunca para completar uma lista.
 
 ## As linguagens, e por que cada uma está onde está
 

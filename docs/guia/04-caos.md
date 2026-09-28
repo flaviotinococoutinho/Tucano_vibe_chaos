@@ -1,6 +1,6 @@
 # 4. O playground do caos
 
-![O tucano de jaleco e óculos de proteção puxando uma alavanca num painel cheio de medidores, com servidores tremendo amarrados e uma caixa descendo de paraquedas](../assets/guia/caos.png)
+![O tucano segurando no bico o plugue que ele tirou da tomada; os outros dois continuam ligados, e a lâmpada acima deles segue acesa](../assets/guia/caos.png)
 
 É aqui que o projeto ganha o nome. Construir o sistema é metade do trabalho; a outra metade é quebrar de propósito e ver se ele se comporta como eu achava. Quase sempre não se comporta, e é aí que o laboratório paga o que custou.
 
@@ -23,6 +23,17 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 | Flags `chaos.*` | comportamento dentro do serviço: atrasar o gateway de pagamento, pausar o relay da outbox ou o projetor dos pedidos, falhar parte das etiquetas | `make flag key=... variant=...`, pelo flagd, sem reiniciar nada; o `ProductionGuard` as desliga em produção |
 | API `/_chaos` do partners-sim | o mundo lá fora: o PSP recusa, demora ou perde cobrança; a transportadora perde webhook ou demora entre passos | um `PUT` com a taxa de cada falha |
 
+## Os experimentos que rodam sozinhos
+
+Os laboratórios contam o que aconteceu; os experimentos repetem. As falhas mais importantes viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
+
+```bash
+make experiments                 # cada experimento e o estado estável que ele defende
+make experiment e=psp-slow       # roda um, com o diário em chaos/results/
+```
+
+As sondas compram na loja pela mesma porta que a web, seguindo os links e as ações das telas do BFF, então o experimento mede o que o cliente sentiria, e não o que um serviço acha de si mesmo.
+
 ## Os laboratórios
 
 | Laboratório | O que eu quebrei | O que descobri, e o que mudou no código |
@@ -36,14 +47,25 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 
 ## O caos mais recente: a porta da web
 
-O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a tela do pedido responde 503 com `Retry-After` e uma frase em português, enquanto o catálogo continua abrindo. Com seis segundos de latência no catálogo, o BFF desiste em cinco e diz a mesma coisa. Cada queda deixa uma linha `warn` com o correlation id, o serviço, a chamada e o tempo gasto.
+O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a tela do pedido responde 503 em 0,02 s, com `Retry-After` e uma frase em português, enquanto o catálogo continua abrindo. Com sete segundos de latência no catálogo, o BFF desiste em cinco e diz a mesma coisa. Cada queda deixa uma linha `warn` com o correlation id, o serviço, a chamada e o tempo gasto.
 
 ```bash
-curl -s -X POST localhost:8474/proxies/bff-commerce -d '{"enabled": false}'   # corta
-curl -si localhost:8000/bff/v1/orders/<id> | grep -i retry-after                 # 503, tente em 5 s
-curl -s localhost:8000/bff/v1/products -o /dev/null -w '%{http_code}\n'          # 200: o catálogo segue
-curl -s -X POST localhost:8474/proxies/bff-commerce -d '{"enabled": true}'    # religa
+make experiment e=commerce-cut-from-the-web
+make experiment e=catalog-slow-for-the-web
 ```
+
+## O experimento que me corrigiu
+
+Eu ia escrever neste guia que, sem o banco, a loja recusa um pedido com honestidade. Antes de escrever, medi: cortei o PostgreSQL do commerce e tentei comprar. A resposta foi um `500` que não dizia nada, e não o `503` com hora para voltar que eu ia afirmar. A frase virou o experimento `commerce-database-out`, o experimento pegou a fraqueza na primeira execução, e a correção fez a queda de um banco responder como indisponibilidade em todos os serviços PHP ([ADR 0026](../adr/0026-a-database-outage-is-unavailability.md)). É a razão de este capítulo existir: uma afirmação sobre resiliência só vale depois de medida.
+
+```bash
+make experiment e=commerce-database-out          # sem o banco do commerce: 503 em 0,13 s, com Retry-After
+make experiment e=tracking-without-its-database  # sem o banco da logistics: o rastreio responde em 0,03 s
+```
+
+## O mapa de tudo isso
+
+O [mapa de modos de falha](../architecture/failure-modes.md) junta laboratórios, experimentos e testes numa tabela só: para cada falha que interessa, o que o cliente sente, como o sistema percebe, o que ele faz, a prova de que ele faz, e o que ainda não tem prova. A última seção dele é a lista dos próximos experimentos.
 
 ## O que eu levo de todos eles
 

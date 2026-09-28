@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "title": "O commerce some para a web, e só as telas dele caem",
+  "description": "O BFF perde a conexão com o commerce, pelo proxy bff-commerce do Toxiproxy. A hipótese é de isolamento: a tela do pedido responde na hora com 503 e Retry-After, em vez de travar, e o catálogo, que não depende do commerce, continua abrindo. O ready do BFF não pergunta aos serviços, então o Kong continua mandando tráfego para ele.",
+  "tags": [
+    "tucano",
+    "bff",
+    "isolation",
+    "graceful-degradation"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    },
+    "partners": {
+      "type": "env",
+      "key": "PARTNERS_SIM_URL",
+      "default": "http://partners-sim:4000"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Toda tela responde em até 6 s, com o conteúdo ou com 503 e Retry-After, e o catálogo continua abrindo",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-catalog-opens",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "catalog_opens",
+          "arguments": {
+            "within_seconds": 2
+          }
+        }
+      },
+      {
+        "type": "probe",
+        "name": "the-order-screen-answers",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "order_screen_answers",
+          "arguments": {
+            "within_seconds": 6
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-commerce-from-the-bff",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/bff-commerce",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "reconnect-commerce",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/bff-commerce",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

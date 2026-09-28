@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "title": "O catálogo fica lento, e a web desiste a tempo",
+  "description": "Sete segundos de latência entre o BFF e o catálogo, com o prazo do BFF em cinco (UPSTREAM_TIMEOUT_MS). A tela do catálogo tem que desistir e dizer quando tentar de novo, em vez de deixar a pessoa olhando para uma tela branca, e a tela do pedido, que não depende do catálogo, continua respondendo.",
+  "tags": [
+    "tucano",
+    "bff",
+    "timeout",
+    "graceful-degradation"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    },
+    "partners": {
+      "type": "env",
+      "key": "PARTNERS_SIM_URL",
+      "default": "http://partners-sim:4000"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "A tela do catálogo responde em até 6 s, com o catálogo ou com 503 e Retry-After, e a do pedido continua respondendo",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-catalog-screen-answers",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "screen_answers",
+          "arguments": {
+            "within_seconds": 6,
+            "screen": "/bff/v1/products"
+          }
+        }
+      },
+      {
+        "type": "probe",
+        "name": "the-order-screen-answers",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "order_screen_answers",
+          "arguments": {
+            "within_seconds": 6
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "slow-down-the-catalog",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/bff-catalog/toxics",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "name": "slow-catalog",
+          "type": "latency",
+          "stream": "downstream",
+          "attributes": {
+            "latency": 7000
+          }
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "bring-the-catalog-back",
+      "provider": {
+        "type": "http",
+        "method": "DELETE",
+        "url": "${toxiproxy}/proxies/bff-catalog/toxics/slow-catalog",
+        "timeout": 10
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

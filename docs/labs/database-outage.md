@@ -53,9 +53,23 @@ Um `SIGTERM` durante as tentativas interrompe a espera e não confirma o offset.
 
 A decisão e as alternativas que descartei estão no [ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md).
 
+## A API que respondia 500
+
+Este laboratório olhava para os workers e deixava a API de lado, porque ela reconecta sozinha a cada request. Reconectar, ela reconecta. O que ela respondia durante a queda, ninguém tinha perguntado, até a queda virar um experimento com hipótese escrita: sem banco, fechar um pedido deve recusar na hora e dizer quando tentar de novo ([`commerce-database-out`](../../chaos/experiments/commerce-database-out.json)).
+
+| Fechar um pedido com o banco do commerce fora | Antes da correção | Depois |
+|---|---|---|
+| a resposta do commerce | `500`, com o detalhe escondido | `503`, com `Retry-After: 5` |
+| o que a loja respondia, pelo BFF | `500` em 0,19 s | `503` em 0,13 s, com "tente em 5 s" |
+
+A queda do banco não é um defeito do pedido: o mesmo pedido passa quando o banco volta. O `ProblemDetails` dos três serviços PHP agora reconhece uma conexão recusada ou perdida, com a lista de mensagens que o próprio Laravel mantém para cada driver, e responde `503` com `Retry-After`, num texto fixo, porque a mensagem do driver traz o host e a porta do banco. Qualquer outro erro de banco, como uma chave duplicada, continua um `500` com o detalhe escondido ([ADR 0026](../adr/0026-a-database-outage-is-unavailability.md)).
+
+O outro lado da mesma queda também virou experimento. Com o banco da logística fora, a página de rastreio continua respondendo, em 0,03 s, porque ela lê a cópia no DynamoDB e nem sabe que o PostgreSQL existe ([`tracking-without-its-database`](../../chaos/experiments/tracking-without-its-database.json)).
+
 ## O que eu levo para a entrevista
 
 - Conexão de longa duração é estado. Um worker precisa saber refazê-la; a API do PHP-FPM ganha isso de graça, por ser shared-nothing.
 - Retry com limite não é resposta para tudo. Se a causa é a dependência, e não a mensagem, desistir só move o problema para a DLQ e quebra a ordem das mensagens.
 - Parar a partição tem custo: as outras mensagens dela esperam. Por isso a espera sem limite vale só para falhas que param todas as mensagens igual, e o log registra cada tentativa.
 - Parada graciosa também vale no meio de um retry: o que não terminou não é confirmado.
+- A parte que "sofre menos" também precisa de hipótese. A API reconectava sozinha, e por isso ninguém tinha perguntado o que ela respondia enquanto não conseguia.

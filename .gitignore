@@ -17,3 +17,7 @@ coverage/
 .phpunit.cache/
 .phpunit.result.cache
 *.log
+
+# Journals and logs of the chaos experiments, and Python bytecode of their probes
+chaos/results/
+__pycache__/

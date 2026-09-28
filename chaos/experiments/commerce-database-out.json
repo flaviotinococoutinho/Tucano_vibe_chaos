@@ -1,0 +1,90 @@
+{
+  "version": "1.0.0",
+  "title": "O banco do commerce cai, e fechar um pedido recusa na hora dizendo quando voltar",
+  "description": "O commerce perde o PostgreSQL, pelo proxy commerce-postgres do Toxiproxy. Sem o banco, o commerce não consegue prometer estoque, então recusar é a resposta certa; a hipótese é que a recusa seja honesta: um 503 com Retry-After em até 2 s, que a web mostra como um convite para tentar de novo em alguns segundos, e não um 500 que não diz nada. O catálogo, que tem o seu próprio banco, continua abrindo.",
+  "tags": [
+    "tucano",
+    "commerce",
+    "database",
+    "graceful-degradation"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Fechar um pedido responde em até 2 s, com o pedido ou com 503 e Retry-After, e o catálogo continua abrindo",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-catalog-opens",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "catalog_opens",
+          "arguments": {
+            "within_seconds": 2
+          }
+        }
+      },
+      {
+        "type": "probe",
+        "name": "placing-an-order-answers-quickly",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "placing_answers_quickly",
+          "arguments": {
+            "within_seconds": 2
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "cut-commerce-from-its-database",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/commerce-postgres",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": false
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "reconnect-commerce-to-its-database",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/commerce-postgres",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

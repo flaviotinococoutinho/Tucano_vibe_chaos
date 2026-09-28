@@ -30,6 +30,14 @@ jobs:
         run: |
           scripts/ci/changed-areas.sh | tee -a "$GITHUB_OUTPUT"
 
+  # Cheap enough for every change: a file renamed anywhere can break a link in the docs.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every relative link in the docs points somewhere
+        run: python3 scripts/check-doc-links.py
+
   compose:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.areas), 'compose')
@@ -48,6 +56,13 @@ jobs:
         run: pipx run check-jsonschema --schemafile https://flagd.dev/schema/v0/flags.json infra/flags/environments/*.flagd.json
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
+      # Validation imports the probes and checks each function's signature; running them needs the whole stack.
+      - name: Chaos experiments are valid Chaos Toolkit experiments
+        run: |
+          docker build -q -t chaos-playground/chaos -f infra/chaos/Dockerfile . > /dev/null
+          for experiment in chaos/experiments/*.json; do
+            docker run --rm -v "$PWD/chaos:/chaos:ro" chaos-playground/chaos validate "/$experiment"
+          done
 
   ansible:
     needs: changes
@@ -428,7 +443,7 @@ jobs:
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim, web]
+    needs: [changes, docs, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim, web]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

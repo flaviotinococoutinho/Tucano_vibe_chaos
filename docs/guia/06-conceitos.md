@@ -22,6 +22,24 @@ Brooks, de novo, em 1986: nenhuma técnica sozinha vai multiplicar a produtivida
 - **Possibilidade**: medir o custo, e não só descrever, como os laboratórios fazem com o overselling e o circuit breaker.
 - **Onde**: a seção de consequências de cada ADR.
 
+## Entropia e janelas quebradas
+
+Andrew Hunt e David Thomas, *O Programador Pragmático* (1999, com a edição de 20 anos em 2019): software apodrece quando o descuido vira norma, e o valor que resume o bom design é deixar o sistema fácil de mudar.
+
+- **Ganho**: a janela quebrada é consertada no dia, porque a regra que ela quebra é um teste; ninguém precisa decidir se vale a pena.
+- **Custo**: cada regra conferida é código a manter, e uma regra que ninguém entende vira burocracia.
+- **Possibilidade**: medir o que apodrece devagar, como o tempo de build e o tamanho do bundle, com o mesmo rigor das fronteiras.
+- **Onde**: as fitness functions, e a reversibilidade dos adapters: trocar o Floci pela AWS muda um adapter e mais nada.
+
+## Refatoração e Yagni
+
+Martin Fowler, *Refatoração* (1999, segunda edição em 2018) e os artigos do seu site: mudar a estrutura em passos pequenos que mantêm o sistema funcionando, e não construir o que você só acha que vai precisar.
+
+- **Ganho**: cada PR muda uma coisa, com teste, e dá para desfazer; a abstração nasce quando o segundo uso aparece, não antes.
+- **Custo**: paciência. O caminho em passos pequenos é mais longo no papel do que o grande salto, e às vezes a duplicação fica visível por um tempo.
+- **Possibilidade**: o *Strangler Fig*, do mesmo autor, para aposentar o catálogo legado: rotas novas num serviço novo, atrás do mesmo Kong, até o Lumen não atender mais ninguém.
+- **Onde**: o histórico de PRs, a plataforma Node copiada em vez de compartilhada ([ADR 0016](../adr/0016-copied-node-platform.md)) e o padrão Money, do *Patterns of Enterprise Application Architecture* (2002).
+
 ## Ocultação de informação
 
 David Parnas, *On the Criteria to Be Used in Decomposing Systems into Modules* (1972): cada módulo esconde uma decisão que pode mudar, e os outros dependem só da interface dele.
@@ -58,6 +76,15 @@ Eric Evans (2003): o software fala a língua do negócio, cada contexto delimita
 - **Possibilidade**: event storming com gente do negócio de verdade para validar a linguagem.
 - **Onde**: a [linguagem ubíqua](../architecture/ubiquitous-language.md), os contratos em `contracts/events` como linguagem publicada, e o BFF como camada anticorrupção.
 
+## Agregados pequenos
+
+Vaughn Vernon, *Implementing Domain-Driven Design* (2013) e *Domain-Driven Design Distilled* (2016): proteger dentro de um agregado só os invariantes de verdade, manter o agregado pequeno, apontar para outro agregado pela identidade e aceitar consistência eventual fora da fronteira.
+
+- **Ganho**: transações curtas e pouca disputa de linha; o pedido não carrega o produto inteiro, só a SKU e o preço daquele momento.
+- **Custo**: o que atravessa agregados passa a ser eventual, e a interface precisa mostrar o "ainda não" com honestidade.
+- **Possibilidade**: tirar a reserva de estoque da transação do pedido, com uma saga e uma compensação, se um dia os dois morarem em serviços diferentes.
+- **Onde**: o pedido e a remessa, que se acompanham por eventos. A exceção consciente é a reserva, que muda na mesma transação do pedido porque vender sem reservar é o erro que este negócio não perdoa.
+
 ## Portas e adaptadores
 
 Alistair Cockburn, arquitetura hexagonal (2005): a aplicação conversa com o mundo por portas, e cada tecnologia se pluga por um adaptador.
@@ -84,6 +111,15 @@ Yaron Minsky (2011) resumiu como "tornar estados ilegais irrepresentáveis": o t
 - **Custo**: cada transição nova precisa ser pensada e escrita; não dá para "só ligar uma flag".
 - **Possibilidade**: gerar o diagrama das máquinas de estados a partir do enum, para a documentação nunca desatualizar.
 - **Onde**: [máquinas de estados](../architecture/state-machines.md) e o [ADR 0011](../adr/0011-state-machines-without-flags.md).
+
+## Parse, don't validate
+
+Alexis King (2019): em vez de conferir um valor e seguir carregando o tipo cru, transformar o valor, na borda, num tipo que só existe se for válido.
+
+- **Ganho**: a desconfiança fica num lugar só. Um `TrackingCode` que existe é um código válido, e nenhuma função precisa conferir de novo.
+- **Custo**: um tipo para cada conceito, e a tradução nas bordas, da string para o tipo e de volta.
+- **Possibilidade**: gerar os tipos da borda a partir dos JSON Schemas dos contratos, para o parser e o contrato nunca discordarem.
+- **Onde**: os construtores nomeados dos value objects (`Money::of`, `TrackingCode::of`, `PersonName::of`) e o `Sensitive`.
 
 ## Outbox e inbox
 
@@ -120,6 +156,33 @@ Martin Kleppmann, *Designing Data-Intensive Applications* (2017), e a ideia de B
 - **Custo**: a visão atrasa, e uma tela que mostra a visão logo depois da escrita pode mostrar o passado.
 - **Possibilidade**: reconstruir qualquer projeção do zero a partir do Kafka, como teste de que ela é mesmo derivada.
 - **Onde**: [ADR 0012](../adr/0012-acid-writes-base-reads.md) e o capítulo [a natureza da informação](03-informacao.md).
+
+## Fatos e CQRS
+
+Greg Young, que deu nome ao CQRS por volta de 2010: a informação de um negócio é uma sequência de fatos no passado, o estado atual é uma conta sobre eles, e decidir e ler podem usar modelos diferentes.
+
+- **Ganho**: cada leitura tem a forma da tela que a usa, e nenhum fato se perde para dar lugar a outro; um erro se corrige com um fato novo, como um estorno.
+- **Custo**: dois modelos, o caminho entre eles, e o atraso da leitura. Fowler avisa que o padrão serve a partes específicas de um sistema, não ao sistema inteiro.
+- **Possibilidade**: event sourcing no pagamento, onde a história inteira (cobrança, webhook, conciliação, estorno) já é o que importa.
+- **Onde**: os eventos no passado, o histórico de status que só ganha linha nova, e as projeções da lista de pedidos, da linha do tempo e do rastreio.
+
+## CAP e PACELC
+
+Eric Brewer (2000), provado por Seth Gilbert e Nancy Lynch (2002) e revisto pelo próprio Brewer em 2012; Daniel Abadi completou com o PACELC (2012): na partição, escolher entre disponibilidade e consistência; sem partição, entre latência e consistência.
+
+- **Ganho**: a escolha fica explícita e por operação. Fechar um pedido prefere recusar; rastrear prefere responder com a cópia.
+- **Custo**: cada operação precisa de uma resposta pensada para a falha, e a interface precisa saber mostrar "tente de novo" e "pode estar alguns segundos atrás".
+- **Possibilidade**: mostrar na página de rastreio há quanto tempo a cópia foi atualizada, para a pessoa saber o quanto confiar nela.
+- **Onde**: os experimentos [`commerce-database-out`](../../chaos/experiments/commerce-database-out.json) e [`tracking-without-its-database`](../../chaos/experiments/tracking-without-its-database.json), e o capítulo [a natureza da informação](03-informacao.md#quando-a-rede-se-parte).
+
+## O cubo de escala
+
+Martin Abbott e Michael Fisher, *The Art of Scalability* (2009): crescer clonando (eixo X), separando por função (eixo Y) ou particionando por chave (eixo Z).
+
+- **Ganho**: nomeia o jeito de crescer antes de escolher a ferramenta, e mostra o que já está pronto: API sem estado, workers com `SKIP LOCKED`, serviços por subdomínio, eventos com a chave do agregado.
+- **Custo**: cada eixo cobra o seu. Clonar exige estado fora do processo, separar exige contratos, particionar exige escolher bem a chave.
+- **Possibilidade**: particionar os pedidos por cliente ou por centro de distribuição, se um PostgreSQL só um dia não der conta.
+- **Onde**: o circuit breaker no Redis, os consumer groups do Kafka, e as três partições de cada tópico.
 
 ## Identidade ordenada no tempo
 

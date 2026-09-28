@@ -5,7 +5,7 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check lint-workflows
+.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check docs-check lint-workflows web-art
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -93,14 +93,32 @@ flag: ## Serve another variant of a flag, no restart (key=<flag> variant=<varian
 flag-reset: ## Put a flag back as it is in the repository (key=<flag>)
 	@$(flag-runtime) reset $(key)
 
+experiments: ## List the chaos experiments, each with the steady state it defends
+	@for file in chaos/experiments/*.json; do \
+		printf '%-30s %s\n' "$$(basename $$file .json)" "$$(jq -r '."steady-state-hypothesis".title' $$file)"; \
+	done
+
+experiment: ## Run a chaos experiment against the running stack (e=<name>); rollbacks always run
+	@test -n "$(e)" || { echo "Which one? make experiments lists them."; exit 1; }
+	@mkdir -p chaos/results
+	$(COMPOSE) --profile tools run --rm chaos --log-file /results/$(e).log \
+		run --rollback-strategy always --journal-path /results/$(e).json /chaos/experiments/$(e).json
+
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
 
 config-check: ## Check that compose, the code and docs/operations/configuration.md agree on every variable
 	@python3 scripts/check-config.py
 
+docs-check: ## Check that every relative link and anchor in the Markdown points somewhere
+	@python3 scripts/check-doc-links.py
+
 lint-workflows: ## Validate the GitHub Actions workflows with actionlint
 	docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
+
+web-art: ## Derive the web's banner, spots and icons from the originals in docs/assets
+	docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR)":/repo -w /repo python:3.13-alpine \
+		sh -c 'pip install --quiet --user --disable-pip-version-check pillow==12.2.0 && python scripts/web-art.py'
 
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
