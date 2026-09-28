@@ -25,6 +25,7 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0019](0019-abandoned-payments-accept-late-outcomes.md) | Desistir de um pagamento sem fechar a porta para o PSP | aceito |
 | [0020](0020-address-by-thoroughfare-and-divisions.md) | Modelar o endereço por logradouro e divisões territoriais | aceito |
 | [0021](0021-configuration-from-the-environment.md) | Configurar tudo pelo ambiente, com a unidade no nome | aceito |
+| [0022](0022-vendors-live-in-adapters.md) | Fornecedor mora só nos adapters | aceito |
 
 ## Modelo
 

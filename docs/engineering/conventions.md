@@ -45,8 +45,8 @@ src/Shipping/
 - Ports seguem a convenção de Cockburn: `For` + verbo no gerúndio + substantivo (`ForPlacingOrders`, `ForChargingPayments`).
 - Casos de uso têm nome de ação (`PlaceOrder`, `ConfirmDelivery`); eventos ficam no passado (`OrderPlaced`, `ShipmentDelivered`).
 - Todo caso de uso carrega `#[UseCase('UC-XXX-00')]` e tem ficha em `docs/use-cases/`. Um teste de arquitetura garante isso.
-- O domínio não conhece framework, banco nem HTTP; o Deptrac quebra o build se alguém tentar.
-- Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Assim, se o outro pacote virar um serviço, só o adapter muda.
+- O domínio e a aplicação não conhecem framework, banco, HTTP, feature flag nem SDK de fornecedor (AWS, MongoDB, Guzzle, Ramsey). Tudo isso mora nos adapters, e o Deptrac quebra o build se alguém tentar (camada `Vendor`, ADR 0022). Até o id dos eventos vem do shared kernel (`EventId`), e não da biblioteca que o gera.
+- Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O teste `PackagesMeetThroughTheirFacadesTest` cobra isso: o núcleo de um pacote não conhece outro pacote, e nenhum pacote toca os adapters de outro. Quando um pacote oferece algo às rotas de outro, ele publica um nome de capacidade (o middleware `reserves-stock` do Inventory), e não a classe. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Assim, se o outro pacote virar um serviço, só o adapter muda.
 - Nada de `Manager`, `Helper`, `Util` ou abreviações.
 
 ### Criar objetos: construtores nomeados, builders e domínio rico
@@ -124,7 +124,7 @@ O nome do teste descreve comportamento: `it_refuses_a_fourth_delivery_attempt`, 
 Estas são as fitness functions do projeto. Se alguma quebra, o PR não entra:
 
 - **Deptrac**: direção das dependências entre camadas e pacotes.
-- **Testes de arquitetura**: casos de uso documentados e domínio livre de framework.
+- **Testes de arquitetura**: casos de uso documentados, e pacotes que só se encontram pelas fachadas (os ports de entrada).
 - **PHPStan e `tsc`**: tipos.
 - **Pint e Biome**: estilo.
 - **`pr-policy`**: nomes de branch, fluxo de destino e títulos de PR.
