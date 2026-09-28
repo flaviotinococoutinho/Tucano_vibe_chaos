@@ -63,6 +63,17 @@ final class OrderBuilder
         return $this;
     }
 
+    /** Placed, and paid a minute later, with what happened so far already handed over. */
+    public function paid(): Order
+    {
+        $order = $this->place();
+        $order->markAsPaid($this->placedAt->modify('+1 minute'));
+        $order->releaseEvents();
+        $order->releaseTransitions();
+
+        return $order;
+    }
+
     public function place(): Order
     {
         return Order::place(

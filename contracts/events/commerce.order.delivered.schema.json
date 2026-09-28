@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/commerce.order.delivered.schema.json",
+  "title": "tucano.commerce.order.delivered",
+  "description": "The data of an OrderDelivered event: the parcels reached the customer (logistics.shipment.delivered). The time is the CloudEvent time.",
+  "type": "object",
+  "required": ["orderId", "orderNumber"],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "orderNumber": { "type": "string", "pattern": "^[0-9]{1,19}$" }
+  },
+  "additionalProperties": false
+}

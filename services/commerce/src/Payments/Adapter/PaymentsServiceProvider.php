@@ -19,10 +19,12 @@ use Commerce\Payments\Application\Port\Driven\ForStoringPayments;
 use Commerce\Payments\Application\Port\Driving\ForPayingOrders;
 use Commerce\Payments\Application\Port\Driving\ForReconcilingPayments;
 use Commerce\Payments\Application\Port\Driving\ForRefundingPayments;
+use Commerce\Payments\Application\Port\Driving\ForRequestingRefunds;
 use Commerce\Payments\Application\Port\Driving\ForSettlingPayments;
 use Commerce\Payments\Application\UseCase\PayOrder;
 use Commerce\Payments\Application\UseCase\ReconcilePayments;
 use Commerce\Payments\Application\UseCase\RefundPayment;
+use Commerce\Payments\Application\UseCase\RequestOrderRefund;
 use Commerce\Payments\Application\UseCase\SettlePayment;
 use Commerce\Shared\Adapter\Driven\CircuitBreaker\RedisCircuitBreaker;
 use Commerce\Shared\Adapter\Driving\Http\RequireIdempotencyKey;
@@ -46,6 +48,7 @@ final class PaymentsServiceProvider extends ServiceProvider
         ForSettlingOrders::class => OrderingSettlements::class,
         ForReconcilingPayments::class => ReconcilePayments::class,
         ForRefundingPayments::class => RefundPayment::class,
+        ForRequestingRefunds::class => RequestOrderRefund::class,
     ];
 
     public function register(): void
