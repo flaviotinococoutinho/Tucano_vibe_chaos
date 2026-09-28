@@ -90,6 +90,8 @@ final class PlatformServiceProvider extends ServiceProvider
             (int) config('platform.flags.port'),
             $this->flagCache(),
             (int) config('platform.flags.cache_seconds'),
+            (int) config('platform.flags.timeout_ms'),
+            (int) config('platform.flags.connect_timeout_ms'),
         );
     }
 

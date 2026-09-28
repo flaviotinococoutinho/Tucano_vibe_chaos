@@ -201,6 +201,7 @@ final class PayFakeGatewayTest extends TestCase
             new Client(['handler' => $stack, 'base_uri' => 'http://payfake.test']),
             new InMemoryFlags(['chaos.commerce.payment-gateway-latency-ms' => $latencyMs]),
             $timeoutMs,
+            500,
         );
     }
 }

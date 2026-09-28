@@ -29,10 +29,10 @@ final readonly class RedisCircuitBreaker
         private RedisManager $redis,
         private LoggerInterface $logger,
         private string $name,
-        private int $failureThreshold = 5,
-        private int $windowSeconds = 30,
-        private int $openSeconds = 20,
-        private int $trialSeconds = 10,
+        private int $failureThreshold,
+        private int $windowSeconds,
+        private int $openSeconds,
+        private int $trialSeconds,
     ) {}
 
     public function state(): CircuitState

@@ -19,12 +19,10 @@ use Tucano\Messaging\Worker\StopSignal;
 #[AsCommand(name: 'commerce:expire-orders', description: 'Cancel unpaid orders whose reservation ran out, until SIGTERM')]
 final class ExpireOrdersWorker extends Command
 {
-    private const int IDLE_MILLISECONDS = 5_000;
-
-    private const int FAILURE_MILLISECONDS = 2_000;
-
     public function handle(ForExpiringOrders $orders, LoggerInterface $logger): int
     {
+        $idle = (int) config('ordering.expiry.idle_pause_ms');
+        $afterFailure = (int) config('ordering.expiry.failure_pause_ms');
         $stop = StopSignal::onTermination();
         $logger->info('order expiry started');
         while (!$stop->requested()) {
@@ -32,12 +30,12 @@ final class ExpireOrdersWorker extends Command
                 $expired = $orders->expireNext();
             } catch (Throwable $failure) {
                 $logger->error('Order expiry failed: {message}', ['message' => $failure->getMessage(), 'exception' => $failure]);
-                $stop->pause(self::FAILURE_MILLISECONDS);
+                $stop->pause($afterFailure);
 
                 continue;
             }
             if ($expired === null) {
-                $stop->pause(self::IDLE_MILLISECONDS);
+                $stop->pause($idle);
 
                 continue;
             }

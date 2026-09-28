@@ -23,12 +23,10 @@ use Tucano\Messaging\Worker\StopSignal;
 #[AsCommand(name: 'commerce:reconcile-payments', description: 'Ask the payment provider about payments still missing its final word, until SIGTERM')]
 final class ReconcilePaymentsWorker extends Command
 {
-    private const int IDLE_MILLISECONDS = 5_000;
-
-    private const int FAILURE_MILLISECONDS = 2_000;
-
     public function handle(ForReconcilingPayments $payments, LoggerInterface $logger): int
     {
+        $idle = (int) config('payments.reconciliation.idle_pause_ms');
+        $afterFailure = (int) config('payments.reconciliation.failure_pause_ms');
         $stop = StopSignal::onTermination();
         $logger->info('payment reconciliation started');
         while (!$stop->requested()) {
@@ -42,12 +40,12 @@ final class ReconcilePaymentsWorker extends Command
                 continue;
             } catch (Throwable $failure) {
                 $logger->error('Payment reconciliation failed: {message}', ['message' => $failure->getMessage(), 'exception' => $failure]);
-                $stop->pause(self::FAILURE_MILLISECONDS);
+                $stop->pause($afterFailure);
 
                 continue;
             }
             if ($reconciled === null) {
-                $stop->pause(self::IDLE_MILLISECONDS);
+                $stop->pause($idle);
 
                 continue;
             }

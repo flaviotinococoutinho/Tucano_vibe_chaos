@@ -56,13 +56,17 @@ final class PaymentsServiceProvider extends ServiceProvider
         $this->app->when(ReconcilePayments::class)->needs('$quietSeconds')->giveConfig('payments.reconciliation.quiet_seconds');
         $this->app->when(ReconcilePayments::class)->needs('$lostChargeAfterSeconds')->giveConfig('payments.reconciliation.lost_charge_after_seconds');
         // The one webhook commerce receives is PayFake's, so the one signature to check is its.
-        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('payments.payfake.webhook_secret')));
+        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature(
+            (string) config('payments.payfake.webhook_secret'),
+            (int) config('payments.payfake.webhook_tolerance_seconds'),
+        ));
         // The provider behind a circuit breaker: a decorator of the same port.
         $this->app->bind(ForChargingCards::class, fn(): ForChargingCards => new BreakerGuardedGateway(
             new PayFakeGateway(
                 new Client(['base_uri' => (string) config('payments.payfake.url')]),
                 $this->app->make(FeatureFlags::class),
                 (int) config('payments.payfake.timeout_ms'),
+                (int) config('payments.payfake.connect_timeout_ms'),
             ),
             new RedisCircuitBreaker(
                 $this->app->make(RedisManager::class),
@@ -71,6 +75,7 @@ final class PaymentsServiceProvider extends ServiceProvider
                 (int) config('payments.circuit.failure_threshold'),
                 (int) config('payments.circuit.window_seconds'),
                 (int) config('payments.circuit.open_seconds'),
+                (int) config('payments.circuit.trial_seconds'),
             ),
         ));
     }
