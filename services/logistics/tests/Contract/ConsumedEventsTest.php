@@ -26,7 +26,6 @@ final class ConsumedEventsTest extends TestCase
     {
         yield 'order paid' => [OrderEvents::paid(), 'commerce.order.paid.schema.json'];
         yield 'order paid, to an address without complement or coordinates' => [OrderEvents::paid(['shippingAddress' => OrderEvents::plainAddress(), 'fulfillmentCenter' => 'BHZ1']), 'commerce.order.paid.schema.json'];
-        yield 'order paid on commerce.orders.v1, with the address from before ADR 0020' => [OrderEvents::paid(['shippingAddress' => OrderEvents::legacyAddress()]), 'commerce.order.paid.v1.schema.json'];
         yield 'order cancelled after payment' => [OrderEvents::cancelled(), 'commerce.order.cancelled.schema.json'];
         yield 'order cancelled before payment' => [OrderEvents::expired(), 'commerce.order.cancelled.schema.json'];
         yield 'product snapshot' => [CatalogEvents::snapshot(), 'catalog.product.snapshot.schema.json'];

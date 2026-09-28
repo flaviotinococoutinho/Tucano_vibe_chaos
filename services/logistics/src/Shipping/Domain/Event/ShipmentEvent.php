@@ -12,7 +12,7 @@ use Tucano\SharedKernel\Domain\DomainEvent;
 
 /**
  * What every shipment event carries. The type comes from the status the
- * transition reached, so the names on logistics.shipments.v1 are exactly the
+ * transition reached, so the names on logistics.shipments.v2 are exactly the
  * states of the machine; subclasses add their own facts.
  */
 abstract readonly class ShipmentEvent implements DomainEvent

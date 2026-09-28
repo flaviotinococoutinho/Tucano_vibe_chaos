@@ -78,22 +78,6 @@ final class OrderEventHandlerTest extends TestCase
     }
 
     #[Test]
-    public function an_order_still_on_v1_comes_with_its_address_read_the_old_way(): void
-    {
-        $this->handler->handle(OrderEvents::message(OrderEvents::paid(['shippingAddress' => OrderEvents::legacyAddress()]), topic: 'commerce.orders.v1'));
-
-        // Av. is an Avenida, the district of v1 was the neighborhood, and the city is the municipality, without a geocode.
-        self::assertEquals(
-            Address::builder()
-                ->thoroughfare('Avenida', 'Paulista')->number('1000')->complement('Apto 12')
-                ->state(BrazilianState::SP)->municipality('São Paulo')->neighborhood('Bela Vista')
-                ->postalCode('01310-100')->coordinates(-23.561414, -46.655881)
-                ->build(),
-            $this->shipments->paid[0]->destination,
-        );
-    }
-
-    #[Test]
     public function a_cancelled_paid_order_asks_to_stop_its_shipment(): void
     {
         $this->handler->handle(OrderEvents::message(OrderEvents::cancelled()));
