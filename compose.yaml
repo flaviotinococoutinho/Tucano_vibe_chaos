@@ -779,6 +779,20 @@ services:
     mem_limit: 96m
     networks: [edge]
 
+  # The React app, built and served as static files; it never talks to anything but the BFF,
+  # through Kong, on its own origin.
+  web:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+    image: chaos-playground/web
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:80/"]
+    mem_limit: 32m
+    networks: [edge]
+
   # ---------------------------------------------------------- tools (profile)
 
   kafka-ui:
