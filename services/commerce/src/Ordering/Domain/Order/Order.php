@@ -40,6 +40,7 @@ final class Order extends AggregateRoot
         public private(set) OrderStatus $status,
         public private(set) int $version,
         private ?TrackingCode $trackingCode = null,
+        private ?CancellationReason $cancellationReason = null,
     ) {}
 
     public static function place(
@@ -73,6 +74,7 @@ final class Order extends AggregateRoot
             $snapshot->status,
             $snapshot->version,
             $snapshot->trackingCode,
+            $snapshot->cancellationReason,
         );
     }
 
@@ -90,6 +92,7 @@ final class Order extends AggregateRoot
             $this->reservationExpiresAt,
             $this->version,
             $this->trackingCode,
+            $this->cancellationReason,
         );
     }
 
@@ -118,6 +121,7 @@ final class Order extends AggregateRoot
     {
         $previous = $this->status;
         $this->moveTo(OrderStatus::Cancelled, $cancelledAt, $reason->value);
+        $this->cancellationReason = $reason;
         $this->recordThat(new OrderCancelled($this->id, $this->number, $reason, $previous, $cancelledAt));
     }
 

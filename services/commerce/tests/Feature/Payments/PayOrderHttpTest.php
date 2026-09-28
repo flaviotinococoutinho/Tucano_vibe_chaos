@@ -86,7 +86,7 @@ final class PayOrderHttpTest extends TestCase
     #[Test]
     public function only_an_order_waiting_for_payment_can_be_paid(): void
     {
-        DB::table('orders')->where('id', $this->orderId)->update(['status' => 'cancelled']);
+        DB::table('orders')->where('id', $this->orderId)->update(['status' => 'cancelled', 'cancellation_reason' => 'customer_request']);
 
         $this->pay('key-1')->assertConflict()->assertJsonPath('detail', sprintf('Order %s cannot be paid: it is cancelled.', $this->orderId));
         $this->postJson('/v1/orders/' . Str::uuid7() . '/payments', ['cardToken' => 'tok_visa'], ['Idempotency-Key' => 'key-2'])->assertNotFound();

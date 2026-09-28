@@ -23,6 +23,7 @@
 ## Garantias de sucesso
 
 - O pedido volta no mesmo formato da resposta do UC-ORD-01, com o status atual.
+- Um pedido cancelado diz por quê em `cancellationReason`: `payment_declined` (o cartão foi recusado), `reservation_expired` (o prazo para pagar acabou) ou `customer_request`. Nos outros status, ele vem `null`. É o que deixa a tela de "confirmando o pagamento" terminar com a notícia certa quando o cartão é recusado, sem uma leitura de pagamentos só para isso.
 - Depois da coleta, `trackingCode` traz o código da remessa, que abre a página de rastreio (UC-SHP-10). Antes disso ele vem `null`, e também fica `null` nos pedidos que saíram antes de o pedido guardar o código: a logística tem esses códigos, o pedido não.
 
 ## Cenário principal de sucesso

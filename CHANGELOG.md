@@ -7,6 +7,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 ### Added
 
 - O pedido guarda o código de rastreio da remessa (`orders.tracking_code`, `CHAR(15)`), aprendido na coleta (UC-ORD-04), e a consulta do pedido devolve `trackingCode`, `null` até a coleta (UC-ORD-05). É o que deixa a web ir do pedido direto ao rastreio. Dois `CHECK`s guardam a regra no banco: o formato, e só pedido que saiu tem código.
+- O pedido cancelado guarda o motivo (`orders.cancellation_reason`), e a consulta devolve `cancellationReason`. A migration copia o motivo do histórico para os pedidos que já estavam cancelados, e o banco cobra a regra nos dois sentidos: todo cancelado tem motivo, e só cancelado tem.
 
 ### Changed
 

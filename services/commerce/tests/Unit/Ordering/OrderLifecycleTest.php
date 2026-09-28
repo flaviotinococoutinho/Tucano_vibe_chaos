@@ -78,6 +78,18 @@ final class OrderLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function a_cancelled_order_remembers_why(): void
+    {
+        $order = OrderBuilder::anOrder()->place();
+        self::assertNull($order->toSnapshot()->cancellationReason);
+
+        $order->cancel(CancellationReason::PaymentDeclined, new DateTimeImmutable('2026-09-27T12:06:00Z'));
+
+        self::assertSame(CancellationReason::PaymentDeclined, $order->toSnapshot()->cancellationReason);
+        self::assertSame(CancellationReason::PaymentDeclined, Order::fromSnapshot($order->toSnapshot())->toSnapshot()->cancellationReason);
+    }
+
+    #[Test]
     public function a_delivered_order_is_final(): void
     {
         $order = $this->delivered();
