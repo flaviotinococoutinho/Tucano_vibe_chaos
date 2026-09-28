@@ -21,7 +21,7 @@ flowchart LR
   tracking -- "Customer/Supplier<br/>despacho" --> logistics
   psp -- "ACL" --> commerce
   carriers -- "ACL" --> logistics
-  tracking -- "OHS<br/>protocolo da frota" --> devices
+  tracking -- "OHS<br/>entrega ao vivo" --> devices
   commerce -. "ACL" .-> bff
   logistics -. "ACL" .-> bff
   catalog -. "ACL" .-> bff

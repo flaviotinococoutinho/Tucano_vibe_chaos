@@ -10,7 +10,7 @@ O projeto é um reencontro: com o PHP, que eu conhecia de perto antes de passar 
 |---|---|---|
 | `commerce` e `logistics` | PHP 8.4, Laravel 13 | o núcleo transacional: muita regra, muito banco, muito caso de uso. O Laravel dá container, filas, migrations e HTTP maduros, e o hexágono mantém o framework na borda |
 | `catalog` | PHP 8.3, Lumen 11 | faz o papel de sistema legado: um framework menor, uma versão de PHP atrás. Obriga o shared kernel a rodar em duas versões, como acontece em qualquer empresa com mais de três anos |
-| `tracking` | PHP 8.4, Swoole 6 | o tempo real da frota pede um processo que fica de pé e segura milhares de conexões. Swoole mostra o PHP fora do modelo de "um request, um processo" ([ADR 0013](../adr/0013-swoole-for-fleet-tracking.md)) |
+| `tracking` | PHP 8.4, Swoole 6 | o tempo real da frota pede um processo que fica de pé e segura milhares de conexões. Swoole mostra o PHP fora do modelo de "um request, um processo": cada worker segura os seus WebSockets, e o Redis pub/sub leva cada posição a todos ([ADR 0013](../adr/0013-swoole-for-fleet-tracking.md), [ADR 0028](../adr/0028-live-delivery-by-tracking-code.md)) |
 | `bff` e `partners-sim` | Node 24, Fastify 5, TypeScript | o trabalho deles é esperar I/O. O event loop faz isso sem um processo por conexão, e o Node roda TypeScript direto, sem build ([ADR 0014](../adr/0014-node-for-bff-and-partners.md)) |
 | `web` | React 19, TypeScript, Vite | um intérprete de telas: ele não conhece o fluxo, só desenha o que o BFF manda ([ADR 0023](../adr/0023-server-driven-ui-with-siren.md)) |
 
