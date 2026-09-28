@@ -25,6 +25,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Fixed
 
+- O Kong pergunta de novo ao DNS a cada 5 s (`KONG_DNS_VALID_TTL`): com o TTL de 600 s do Docker, um serviço recriado pelo compose ficava 502 atrás do gateway por até dez minutos.
 - O `make doctor` agora olha o disco do Mac, e não só o da VM: o disco da VM cresce dentro do disco do Mac, e um Mac cheio fez a VM remontar o disco do Docker como somente leitura no meio de um rebuild.
 
 - O README da logística agora lista o webhook das transportadoras entre os endpoints.
