@@ -21,7 +21,7 @@
 
 - Uma coleta por remessa: o id da remessa é a `Idempotency-Key` do agendamento.
 - O mesmo evento enviado duas vezes não muda nada: a inbox guarda o id do evento.
-- Nenhum dado pessoal vai para a transportadora no agendamento: só origem, cidade, UF e CEP do destino, volumes e peso.
+- Nenhum dado pessoal vai para a transportadora no agendamento: só origem, município (que a transportadora chama de `city`), UF e CEP do destino, volumes e peso.
 
 ## Garantias de sucesso
 
@@ -29,7 +29,7 @@
 
 ## Cenário principal de sucesso
 
-1. O worker `logistics-pickup-bookings` lê o `ShipmentReadyForPickup` em `logistics.shipments.v1`.
+1. O worker `logistics-pickup-bookings` lê o `ShipmentReadyForPickup` em `logistics.shipments.v2`.
 2. O sistema confere que a remessa ainda espera a coleta e agenda a coleta na transportadora da remessa.
 3. A transportadora aceita a coleta como `scheduled`.
 4. A transportadora coleta os volumes e avisa por webhook (`parcel.picked_up`).
@@ -38,7 +38,7 @@
 ## Extensões
 
 - 2a. A remessa já não espera a coleta (foi cancelada): nada é agendado, e o resultado é `not_needed`.
-- 2b. A transportadora não responde: a partição de `logistics.shipments.v1` espera ela voltar ([ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md)). O agendamento repetido cai na mesma coleta, pela chave.
+- 2b. A transportadora não responde: a partição de `logistics.shipments.v2` espera ela voltar ([ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md)). O agendamento repetido cai na mesma coleta, pela chave.
 - 2c. A transportadora recusa o agendamento (`4xx`): o evento vai para `dlq.logistics.pickup-bookings`, com um warning para uma pessoa olhar.
 - 5a. Evento repetido: `200` com `duplicate`.
 - 5b. Assinatura inválida, ou corpo que não é evento de transportadora: `400`, e nada muda.

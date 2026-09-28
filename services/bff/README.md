@@ -5,7 +5,7 @@ Backend for frontend da web da Tucano, em Node 24 com Fastify 5 e TypeScript exe
 ## O que vem depois
 
 - **Agregação**: uma rota por tela, que chama catalog, commerce e logistics em paralelo, cada chamada com timeout e circuit breaker, e devolve só o que a tela usa.
-- **Tempo real**: o consumer group `bff.live` lê `commerce.orders.v1` e `logistics.shipments.v1` e empurra as mudanças para o navegador por WebSocket. Os avisos da fila `push-notifications` seguem o mesmo caminho.
+- **Tempo real**: o consumer group `bff.live` lê `commerce.orders.v2` e `logistics.shipments.v2` e empurra as mudanças para o navegador por WebSocket. Os avisos da fila `push-notifications` seguem o mesmo caminho.
 - **Flags de interface**: avaliadas in-process com o provider do flagd. A web recebe só o valor já resolvido.
 
 O BFF não tem domínio próprio. No [context map](../../docs/architecture/context-map.md) ele é Conformist: adota o modelo de quem consulta e só combina as respostas para a tela.

@@ -52,13 +52,16 @@ O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../
 | `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
 | `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
+Enquanto um tópico `.v1` esvazia, a forma antiga do evento fica congelada ao lado da atual, com a versão no nome: [`commerce.order.paid.v1.schema.json`](../../contracts/events/commerce.order.paid.v1.schema.json) e [`logistics.shipment.created.v1.schema.json`](../../contracts/events/logistics.shipment.created.v1.schema.json).
+
 ## Tópicos
 
 | Tópico | Chave | Produtor | Retenção | Eventos |
 |---|---|---|---|---|
 | `catalog.products.v1` | `productId` | `catalog` | compactado | `tucano.catalog.product.snapshot` (estado completo do produto) |
-| `commerce.orders.v1` | `orderId` | `commerce` | 7 dias | `order.placed`, `order.paid`, `order.cancelled`, `order.shipped`, `order.delivered`, `order.returned` |
-| `logistics.shipments.v1` | `shipmentId` | `logistics` | 7 dias | `shipment.created`, `shipment.ready_for_pickup`, `shipment.picked_up`, `shipment.in_transit`, `shipment.out_for_delivery`, `shipment.delivered`, `shipment.delivery_failed`, `shipment.returning`, `shipment.returned`, `shipment.cancelled` |
+| `commerce.orders.v2` | `orderId` | `commerce` | 7 dias | `order.placed`, `order.paid`, `order.cancelled`, `order.shipped`, `order.delivered`, `order.returned` |
+| `logistics.shipments.v2` | `shipmentId` | `logistics` | 7 dias | `shipment.created`, `shipment.ready_for_pickup`, `shipment.picked_up`, `shipment.in_transit`, `shipment.out_for_delivery`, `shipment.delivered`, `shipment.delivery_failed`, `shipment.returning`, `shipment.returned`, `shipment.cancelled` |
+| `commerce.orders.v1` e `logistics.shipments.v1` | as mesmas | ninguém, desde a ADR 0020 | 7 dias | os eventos de antes do endereço novo, até esvaziar |
 | `dlq.<consumer-group>` | a original | consumidores | 14 dias | mensagens que falharam depois de todas as tentativas |
 
 Todos os tópicos têm 3 partições. A chave garante que os eventos de um mesmo agregado caiam na mesma partição e sejam lidos na ordem em que foram publicados. Não existe ordem garantida entre tópicos diferentes.
@@ -73,14 +76,30 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 |---|---|---|
 | `commerce.catalog-sync` | `catalog.products.v1` | atualiza os snapshots de produto usados no checkout |
 | `logistics.catalog-sync` | `catalog.products.v1` | atualiza peso e dimensões usados na escolha da transportadora |
-| `logistics.order-intake` | `commerce.orders.v1` | cria a remessa em `order.paid` e a cancela em `order.cancelled` |
-| `logistics.label-requests` | `logistics.shipments.v1` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
-| `logistics.pickup-bookings` | `logistics.shipments.v1` | agenda a coleta na transportadora de cada remessa pronta |
-| `commerce.shipment-sync` | `logistics.shipments.v1` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
-| `commerce.order-projector` | `commerce.orders.v1` | mantém o read model de pedidos no MongoDB |
-| `logistics.timeline-projector` | `logistics.shipments.v1` | mantém a linha do tempo no MongoDB e o lookup público no DynamoDB |
-| `commerce.notification-router` | `commerce.orders.v1`, `logistics.shipments.v1` | decide o que vira notificação e publica no SNS |
-| `bff.live` | `commerce.orders.v1`, `logistics.shipments.v1` | empurra atualizações para o navegador via WebSocket |
+| `logistics.order-intake` | `commerce.orders.v1` e `.v2` | cria a remessa em `order.paid` e a cancela em `order.cancelled` |
+| `logistics.label-requests` | `logistics.shipments.v1` e `.v2` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
+| `logistics.pickup-bookings` | `logistics.shipments.v1` e `.v2` | agenda a coleta na transportadora de cada remessa pronta |
+| `commerce.shipment-sync` | `logistics.shipments.v2` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
+| `commerce.order-projector` | `commerce.orders.v2` | mantém o read model de pedidos no MongoDB |
+| `logistics.timeline-projector` | `logistics.shipments.v2` | mantém a linha do tempo no MongoDB e o lookup público no DynamoDB |
+| `commerce.notification-router` | `commerce.orders.v2`, `logistics.shipments.v2` | decide o que vira notificação e publica no SNS |
+| `bff.live` | `commerce.orders.v2`, `logistics.shipments.v2` | empurra atualizações para o navegador via WebSocket |
+
+## Quando o contrato quebra
+
+A [ADR 0010](../adr/0010-cloudevents-contracts.md) manda a mudança que quebra contrato para um tópico novo, e o endereço da [ADR 0020](../adr/0020-address-by-thoroughfare-and-divisions.md) foi a primeira: o `order.paid` trocou `street`, `district`, `city` e `state` por logradouro e divisões, e o `shipment.created` passou a levar as divisões até o município. Fiz a troca nesta ordem:
+
+1. Criei os tópicos `.v2` ao lado dos `.v1` e congelei o schema antigo com `.v1` no nome.
+2. Os consumidores passaram a ler as duas versões. Quem lê o `order.paid` do `.v1` traduz o endereço antigo (`LegacyShippingAddress`): o tipo sai da primeira palavra do `street`, o `district` vira bairro e o `city` vira município.
+3. Os produtores passaram a publicar só no `.v2`. Não existe ordem entre os dois tópicos, e a logística aguenta isso porque já aceitava um cancelamento chegar antes do pagamento.
+4. Quando o lag de todos os consumer groups no `.v1` zerar, a leitura do `.v1`, o tradutor e os schemas congelados saem num PR próprio, e a retenção de 7 dias apaga o resto.
+
+O lag de um grupo, tópico por tópico:
+
+```bash
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 \
+  --describe --group logistics.order-intake
+```
 
 ## Garantias de entrega
 
