@@ -4,7 +4,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 
 ## 0. O guia
 
-- [Guia do chaos playground](guia/README.md): a porta de entrada amigável, em oito capítulos curtos, da jornada de um pedido ao roteiro de uma entrevista. Comece por aqui; o resto desta página é a referência.
+- [Guia do chaos playground](guia/README.md): a porta de entrada amigável, em nove capítulos curtos, do jeito de pensar por trás do projeto ao roteiro de uma entrevista. Comece por aqui; o resto desta página é a referência.
 
 ## 1. Engenharia
 
@@ -22,6 +22,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 - [Máquinas de estados](architecture/state-machines.md): pedido, pagamento e remessa.
 - [Topologia local](architecture/deployment.md): redes, proxies de caos, listeners do Kafka e memória.
 - [Feature flags](architecture/feature-flags.md): flags privadas por ambiente com OpenFeature e flagd.
+- [Modos de falha e seus efeitos](architecture/failure-modes.md): cada falha que interessa, o que o cliente sente, como o sistema reage, a prova de cada reação e o que ainda não tem prova.
 
 ## 3. Operação
 
@@ -29,7 +30,11 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 - [Setup com Ansible](../infra/ansible/README.md): prepara uma máquina nova e sobe a stack com um comando.
 - [Configuração](operations/configuration.md): as regras dos nomes e cada variável de cada serviço, com o padrão e o porquê.
 
-## 4. Laboratórios
+## 4. Caos
+
+- [Experimentos de caos](../chaos/README.md): os experimentos como código, cada um com a hipótese, a falha e o rollback, que qualquer pessoa roda com um comando.
+
+Os laboratórios, cada um com a falha que eu provoquei, os números que medi e o que mudou no código:
 
 - [Overselling](labs/overselling.md): cinco estratégias de reserva de estoque sob disputa real, e o que cada uma vende.
 - [Circuit breaker](labs/circuit-breaker.md): o PSP fica lento, o circuito abre, e o checkout responde em milissegundos em vez de travar.
