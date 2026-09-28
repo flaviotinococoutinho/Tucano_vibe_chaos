@@ -19,12 +19,19 @@ final readonly class Config
         public string $service,
         public Environment $environment,
         public Level $logLevel,
+        public string $host,
+        public int $port,
         public int $workers,
+        public int $maxWaitSeconds,
         public string $redisHost,
         public int $redisPort,
+        public int $redisTimeoutMs,
         public FlagsDriver $flagsDriver,
         public string $flagdHost,
         public int $flagdPort,
+        public int $flagsCacheSeconds,
+        public int $flagdTimeoutMs,
+        public int $flagdConnectTimeoutMs,
     ) {}
 
     /** @param array<string, string> $env usually getenv() */
@@ -34,12 +41,20 @@ final readonly class Config
             service: self::text($env, 'APP_NAME', 'tracking'),
             environment: Environment::fromName($env['APP_ENV'] ?? null),
             logLevel: self::logLevel(self::text($env, 'LOG_LEVEL', 'info')),
+            host: self::text($env, 'HOST', '0.0.0.0'),
+            port: self::port($env, 'PORT', 9501),
             workers: self::positiveInteger($env, 'SWOOLE_WORKERS', 2),
+            // On SIGTERM, requests in flight get this long to finish, within Docker's 10 second stop timeout.
+            maxWaitSeconds: self::positiveInteger($env, 'SWOOLE_MAX_WAIT_SECONDS', 5),
             redisHost: self::text($env, 'REDIS_HOST', 'toxiproxy'),
             redisPort: self::port($env, 'REDIS_PORT', 16379),
+            redisTimeoutMs: self::positiveInteger($env, 'REDIS_TIMEOUT_MS', 1000),
             flagsDriver: self::flagsDriver(self::text($env, 'FLAGS_DRIVER', 'flagd')),
             flagdHost: self::text($env, 'FLAGD_HOST', 'toxiproxy'),
             flagdPort: self::port($env, 'FLAGD_PORT', 18013),
+            flagsCacheSeconds: self::positiveInteger($env, 'FLAGS_CACHE_SECONDS', 2),
+            flagdTimeoutMs: self::positiveInteger($env, 'FLAGD_TIMEOUT_MS', 300),
+            flagdConnectTimeoutMs: self::positiveInteger($env, 'FLAGD_CONNECT_TIMEOUT_MS', 200),
         );
     }
 

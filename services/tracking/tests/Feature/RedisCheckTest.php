@@ -64,6 +64,6 @@ final class RedisCheckTest extends TestCase
 
     private static function redis(): RedisCheck
     {
-        return new RedisCheck((string) getenv('REDIS_HOST'), (int) getenv('REDIS_PORT'));
+        return new RedisCheck((string) getenv('REDIS_HOST'), (int) getenv('REDIS_PORT'), 1.0);
     }
 }
