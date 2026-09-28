@@ -17,6 +17,13 @@ export default defineConfig({
         target: BFF_DEV_TARGET,
         changeOrigin: true,
       },
+      // The rel-live link the BFF hands out points here (contracts/tracking/README.md); same
+      // Kong the BFF itself sits behind, with the WebSocket upgrade proxied through too.
+      '/api/tracking': {
+        target: BFF_DEV_TARGET,
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   test: {

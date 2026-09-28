@@ -17,7 +17,7 @@ Cada pasta de `src/` é um módulo com uma única porta de entrada, `index.ts`, 
 | `siren/` | o vocabulário do contrato: os tipos de tela, link, ação e campo, e funções puras para ler e validar `properties` (`readMoney`, `readTone`, `readNotice`) e formatar um instante RFC 3339 para o leitor |
 | `hypermedia/` | o único lugar com efeito colateral: `client.ts` fala com o `fetch`, `history.ts` fala com a History API, `prefix.ts` guarda a única URL fixa do app (`/bff/v1`) e converte entre o caminho do navegador e o endereço do BFF, e `HypermediaProvider` amarra tudo isso a um estado React (`useHypermedia`) que toda tela e todo componente usa para navegar e para enviar ações |
 | `theme/` | os tokens de cor como tabela (`tone.ts`, tom vira estilo de badge) e o hook do tema claro/escuro (`useTheme`) |
-| `components/` | peças de apresentação: `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `ProductCard`, `OrderLine`, `TimelineStep`, os estados de carregando, vazio e erro |
+| `components/` | peças de apresentação: `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `ProductCard`, `OrderLine`, `TimelineStep`, `LiveDelivery`, os estados de carregando, vazio e erro |
 | `screens/` | o registro de telas, o `ScreenRouter` (cabeçalho, aviso, foco, o corpo trocado por baixo) e um componente por classe conhecida, mais o `GenericScreen` de reserva |
 
 `App.tsx` só junta `HypermediaProvider`, o cabeçalho e o `ScreenRouter`. `main.tsx` monta a árvore.
@@ -48,6 +48,15 @@ Toda tela que traz um link `collection` ou `up` ganha o caminho de volta acima d
 
 Uma tela com `"live"` na classe pede para ser buscada de novo pelo link `self`, depois de `properties.refreshAfterSeconds`. O `HypermediaProvider` cuida disso sozinho, para qualquer classe de tela, não só `order`: pausa enquanto a aba está oculta (`document.hidden`), retoma na hora quando ela volta a ficar visível, e anuncia a mudança de `statusLabel` numa região `aria-live="polite"`, sem tirar o foco de onde a pessoa está.
 
+### O entregador ao vivo
+
+Quando a tela de rastreio traz um link `rel-live`, o que o BFF só faz enquanto uma encomenda da frota própria está a caminho da porta, o `LiveDelivery` abre o WebSocket do tracking nesse endereço, resolvido contra a origem da página: `ws:` numa página `http:`, `wss:` numa `https:`, e nenhuma URL escrita no código. O protocolo está em [`contracts/tracking`](../../contracts/tracking/README.md).
+
+- Cada posição move o ponto num mapa desenhado em SVG, com o rastro recente e a distância até a porta ("O entregador está a 1,2 km"). Não há mapa de fundo: nenhum tile de fora passaria pela CSP, e o que importa é a distância e o movimento.
+- Sem posição nova há mais de 30 s, o cartão diz há quanto tempo não há sinal. O `ended` mostra o desfecho e encerra o acompanhamento.
+- Uma queda do WebSocket tenta de novo com uma espera crescente (1, 2, 4, 8 e no máximo 15 s). Enquanto isso, o cartão avisa que a posição ao vivo não está disponível, e a tela continua se atualizando pelo polling de sempre: o ao vivo é um bônus, nunca a única fonte.
+- A região `aria-live` anuncia só o que muda de verdade: cada 500 m a menos, a perda de sinal e o desfecho. O SVG é decorativo, e a animação do ponto obedece a `prefers-reduced-motion`.
+
 ## Acessibilidade
 
 - Landmarks (`header`, `main`) e um link de pular para o conteúdo, visível ao ganhar foco.
@@ -72,12 +81,14 @@ A fonte é a Nunito, self-hosted pelo `@fontsource-variable/nunito`: nenhum requ
 
 ## Testes
 
-Vitest, `@testing-library/react` e `user-event`, ambiente `jsdom`. `test/support/fixtures.ts` lê os oito exemplos reais de `contracts/http/bff/examples` do caminho do repositório, sem copiar o JSON: uma asserção lê o valor esperado do próprio fixture (o título, a mensagem de erro, o `detail` do problema), nunca reescreve o texto à mão, para não descolar quando o BFF mudar um exemplo.
+Vitest, `@testing-library/react` e `user-event`, ambiente `jsdom`. `test/support/fixtures.ts` lê os exemplos reais de `contracts/http/bff/examples` do caminho do repositório, sem copiar o JSON: uma asserção lê o valor esperado do próprio fixture (o título, a mensagem de erro, o `detail` do problema), nunca reescreve o texto à mão, para não descolar quando o BFF mudar um exemplo.
 
 | Teste | O que cobre |
 |---|---|
 | `screens/registry.test.ts` | a classe certa pega o componente certo, e uma classe desconhecida cai no genérico |
-| `screens/examples.test.tsx` | as oito telas de exemplo renderizam, cada uma com seu título como `h1` |
+| `screens/examples.test.tsx` | toda tela de exemplo do contrato renderiza, cada uma com seu título como `h1`, com um WebSocket inerte no lugar do de verdade |
+| `screens/tracking-screen.test.tsx` | o cartão ao vivo aparece só quando a tela oferece o link `rel-live` |
+| `components/live-delivery.test.tsx` | o endereço sai do href com o esquema certo, a posição vira distância, o fim encerra, a queda reconecta com espera crescente, o aviso de sem sinal aos 30 s e o fechamento ao desmontar |
 | `components/action-form.test.tsx` | um formulário nasce dos campos de uma ação, com rótulo, obrigatoriedade e opções de `select` |
 | `screens/place-order.test.tsx` | o POST de `place-order` leva os campos ocultos e os digitados, segue o `Location` de um 201, e um 422 mostra cada mensagem, o resumo e o foco no primeiro campo inválido |
 | `hypermedia/live.test.tsx` | uma tela viva busca de novo o `self` depois do intervalo, e pausa e retoma com a visibilidade da aba |
@@ -99,7 +110,7 @@ cd services/web && npm run dev      # a stack local não tem alvo de dev no Make
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | Biome: formatação, lint e ordem dos imports |
 | `npm run format` | aplica as correções do Biome |
-| `npm run dev` | Vite em modo de desenvolvimento, com proxy de `/bff` para `http://localhost:8000` (o Kong local) |
+| `npm run dev` | Vite em modo de desenvolvimento, com proxy de `/bff` e de `/api/tracking` (com WebSocket) para `http://localhost:8000` (o Kong local) |
 | `npm run build` | build de produção em `dist/` |
 | `npm run preview` | serve o `dist/` para conferir o build antes de publicar |
 

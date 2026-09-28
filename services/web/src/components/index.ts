@@ -7,6 +7,7 @@ export { Header } from './Header.tsx';
 export { Illustration, type IllustrationName } from './Illustration.tsx';
 export { InstantText } from './InstantText.tsx';
 export { Link } from './Link.tsx';
+export { LiveDelivery } from './LiveDelivery.tsx';
 export { LiveRegion } from './LiveRegion.tsx';
 export { Money } from './Money.tsx';
 export { Notice } from './Notice.tsx';
