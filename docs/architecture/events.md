@@ -41,6 +41,9 @@ O schema do envelope está em [`contracts/events/cloudevent.schema.json`](../../
 | `tucano.commerce.order.placed` | [`commerce.order.placed.schema.json`](../../contracts/events/commerce.order.placed.schema.json) |
 | `tucano.commerce.order.paid` | [`commerce.order.paid.schema.json`](../../contracts/events/commerce.order.paid.schema.json) |
 | `tucano.commerce.order.cancelled` | [`commerce.order.cancelled.schema.json`](../../contracts/events/commerce.order.cancelled.schema.json) |
+| `tucano.commerce.order.shipped` | [`commerce.order.shipped.schema.json`](../../contracts/events/commerce.order.shipped.schema.json) |
+| `tucano.commerce.order.delivered` | [`commerce.order.delivered.schema.json`](../../contracts/events/commerce.order.delivered.schema.json) |
+| `tucano.commerce.order.returned` | [`commerce.order.returned.schema.json`](../../contracts/events/commerce.order.returned.schema.json) |
 | `tucano.logistics.shipment.created` | [`logistics.shipment.created.schema.json`](../../contracts/events/logistics.shipment.created.schema.json) |
 | `tucano.logistics.shipment.cancelled` | [`logistics.shipment.cancelled.schema.json`](../../contracts/events/logistics.shipment.cancelled.schema.json) |
 | `tucano.logistics.shipment.ready_for_pickup` | [`logistics.shipment.ready_for_pickup.schema.json`](../../contracts/events/logistics.shipment.ready_for_pickup.schema.json) |

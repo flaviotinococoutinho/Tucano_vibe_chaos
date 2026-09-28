@@ -15,7 +15,7 @@
 
 ## Pré-condições
 
-- O pagamento está `refund_requested` e tem o id da cobrança. Hoje ele chega assim de dois jeitos: a captura depois de o pedido expirar (UC-PAY-02, extensão 5b) e a captura de um pagamento `abandoned` (UC-PAY-03, extensão 4c).
+- O pagamento está `refund_requested` e tem o id da cobrança. Ele chega assim de três jeitos: a captura depois de o pedido expirar (UC-PAY-02, extensão 5b), a captura de um pagamento `abandoned` (UC-PAY-03, extensão 4c) e a devolução da remessa ao CD (UC-ORD-04, extensão 3a).
 
 ## Garantias mínimas
 

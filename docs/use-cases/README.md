@@ -28,7 +28,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-ORD-01](UC-ORD-01-place-order.md) | usuário | Cliente | fazer um pedido | Ordering |
 | UC-ORD-02 | usuário | Cliente | cancelar um pedido | Ordering |
 | [UC-ORD-03](UC-ORD-03-expire-unpaid-orders.md) | subfunção | Relógio | expirar pedidos não pagos | Ordering |
-| UC-ORD-04 | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
+| [UC-ORD-04](UC-ORD-04-follow-shipment.md) | subfunção | Logistics | refletir o andamento da remessa no pedido | Ordering |
 | [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
 | [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
 | [UC-ORD-07](UC-ORD-07-settle-order-payment.md) | subfunção | Payments | registrar o resultado do pagamento no pedido | Ordering |

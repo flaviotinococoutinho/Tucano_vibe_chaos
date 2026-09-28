@@ -9,6 +9,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Conciliação da jornada com a transportadora (UC-SHP-12): o worker `logistics-journey-reconciler` pega a remessa que passa 60 s sem notícia (lease pelo `updated_at` com `SKIP LOCKED` e índice parcial), lê o histórico da coleta na transportadora e aplica em ordem os passos que faltam, pelos mesmos casos de uso do webhook.
 - `GET /carriers/v1/pickups/{id}/events` na CarrierFake: o histórico de rastreio, com os eventos cujo webhook o caos derrubou.
 - Laboratório dos webhooks perdidos, com a leva de 12 pedidos que travou 10 remessas e a conciliação que recuperou todas.
+- O pedido acompanha a remessa (UC-ORD-04): o consumer group `commerce.shipment-sync` lê `logistics.shipments.v2`, e a coleta leva o pedido para `shipped`, a entrega para `delivered` e a devolução para `returned`, com `order.shipped`, `order.delivered` e `order.returned` na outbox e contrato em JSON Schema. Na devolução, o pagamento capturado fica `refund_requested` na mesma transação, e a conciliação manda o estorno ao PSP.
 
 ### Changed
 
