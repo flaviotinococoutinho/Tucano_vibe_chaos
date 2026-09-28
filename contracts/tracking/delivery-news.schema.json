@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/tracking/delivery-news.schema.json",
+  "title": "Delivery news",
+  "description": "What the courier's device reports to tracking, and what tracking pushes to the followers of a tracking code.",
+  "oneOf": [
+    {
+      "title": "Position",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "trackingCode", "latitude", "longitude", "at", "remainingMeters"],
+      "properties": {
+        "type": { "const": "position" },
+        "trackingCode": { "$ref": "#/$defs/trackingCode" },
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+        "at": { "$ref": "#/$defs/at" },
+        "remainingMeters": { "type": "integer", "minimum": 0 }
+      }
+    },
+    {
+      "title": "Ended",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "trackingCode", "outcome", "at"],
+      "properties": {
+        "type": { "const": "ended" },
+        "trackingCode": { "$ref": "#/$defs/trackingCode" },
+        "outcome": { "enum": ["delivered", "delivery_failed"] },
+        "at": { "$ref": "#/$defs/at" }
+      }
+    }
+  ],
+  "$defs": {
+    "trackingCode": {
+      "description": "TX and 13 characters of Crockford's Base32, which leaves out I, L, O and U.",
+      "type": "string",
+      "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$"
+    },
+    "at": { "type": "string", "format": "date-time" }
+  }
+}
