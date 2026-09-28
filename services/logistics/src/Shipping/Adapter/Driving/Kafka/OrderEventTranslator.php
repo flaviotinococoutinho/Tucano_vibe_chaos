@@ -25,22 +25,18 @@ final readonly class OrderEventTranslator
 {
     private const string UNPAID = 'pending_payment';
 
-    /** Carries the shipping address as it was before ADR 0020, until it drains. */
-    private const string LEGACY_TOPIC = 'commerce.orders.v1';
-
     private function __construct() {}
 
-    public static function paidOrder(CloudEvent $event, string $topic): PaidOrder
+    public static function paidOrder(CloudEvent $event): PaidOrder
     {
         $data = new EventFields($event->data);
         $customer = $data->object('customer');
-        $address = $data->object('shippingAddress');
 
         return new PaidOrder(
             $event->id,
             OrderId::fromString($data->text('orderId')),
             Recipient::of($customer->text('name'), $customer->text('email')),
-            $topic === self::LEGACY_TOPIC ? LegacyShippingAddress::read($address) : Address::fromArray($address->toArray()),
+            Address::fromArray($data->object('shippingAddress')->toArray()),
             FulfillmentCenterCode::of($data->text('fulfillmentCenter')),
             array_map(
                 static fn(EventFields $line): OrderLine => new OrderLine(Sku::of($line->text('sku')), Quantity::of($line->integer('quantity'))),

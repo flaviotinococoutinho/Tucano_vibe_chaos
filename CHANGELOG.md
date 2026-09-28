@@ -20,6 +20,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Tópicos `commerce.orders.v2` e `logistics.shipments.v2`, como pede a ADR 0010: o `order.paid` leva o endereço novo, e o `shipment.created` leva o destino até o município. Os consumidores leem `.v1` e `.v2` até o `.v1` esvaziar, e o `order.paid` do `.v1` passa pelo `LegacyShippingAddress`.
 - Os value objects dos domínios nascem por construtores nomeados, como mandam as convenções: `Customer::of`, `OrderNumber::fromSnowflake`, `TrackingCode::fromSnowflake`, `ShipmentReference::of`, `Parcel::of`, `StatusTransition::initial` e `between` e `Dimensions::ofMillimetres` no lugar de `new`, e `Money` e `Dimensions` saem por `toArray()`.
 
+### Removed
+
+- A leitura dos tópicos `commerce.orders.v1` e `logistics.shipments.v1`, o `LegacyShippingAddress` e os schemas congelados do `.v1`, depois que o lag dos três consumer groups que liam o `.v1` zerou. O script do Kafka não cria mais os tópicos antigos.
+
 ### Fixed
 
 - Os jobs que esgotam as tentativas agora ficam no `failed_jobs` do PostgreSQL. O `config/queue.php` apontava para um SQLite que não existe, e o job que falhava sumia sem rastro.

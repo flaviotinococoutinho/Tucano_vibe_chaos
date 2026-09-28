@@ -7,10 +7,9 @@ namespace Tests\Fixtures;
 use Tucano\Messaging\Kafka\ReceivedMessage;
 
 /**
- * Order events as Commerce publishes them on commerce.orders.v2, plus the
- * address of v1 for the events still on that topic. The contract test keeps
- * these fixtures in the shape of contracts/events/commerce.order.*, so the
- * handler is tested against what Commerce really sends.
+ * Order events as Commerce publishes them on commerce.orders.v2. The contract
+ * test keeps these fixtures in the shape of contracts/events/commerce.order.*,
+ * so the handler is tested against what Commerce really sends.
  */
 final class OrderEvents
 {
@@ -75,20 +74,6 @@ final class OrderEvents
         ];
     }
 
-    /**
-     * The address as commerce.orders.v1 carries it: the street with the type
-     * inside it and the district that was really the neighborhood.
-     *
-     * @return array<string, string|float|null>
-     */
-    public static function legacyAddress(): array
-    {
-        return [
-            'street' => 'Av. Paulista', 'number' => '1000', 'complement' => 'Apto 12', 'district' => 'Bela Vista',
-            'city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310100', 'latitude' => -23.561414, 'longitude' => -46.655881,
-        ];
-    }
-
     /** @param array<string, mixed> $data fields to change in the data of the event */
     public static function cancelled(array $data = [], string $eventId = self::CANCELLED_EVENT): string
     {
@@ -116,9 +101,9 @@ final class OrderEvents
         ]);
     }
 
-    public static function message(string $payload, int $offset = 7, string $topic = 'commerce.orders.v2'): ReceivedMessage
+    public static function message(string $payload, int $offset = 7): ReceivedMessage
     {
-        return new ReceivedMessage($topic, 2, $offset, self::ORDER, $payload);
+        return new ReceivedMessage('commerce.orders.v2', 2, $offset, self::ORDER, $payload);
     }
 
     /** @param array<string, mixed> $data */

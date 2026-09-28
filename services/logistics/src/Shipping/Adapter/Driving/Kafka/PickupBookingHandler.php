@@ -18,7 +18,7 @@ use Tucano\SharedKernel\Domain\ErrorCategory;
 use Tucano\SharedKernel\Messaging\EventFields;
 
 /**
- * Reads logistics.shipments.v1 and v2 for the consumer group logistics.pickup-bookings:
+ * Reads logistics.shipments.v2 for the consumer group logistics.pickup-bookings:
  * a shipment with its label ready asks its carrier to come. A carrier that does
  * not answer is retried (the partition waits for it); a refusal goes to the dead
  * letter topic, with a warning, because a person has to look at it.
