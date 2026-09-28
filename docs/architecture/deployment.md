@@ -73,6 +73,8 @@ Compilar essas extensões leva uns 5 minutos por versão. Com a base separada, i
 
 Na frente dos apps FPM fica um nginx só, com uma porta por app (`8081` catalog, `8082` commerce, `8083` logistics). Ele não tem o código: todo request vai para o `public/index.php` do app via FastCGI. O `fastcgi_pass` usa variável e o resolver do Docker (`127.0.0.11`), porque com o nome fixo o nginx nem sobe quando um app está fora e ainda guarda o IP antigo depois de um restart. Com a variável, ele responde 502 enquanto o app está fora e volta sozinho quando o container sobe de novo.
 
+O Kong tem o mesmo problema com outra cara. Ele guarda o IP de cada serviço pelo TTL da resposta DNS, e o DNS do Docker responde com 600 s. Um serviço recriado pelo compose ganha um IP novo, e o Kong continua mandando para o antigo por até dez minutos: 502 em toda chamada. Achei isso quando o setup com Ansible rodou duas vezes seguidas no CI e o tracking, recriado na segunda, sumiu atrás do gateway. O `KONG_DNS_VALID_TTL` em 5 s faz o Kong perguntar de novo a cada 5 s. O custo é uma consulta DNS a mais por serviço nesse intervalo, e dentro da rede do Docker isso é nada.
+
 O FPM roda com `pm.max_children = 6`: cada processo filho atende um request por vez (shared-nothing), então isso é o teto de concorrência e também de memória por container.
 
 ## Toxiproxy no meio do caminho

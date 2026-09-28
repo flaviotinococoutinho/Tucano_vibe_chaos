@@ -6,7 +6,7 @@
   changed_when: false
 
 # make up builds the PHP base images first (slow only the first time), then the services,
-# starts everything and waits for the health checks: compose up --build --wait.
+# and then starts what changed and waits for the health checks (compose build, then up --wait).
 - name: Build and start the stack, and wait until it is healthy
   ansible.builtin.command:
     argv: [make, up]

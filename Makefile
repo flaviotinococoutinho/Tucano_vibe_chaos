@@ -32,7 +32,10 @@ base: ## Build the PHP base images (8.3 and 8.4); cached after the first run
 	done
 
 up: base ## Start the stack and wait until it is healthy (APP_ENV=local|staging|production)
-	$(COMPOSE) up -d --build --wait
+	@# Build first, then up without --build: up --build labels each container with the digest the
+	@# build returns, which changes on every build even from cache, and recreates every service.
+	$(COMPOSE) build
+	$(COMPOSE) up -d --wait
 
 down: ## Stop the stack, keeping the data
 	$(COMPOSE) --profile tools down

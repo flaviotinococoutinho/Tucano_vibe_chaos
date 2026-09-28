@@ -25,11 +25,27 @@ jobs:
       - name: Prepare the machine and bring the stack up
         working-directory: infra/ansible
         run: ansible-playbook playbooks/setup.yml
+      # What compose records on each container: the hash of its config and the image it runs.
+      - name: Remember what the first run left running
+        run: |
+          docker ps -a --format '{{.Names}}' | sort | xargs docker inspect --format \
+            '{{.Name}} {{.Id}} {{index .Config.Labels "com.docker.compose.config-hash"}} {{.Image}}' > "$RUNNER_TEMP/first.txt"
       - name: A second run changes nothing and the stack is still healthy
         working-directory: infra/ansible
         run: |
-          ansible-playbook playbooks/setup.yml | tee second-run.txt
-          grep -Eq 'changed=0 ' second-run.txt
+          ansible-playbook playbooks/setup.yml | tee "$RUNNER_TEMP/second-run.txt"
+          grep -Eq 'changed=0 ' "$RUNNER_TEMP/second-run.txt"
+      - name: What the second run recreated, and why
+        if: always()
+        run: |
+          docker version --format 'engine {{.Server.Version}}, compose '"$(docker compose version --short)"
+          docker info --format 'storage {{.Driver}}, image store {{range .DriverStatus}}{{.}} {{end}}'
+          docker ps -a --format '{{.Names}}' | sort | xargs docker inspect --format \
+            '{{.Name}} {{.Id}} {{index .Config.Labels "com.docker.compose.config-hash"}} {{.Image}}' > "$RUNNER_TEMP/second.txt"
+          # Same container id: kept. Other id with the same config hash and image: recreated for another reason.
+          join <(sort "$RUNNER_TEMP/first.txt") <(sort "$RUNNER_TEMP/second.txt") | awk '
+            $2 == $5 { next }
+            { print $1, ($3 != $6 ? "config changed" : "same config"), ($4 != $7 ? "image changed" : "same image") }'
       - name: Containers
         if: always()
         run: docker compose ps -a
