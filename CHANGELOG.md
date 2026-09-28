@@ -4,12 +4,12 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-28
+
 ### Added
 
 - O guia do projeto (`docs/guia`), em oito capítulos curtos: a jornada de um pedido e os casos de uso, as stacks e as ferramentas transversais, a natureza da informação, o playground do caos, as abstrações que seguram a entropia, um catálogo de conceitos com ganho, custo e possibilidade de cada um (de Brooks, Parnas e Dijkstra a Fielding, Helland e Nygard), os padrões e RFCs, e o roteiro para apresentar o projeto. O README foi reescrito a partir dele, com as telas da loja.
-
 - A web da Tucano (`services/web`), em React 19 e TypeScript com Vite: um intérprete das telas Siren do BFF, sem nenhuma URL montada à mão além do prefixo `/bff/v1`. Um registro liga cada classe de tela a um componente, e uma classe nova funciona pelo `GenericScreen` antes de ganhar o seu. Tem tela viva (pausa com a aba escondida), formulários que mostram cada erro do servidor ao lado do campo, o caminho de volta pelos links `collection` e `up`, foco e anúncios para leitor de tela, tema claro e escuro com os tokens da identidade e o banner da marca na home. O nginx serve com CSP, `nosniff` e cache imutável para os arquivos com hash, e o Kong a publica em `/`.
-
 - Dado sensível passa por um proxy (ADR 0024): o `Sensitive` do shared kernel guarda nome, e-mail, documento e token de cartão e se imprime mascarado (`A*** S***`, `a***@example.com`, `***09`, `tok_***`) em log, erro, dump e JSON; o valor sai só pelo `reveal()`, e a `serialize()` o recusa. O `DataCategory` é o enum rico das categorias, que sabem se mascarar e a que regra respondem (LGPD ou PCI DSS). No commerce, `PersonName`, `EmailAddress` e `CardToken` usam o proxy; na logistics, `Recipient` e `ProofOfDelivery`. A fitness function `SensitiveDataLeavesOnPurposeTest` falha quando um `reveal()` aparece fora dos adapters, dos eventos e das exceções com motivo escrito.
 - O pedido guarda o código de rastreio da remessa (`orders.tracking_code`, `CHAR(15)`), aprendido na coleta (UC-ORD-04), e a consulta do pedido devolve `trackingCode`, `null` até a coleta (UC-ORD-05). É o que deixa a web ir do pedido direto ao rastreio. Dois `CHECK`s guardam a regra no banco: o formato, e só pedido que saiu tem código.
 - O pedido cancelado guarda o motivo (`orders.cancellation_reason`), e a consulta devolve `cancellationReason`. A migration copia o motivo do histórico para os pedidos que já estavam cancelados, e o banco cobra a regra nos dois sentidos: todo cancelado tem motivo, e só cancelado tem.
@@ -184,7 +184,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.7.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.8.0...develop
+[0.8.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...v0.5.0
