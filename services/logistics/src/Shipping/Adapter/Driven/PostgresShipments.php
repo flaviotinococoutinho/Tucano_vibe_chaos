@@ -145,7 +145,7 @@ final readonly class PostgresShipments implements ForStoringShipments
         $id = ShipmentId::fromString((string) $row->id);
 
         return new ShipmentSnapshot(
-            new ShipmentReference($id, new TrackingCode(Snowflake::fromInt((int) $row->tracking_code)), OrderId::fromString((string) $row->order_id)),
+            ShipmentReference::of($id, TrackingCode::fromSnowflake(Snowflake::fromInt((int) $row->tracking_code)), OrderId::fromString((string) $row->order_id)),
             CarrierCode::of((string) $row->carrier_code),
             FulfillmentCenterCode::of((string) $row->origin),
             Recipient::of((string) $row->recipient_name, (string) $row->recipient_email),
@@ -173,7 +173,7 @@ final readonly class PostgresShipments implements ForStoringShipments
     {
         $rows = $this->connection->table('parcels')->where('shipment_id', $shipment->toString())->orderBy('parcel_number')->get();
 
-        return Parcels::of(...$rows->map(static fn(stdClass $row): Parcel => new Parcel(
+        return Parcels::of(...$rows->map(static fn(stdClass $row): Parcel => Parcel::of(
             Weight::ofGrams((int) $row->weight_grams),
             Dimensions::ofMillimetres((int) $row->length_mm, (int) $row->width_mm, (int) $row->height_mm),
         ))->all());

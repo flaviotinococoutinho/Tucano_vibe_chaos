@@ -34,7 +34,7 @@ final class ShippingValuesTest extends TestCase
     public function the_tracking_code_is_the_snowflake_in_crockford_base32(): void
     {
         // The example of docs/architecture/identifiers.md.
-        $code = new TrackingCode(Snowflake::fromInt(97663548934766595));
+        $code = TrackingCode::fromSnowflake(Snowflake::fromInt(97663548934766595));
 
         self::assertSame('TX02PQRFBTW5G03', (string) $code);
         self::assertSame(15, strlen((string) $code));

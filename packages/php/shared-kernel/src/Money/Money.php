@@ -68,9 +68,15 @@ final readonly class Money implements JsonSerializable
     }
 
     /** @return array{amount: int, currency: string} */
-    public function jsonSerialize(): array
+    public function toArray(): array
     {
         return ['amount' => $this->cents, 'currency' => $this->currency->code()];
+    }
+
+    /** @return array{amount: int, currency: string} */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     private function assertSameCurrency(self $other): void

@@ -10,7 +10,12 @@ use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 /** Public, time-ordered order number (a Snowflake shown in decimal, like a tweet id). */
 final readonly class OrderNumber implements Stringable
 {
-    public function __construct(public Snowflake $snowflake) {}
+    private function __construct(public Snowflake $snowflake) {}
+
+    public static function fromSnowflake(Snowflake $snowflake): self
+    {
+        return new self($snowflake);
+    }
 
     public static function fromString(string $decimal): self
     {

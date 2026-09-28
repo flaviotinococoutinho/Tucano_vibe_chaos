@@ -164,7 +164,7 @@ final readonly class ProductController
     /** @param DimensionsInput $dimensions */
     private static function dimensions(array $dimensions): Dimensions
     {
-        return new Dimensions((int) $dimensions['lengthMm'], (int) $dimensions['widthMm'], (int) $dimensions['heightMm']);
+        return Dimensions::ofMillimetres((int) $dimensions['lengthMm'], (int) $dimensions['widthMm'], (int) $dimensions['heightMm']);
     }
 
     /** @param array<string, string> $headers */

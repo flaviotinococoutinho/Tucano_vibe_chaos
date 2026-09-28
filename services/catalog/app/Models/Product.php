@@ -118,7 +118,7 @@ final readonly class Product implements JsonSerializable
             $record['category'],
             Money::of($record['price']['amount'], Currency::fromCode($record['price']['currency'])),
             $record['weightGrams'],
-            new Dimensions($dimensions['lengthMm'], $dimensions['widthMm'], $dimensions['heightMm']),
+            Dimensions::fromArray($dimensions),
             $record['version'],
             new DateTimeImmutable($record['updatedAt']),
         );
@@ -133,9 +133,9 @@ final readonly class Product implements JsonSerializable
             'name' => $this->name,
             'status' => $this->status->value,
             'category' => $this->category,
-            'price' => $this->price->jsonSerialize(),
+            'price' => $this->price->toArray(),
             'weightGrams' => $this->weightGrams,
-            'dimensions' => $this->dimensions->jsonSerialize(),
+            'dimensions' => $this->dimensions->toArray(),
             'version' => $this->version,
             'updatedAt' => $this->updatedAt->setTimezone(new DateTimeZone('UTC'))->format(self::TIME_FORMAT),
         ];

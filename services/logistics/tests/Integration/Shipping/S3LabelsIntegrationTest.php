@@ -27,7 +27,7 @@ final class S3LabelsIntegrationTest extends TestCase
     {
         $s3 = self::s3();
         $labels = new S3Labels($s3, self::BUCKET, new InMemoryFlags(['chaos.logistics.label-failure-rate' => 0.0]), static fn(): float => 0.5);
-        $trackingCode = new TrackingCode(Snowflake::compose((int) (microtime(true) * 1000), new NodeId(1, 12), 0));
+        $trackingCode = TrackingCode::fromSnowflake(Snowflake::compose((int) (microtime(true) * 1000), new NodeId(1, 12), 0));
 
         $label = $labels->store($trackingCode, new LabelDocument("^XA^CI28^FDSão Paulo^FS^XZ\n", 'zpl', 'text/plain; charset=utf-8'));
         $object = $s3->getObject(['Bucket' => self::BUCKET, 'Key' => $label->objectKey]);

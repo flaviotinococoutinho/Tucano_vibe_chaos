@@ -140,8 +140,8 @@ final readonly class PostgresOrders implements ForStoringOrders
 
         return Order::fromSnapshot(new OrderSnapshot(
             $id,
-            new OrderNumber(Snowflake::fromInt((int) $row->order_number)),
-            new Customer(
+            OrderNumber::fromSnowflake(Snowflake::fromInt((int) $row->order_number)),
+            Customer::of(
                 CustomerId::fromString((string) $row->customer_id),
                 PersonName::of((string) $row->customer_name),
                 EmailAddress::of((string) $row->customer_email),

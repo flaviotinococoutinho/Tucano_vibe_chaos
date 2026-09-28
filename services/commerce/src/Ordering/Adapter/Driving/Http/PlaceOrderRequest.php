@@ -65,7 +65,7 @@ final class PlaceOrderRequest extends FormRequest
 
         return new PlaceOrderCommand(
             IdempotencyKey::of((string) $this->header('Idempotency-Key')),
-            new Customer(
+            Customer::of(
                 CustomerId::fromString($data['customer']['id']),
                 PersonName::of($data['customer']['name']),
                 EmailAddress::of($data['customer']['email']),

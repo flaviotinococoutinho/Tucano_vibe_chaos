@@ -52,7 +52,7 @@ final class Order extends AggregateRoot
         DateTimeImmutable $reservationExpiresAt,
     ): self {
         $order = new self($id, $number, $customer, $address, $lines, $fulfillmentCenter, $placedAt, $reservationExpiresAt, OrderStatus::PendingPayment, 1);
-        $order->transitions[] = new StatusTransition(null, OrderStatus::PendingPayment, $placedAt);
+        $order->transitions[] = StatusTransition::initial(OrderStatus::PendingPayment, $placedAt);
         $order->recordThat(new OrderPlaced($id, $number, $customer->id, $lines, $fulfillmentCenter, $reservationExpiresAt, $placedAt));
 
         return $order;
@@ -155,7 +155,7 @@ final class Order extends AggregateRoot
         if (!$this->status->canMoveTo($target)) {
             throw OrderTransitionNotAllowed::from($this->status, $target);
         }
-        $this->transitions[] = new StatusTransition($this->status, $target, $at, $reason);
+        $this->transitions[] = StatusTransition::between($this->status, $target, $at, $reason);
         $this->status = $target;
         $this->version++;
     }

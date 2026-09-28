@@ -20,7 +20,7 @@ final class OrderTransitionsTest extends TestCase
         $order = OrderBuilder::anOrder()->placedAt('2026-09-27T12:00:00Z')->place();
 
         self::assertEquals(
-            [new StatusTransition(null, OrderStatus::PendingPayment, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
+            [StatusTransition::initial(OrderStatus::PendingPayment, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
             $order->releaseTransitions(),
         );
     }
@@ -34,7 +34,7 @@ final class OrderTransitionsTest extends TestCase
         $order->cancel(CancellationReason::ReservationExpired, new DateTimeImmutable('2026-09-27T12:16:00Z'));
 
         self::assertEquals(
-            [new StatusTransition(OrderStatus::PendingPayment, OrderStatus::Cancelled, new DateTimeImmutable('2026-09-27T12:16:00Z'), 'reservation_expired')],
+            [StatusTransition::between(OrderStatus::PendingPayment, OrderStatus::Cancelled, new DateTimeImmutable('2026-09-27T12:16:00Z'), 'reservation_expired')],
             $order->releaseTransitions(),
         );
     }

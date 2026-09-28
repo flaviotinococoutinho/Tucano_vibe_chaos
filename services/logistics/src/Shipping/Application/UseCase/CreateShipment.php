@@ -68,7 +68,7 @@ final readonly class CreateShipment implements ForCreatingShipments
     {
         $parcels = $this->parcelsOf($order->lines);
         $carrier = $this->carriers->choose($order->origin, $order->destination, $parcels);
-        $reference = new ShipmentReference(ShipmentId::generate(), $this->trackingCodes->next(), $order->orderId);
+        $reference = ShipmentReference::of(ShipmentId::generate(), $this->trackingCodes->next(), $order->orderId);
 
         $shipment = Shipment::create($reference, $carrier, $order->origin, $order->recipient, $order->destination, $parcels, $this->clock->now());
         $this->shipments->add($shipment);

@@ -28,7 +28,7 @@ final class ProductTest extends TestCase
     #[Test]
     public function a_new_product_is_a_draft_at_version_one(): void
     {
-        $input = new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, new Dimensions(235, 180, 30));
+        $input = new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30));
 
         $product = Product::draft($input, $this->now);
 
@@ -73,7 +73,7 @@ final class ProductTest extends TestCase
         self::assertTrue($book->revised(new ProductChanges(name: 'Domain-Driven Design'), $this->now)->sameStateAs($book));
         self::assertTrue($book->revised(new ProductChanges(), $this->now)->sameStateAs($book));
         self::assertFalse($book->revised(new ProductChanges(weightGrams: 1200), $this->now)->sameStateAs($book));
-        self::assertFalse($book->revised(new ProductChanges(dimensions: new Dimensions(240, 170, 45)), $this->now)->sameStateAs($book));
+        self::assertFalse($book->revised(new ProductChanges(dimensions: Dimensions::ofMillimetres(240, 170, 45)), $this->now)->sameStateAs($book));
         self::assertFalse($book->movedTo(ProductStatus::Discontinued, $this->now)->sameStateAs($book));
     }
 

@@ -18,7 +18,7 @@ final readonly class PaymentDetails
             'paymentId' => $payment->id->toString(),
             'orderId' => $payment->orderId,
             'status' => $payment->status->value,
-            'amount' => $payment->amount->jsonSerialize(),
+            'amount' => $payment->amount->toArray(),
         ]);
     }
 

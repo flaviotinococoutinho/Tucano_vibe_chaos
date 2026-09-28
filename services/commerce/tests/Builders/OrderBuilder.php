@@ -67,8 +67,8 @@ final class OrderBuilder
     {
         return Order::place(
             OrderId::generate(),
-            new OrderNumber(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), self::$sequence++ % 4096)),
-            new Customer(CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
+            OrderNumber::fromSnowflake(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), self::$sequence++ % 4096)),
+            Customer::of(CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
             Addresses::paulista(),
             OrderLines::of(...$this->lines),
             FulfillmentCenterCode::of('GRU1'),

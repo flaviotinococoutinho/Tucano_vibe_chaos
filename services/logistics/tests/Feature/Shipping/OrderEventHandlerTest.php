@@ -163,7 +163,7 @@ final class OrderEventHandlerTest extends TestCase
     #[Test]
     public function a_shipment_that_left_the_warehouse_goes_to_a_person_with_a_warning(): void
     {
-        $refusal = TransitionNotAllowed::for(new TrackingCode(Snowflake::fromInt(97663548934766595)), ShipmentStatus::PickedUp, ShipmentStatus::Cancelled);
+        $refusal = TransitionNotAllowed::for(TrackingCode::fromSnowflake(Snowflake::fromInt(97663548934766595)), ShipmentStatus::PickedUp, ShipmentStatus::Cancelled);
         $this->shipments->refuseWith($refusal);
 
         try {
