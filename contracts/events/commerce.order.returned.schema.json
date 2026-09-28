@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/commerce.order.returned.schema.json",
+  "title": "tucano.commerce.order.returned",
+  "description": "The data of an OrderReturned event: the parcels came back to the fulfillment center (logistics.shipment.returned), and the payment is on its way back to the customer. The time is the CloudEvent time.",
+  "type": "object",
+  "required": ["orderId", "orderNumber"],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "orderNumber": { "type": "string", "pattern": "^[0-9]{1,19}$" }
+  },
+  "additionalProperties": false
+}

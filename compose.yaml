@@ -482,6 +482,18 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  # UC-ORD-04: the order follows its shipment from logistics.shipments.v2.
+  commerce-shipment-sync:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:sync-shipments"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    mem_limit: 128m
+
   commerce-order-expiry:
     <<: [*service, *commerce]
     command: ["php", "artisan", "commerce:expire-orders"]

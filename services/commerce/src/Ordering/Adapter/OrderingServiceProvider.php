@@ -6,24 +6,29 @@ namespace Commerce\Ordering\Adapter;
 
 use Commerce\Inventory\Adapter\Driving\Http\ChooseReservationStrategy;
 use Commerce\Ordering\Adapter\Driven\InventoryStockReservations;
+use Commerce\Ordering\Adapter\Driven\PaymentsRefunds;
 use Commerce\Ordering\Adapter\Driven\PostgresCatalogSnapshots;
 use Commerce\Ordering\Adapter\Driven\PostgresOrders;
 use Commerce\Ordering\Adapter\Driven\SnowflakeOrderNumbers;
 use Commerce\Ordering\Adapter\Driving\Console\ExpireOrdersWorker;
 use Commerce\Ordering\Adapter\Driving\Console\SyncCatalog;
+use Commerce\Ordering\Adapter\Driving\Console\SyncShipments;
 use Commerce\Ordering\Adapter\Driving\Http\PlaceOrderController;
 use Commerce\Ordering\Adapter\Driving\Http\ViewOrderController;
 use Commerce\Ordering\Application\Port\Driven\ForFindingProducts;
 use Commerce\Ordering\Application\Port\Driven\ForNumberingOrders;
+use Commerce\Ordering\Application\Port\Driven\ForRefundingOrders;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
 use Commerce\Ordering\Application\Port\Driven\ForStoringCatalogCopies;
 use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
 use Commerce\Ordering\Application\Port\Driving\ForExpiringOrders;
+use Commerce\Ordering\Application\Port\Driving\ForFollowingShipments;
 use Commerce\Ordering\Application\Port\Driving\ForPlacingOrders;
 use Commerce\Ordering\Application\Port\Driving\ForSettlingOrderPayments;
 use Commerce\Ordering\Application\Port\Driving\ForSyncingCatalog;
 use Commerce\Ordering\Application\Port\Driving\ForViewingOrders;
 use Commerce\Ordering\Application\UseCase\ExpireOrders;
+use Commerce\Ordering\Application\UseCase\FollowShipment;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
 use Commerce\Ordering\Application\UseCase\SettleOrderPayment;
 use Commerce\Ordering\Application\UseCase\SyncCatalogProduct;
@@ -39,6 +44,8 @@ final class OrderingServiceProvider extends ServiceProvider
     /** @var array<class-string, class-string> */
     public array $bindings = [
         ForPlacingOrders::class => PlaceOrder::class,
+        ForFollowingShipments::class => FollowShipment::class,
+        ForRefundingOrders::class => PaymentsRefunds::class,
         ForViewingOrders::class => ViewOrder::class,
         ForSyncingCatalog::class => SyncCatalogProduct::class,
         ForExpiringOrders::class => ExpireOrders::class,
@@ -60,7 +67,7 @@ final class OrderingServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
-        $this->commands([SyncCatalog::class, ExpireOrdersWorker::class]);
+        $this->commands([SyncCatalog::class, ExpireOrdersWorker::class, SyncShipments::class]);
         $router->middleware('api')->group(static function (Router $router): void {
             $router->post('/v1/orders', PlaceOrderController::class)->middleware([RequireIdempotencyKey::class, ChooseReservationStrategy::class]);
             $router->get('/v1/orders/{orderId}', ViewOrderController::class);
