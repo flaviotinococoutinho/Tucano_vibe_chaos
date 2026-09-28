@@ -3,7 +3,7 @@
 # array, so each CI job can skip itself when its area is untouched.
 set -euo pipefail
 
-ALL_AREAS="docs compose contracts shared-kernel feature-flags messaging read-models catalog commerce logistics tracking bff partners-sim web"
+ALL_AREAS="docs compose ansible contracts shared-kernel feature-flags messaging read-models catalog commerce logistics tracking bff partners-sim web"
 PHP_AREAS="shared-kernel feature-flags messaging read-models catalog commerce logistics tracking"
 
 changed_files() {
@@ -21,8 +21,14 @@ area_of() {
     .github/*|scripts/ci/*)         echo "$ALL_AREAS" ;;
     packages/php/*)                 echo "$PHP_AREAS" ;;
     contracts/*)                    echo "contracts catalog commerce logistics bff partners-sim" ;;
+    # A variable read or dropped in a config file must still agree with compose and the reference.
+    services/*/config/*|services/*/src/config.ts|services/tracking/src/Platform/Config.php)
+                                    echo "compose $(echo "$1" | cut -d/ -f2)" ;;
     services/*)                     echo "$1" | cut -d/ -f2 ;;
+    scripts/*)                      echo "compose" ;;
+    docs/operations/configuration.md) echo "compose docs" ;;
     infra/flags/*)                  echo "compose feature-flags" ;;
+    infra/ansible/*)                echo "ansible" ;;
     compose*.yaml|infra/*|Makefile) echo "compose" ;;
     docs/*|*.md)                    echo "docs" ;;
   esac

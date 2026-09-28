@@ -10,6 +10,7 @@ A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois
 |---|---|
 | `src/Shipping` | a remessa e a máquina de estados inteira, a cópia local do catálogo (peso e dimensões) e o consumidor dos eventos de pedido |
 | `src/CarrierSelection` | a corrente de regras que escolhe a transportadora |
+| `src/Timeline` | o lado de leitura das remessas: a linha do tempo no MongoDB e a página pública de rastreio no DynamoDB, alimentadas pelos eventos ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
 | `src/Shared` | os ports que todos os pacotes usam: transação, inbox, outbox e o relay |
 | `app/` | cola com o Laravel: health checks, correlation id, problem details e o provider de plataforma |
 | `config/platform.php` | flags, Snowflake (worker 11) e nome do serviço |
@@ -112,6 +113,8 @@ O código é um Snowflake do `SnowflakeGenerator`, guardado em `BIGINT` e mostra
 |---|---|---|
 | `GET /health/live` | `/api/logistics/health/live` | o processo está de pé |
 | `GET /health/ready` | `/api/logistics/health/ready` | PostgreSQL e Redis respondem, com a latência de cada um |
+| `POST /v1/webhooks/carriers` | `/api/logistics/v1/webhooks/carriers` | os eventos assinados das transportadoras ([UC-SHP-04 a 08](../../docs/use-cases/README.md)) |
+| `GET /v1/tracking/{código}` | `/api/logistics/v1/tracking/{código}` | a página pública de rastreio, lida por chave no DynamoDB ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
 
 Erros saem como `application/problem+json` (RFC 9457), no mesmo formato do commerce.
 
@@ -126,7 +129,9 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v2`; roda com `SNOWFLAKE_WORKER_ID=12` |
 | `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v2` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
+| `logistics-timeline-projector` | `php artisan logistics:project-timelines` | leva cada evento de `logistics.shipments.v2` para a linha do tempo no MongoDB e para a página de rastreio no DynamoDB ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
 | `logistics-journey-reconciler` | `php artisan logistics:reconcile-journeys` | compara com o histórico da transportadora cada remessa que passa 60 s sem notícia e aplica os passos que faltam ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)) |
+| `logistics-stalled-journeys-watch` | `php artisan logistics:watch-stalled-journeys` | a cada 15 min, lê as remessas com a transportadora e sem passo há mais de uma hora e manda o alerta, no log e por e-mail ([UC-SHP-13](../../docs/use-cases/UC-SHP-13-watch-stalled-journeys.md)) |
 | `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
 
 ## A etiqueta
@@ -170,7 +175,42 @@ Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierF
 - A transportadora manda os eventos de uma remessa um de cada vez. Um evento que chega antes da vez dele (porque o anterior se perdeu ou atrasou) recebe `409`, e a transportadora reenvia depois.
 - Quem recebeu a encomenda fica em `delivery_attempts`; os eventos publicados não levam o nome nem o documento.
 - Um webhook perdido trava a jornada até o `logistics-journey-reconciler` passar: depois de 60 s sem notícia, ele lê o histórico da transportadora e aplica, em ordem, os passos que faltam, pelos mesmos casos de uso do webhook ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)). O webhook e o histórico chegam no mesmo JSON, e o `CarrierFakeEvents` traduz os dois para `CarrierEvent`.
+- O que nem a conciliação resolve vira alerta. O `logistics-stalled-journeys-watch` faz uma leitura analítica, só de leitura e com timeout próprio, das remessas com a transportadora e sem passo há mais de uma hora, e manda a lista com o motivo de cada uma, pela última resposta da conciliação ([UC-SHP-13](../../docs/use-cases/UC-SHP-13-watch-stalled-journeys.md)). O e-mail cai no Mailpit (`http://localhost:8025`), e `make stalled` roda uma rodada na hora.
 - Um hub scan que chega depois da saída para entrega é notícia velha: a máquina pode pular hubs, então ele vira `obsolete`, fica marcado na inbox e não move nada. O [laboratório dos webhooks perdidos](../../docs/labs/lost-carrier-events.md) conta como achei esse caso.
+
+## A página de rastreio
+
+O rastreio pelo código é o lado de leitura do CQRS: o pacote `Timeline` não lê o PostgreSQL da logística, só os eventos que ela publica. O projetor grava cada passo em dois read models, cada um do jeito que vai ser lido: a linha do tempo inteira da remessa no MongoDB, para quem opera, e a página pública no DynamoDB, uma chave por código de rastreio.
+
+```bash
+curl -s localhost:8000/api/logistics/v1/tracking/TX02PX83Y5M5G00
+```
+
+Uma remessa de parceira, do CD de Contagem para o Rio, com uma visita que falhou:
+
+```json
+{
+  "trackingCode": "TX02PX83Y5M5G00",
+  "status": "delivered",
+  "carrier": "correio-nacional",
+  "destination": {"municipality": "Rio de Janeiro", "state": "RJ"},
+  "updatedAt": "2026-09-28T00:47:48.353+00:00",
+  "steps": [
+    {"status": "created", "at": "2026-09-28T00:47:28.301+00:00"},
+    {"status": "ready_for_pickup", "at": "2026-09-28T00:47:29.226+00:00"},
+    {"status": "picked_up", "at": "2026-09-28T00:47:32.297+00:00"},
+    {"status": "in_transit", "at": "2026-09-28T00:47:35.656+00:00", "hub": "Hub Contagem (MG)"},
+    {"status": "out_for_delivery", "at": "2026-09-28T00:47:39.379+00:00", "attempt": 1},
+    {"status": "delivery_failed", "at": "2026-09-28T00:47:43.287+00:00", "attempt": 1, "reason": "recipient_absent"},
+    {"status": "out_for_delivery", "at": "2026-09-28T00:47:44.428+00:00", "attempt": 2},
+    {"status": "delivered", "at": "2026-09-28T00:47:48.353+00:00", "attempt": 2}
+  ]
+}
+```
+
+- A página fica atrás da remessa pelo tempo da projeção (leitura BASE, [ADR 0012](../../docs/adr/0012-acid-writes-base-reads.md)). Um código que ainda não chegou responde `404`.
+- Nada de dado pessoal: o destino vai até o município, e o comprovante da entrega continua só no banco da logística.
+- Não há transação entre MongoDB e DynamoDB. Cada um recusa um evento que já tem, então o evento reentregue depois de uma falha no meio completa o read model que ficou para trás.
 
 ## Eventos publicados
 

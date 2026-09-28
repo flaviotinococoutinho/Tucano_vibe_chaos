@@ -20,13 +20,16 @@ $flags = Flagd::connect(
     host: 'toxiproxy',
     port: 18013,
     cache: new ApcuFlagCache(),   // PHP-FPM; em CLI ou Swoole use InMemoryFlagCache
+    cacheSeconds: 2,
+    timeoutMs: 300,               // a flag nunca atrasa um request: estourou, vale o fallback
+    connectTimeoutMs: 200,
 );
 
 $strategy = $flags->text('inventory.reservation-strategy', 'atomic');
 $express = $flags->enabled('checkout.express-shipping', false, FlagContext::forCustomer($customerId, $email));
 ```
 
-Toda chamada leva um fallback. Se o flagd cair ou a flag não existir, o serviço segue com o comportamento conservador.
+Toda chamada leva um fallback. Se o flagd cair ou a flag não existir, o serviço segue com o comportamento conservador. Os serviços tiram o cache e os timeouts do ambiente (`FLAGS_CACHE_SECONDS`, `FLAGD_TIMEOUT_MS` e `FLAGD_CONNECT_TIMEOUT_MS`, veja [a referência de configuração](../../../docs/operations/configuration.md)).
 
 ## Qual cache usar
 

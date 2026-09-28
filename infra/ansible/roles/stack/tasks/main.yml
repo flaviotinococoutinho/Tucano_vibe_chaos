@@ -1,0 +1,19 @@
+---
+- name: Check the machine the way the Makefile does, host disk included
+  ansible.builtin.command:
+    argv: [make, doctor]
+    chdir: "{{ project_root }}"
+  changed_when: false
+
+# make up builds the PHP base images first (slow only the first time), then the services,
+# and then starts what changed and waits for the health checks (compose build, then up --wait).
+- name: Build and start the stack, and wait until it is healthy
+  ansible.builtin.command:
+    argv: [make, up]
+    chdir: "{{ project_root }}"
+  environment:
+    APP_ENV: "{{ app_env }}"
+  register: stack_up
+  # compose prints Built for every image, cached or not, and starts the one-shot containers
+  # again on every up; a container created or recreated is what tells a real change.
+  changed_when: (stack_up.stdout ~ stack_up.stderr) is search('\\bCreated\\b|Recreated')

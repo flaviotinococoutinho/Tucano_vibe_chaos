@@ -16,7 +16,11 @@ final class WorkersTest extends TestCase
     {
         $commands = Artisan::all();
 
-        foreach (['logistics:relay-outbox', 'logistics:sync-catalog', 'logistics:order-intake'] as $worker) {
+        $workers = [
+            'logistics:relay-outbox', 'logistics:sync-catalog', 'logistics:order-intake', 'logistics:request-labels', 'logistics:book-pickups',
+            'logistics:project-timelines', 'logistics:reconcile-journeys', 'logistics:watch-stalled-journeys',
+        ];
+        foreach ($workers as $worker) {
             self::assertArrayHasKey($worker, $commands);
         }
     }

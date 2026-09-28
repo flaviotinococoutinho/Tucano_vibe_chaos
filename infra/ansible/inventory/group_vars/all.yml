@@ -1,0 +1,55 @@
+---
+# Every knob of the setup, with the value that fits the lab. Change them here, or for one
+# run with -e (ansible-playbook playbooks/setup.yml -e app_env=staging).
+
+# The repository root: the playbooks live in infra/ansible/playbooks.
+project_root: "{{ playbook_dir | dirname | dirname | dirname }}"
+
+# The flags of the stack: local, staging or production (same containers, other flags).
+app_env: local
+
+# Free space on the disk that holds Docker; on a Mac, the disk that holds the Colima VM,
+# whose disk file grows inside it. Below the minimum the playbook stops before building.
+host_min_free_gb: 10
+host_recommended_free_gb: 20
+
+# An 8 GB machine runs the lab; less than that and the VM starves the host.
+host_min_memory_mb: 7500
+
+# The Docker VM on macOS. These settings are used only when the VM does not exist yet;
+# an existing VM starts with its own.
+colima_profile: default
+colima_cpus: 4
+colima_memory_gb: 4
+colima_disk_gb: 40
+colima_vm_type: vz
+
+# The Docker VM (or engine) the lab needs, as docker info reports it.
+docker_min_memory_mb: 3584
+docker_min_cpus: 4
+
+# What happens once the machine is ready.
+start_stack: true        # make up: builds what is missing and waits until everything is healthy
+run_smoke_checks: true   # asks the gateway for the readiness of each service
+
+# Environment values per service, written to compose.override.yaml (the Git ignores it).
+# Empty leaves the file alone. For example:
+#   lab_overrides:
+#     logistics-stalled-journeys-watch:
+#       JOURNEYS_STALLED_AFTER_SECONDS: "120"
+lab_overrides: {}
+
+# What the smoke checks ask, through Kong and straight to Mailpit.
+smoke_checks:
+  - name: catalog
+    url: http://localhost:8000/api/catalog/health/ready
+  - name: commerce
+    url: http://localhost:8000/api/commerce/health/ready
+  - name: logistics
+    url: http://localhost:8000/api/logistics/health/ready
+  - name: tracking
+    url: http://localhost:8000/api/tracking/health/ready
+  - name: bff
+    url: http://localhost:8000/bff/health/ready
+  - name: mailpit
+    url: http://localhost:8025/api/v1/info

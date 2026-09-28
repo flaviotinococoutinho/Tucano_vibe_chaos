@@ -31,6 +31,8 @@ final class RdKafkaConsumer
         private readonly Producer $deadLetters,
         private readonly LoggerInterface $logger,
         private readonly RetryPolicy $retry = new RetryPolicy(),
+        // How long one poll waits for a record; it is also how long a SIGTERM may wait to be noticed.
+        private readonly int $pollTimeoutMs = 1_000,
     ) {
         $conf = new Conf();
         $conf->set('bootstrap.servers', $brokers);
@@ -56,7 +58,7 @@ final class RdKafkaConsumer
 
     private function poll(MessageHandler $handler, StopSignal $stop): void
     {
-        $message = $this->consumer->consume(1_000);
+        $message = $this->consumer->consume($this->pollTimeoutMs);
         if ($message->err === RD_KAFKA_RESP_ERR__TIMED_OUT || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             return;
         }

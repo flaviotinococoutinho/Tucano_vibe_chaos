@@ -42,6 +42,8 @@
 |---|---|---|
 | `pending` | nenhuma, e o pedido ainda espera | nada: o cliente ainda pode repetir o pagamento (UC-PAY-01, extensão 2b) |
 | `pending` | nenhuma, e o pedido já não espera | o pagamento vira `abandoned` |
+| `pending` com id de cobrança | nenhuma, dentro da janela da cobrança perdida | nada: o PSP ainda pode mostrar a cobrança (`charge_missing`) |
+| `pending` com id de cobrança | nenhuma, com a janela fechada | o pagamento vira `failed` com `charge_lost`, pelo caminho da recusa (UC-PAY-02) |
 | `pending` ou `abandoned` | `processing` | o id da cobrança fica anotado, e o resultado vem depois |
 | `pending` ou `abandoned` | `succeeded` | a captura é aplicada (UC-PAY-02) |
 | `pending` ou `abandoned` | `failed` | a recusa é aplicada (UC-PAY-02) |
@@ -56,7 +58,8 @@
 - 1b. Nenhum pagamento quieto há 60 s: o worker espera 5 s.
 - 1c. Outro worker está com o pagamento: o `SKIP LOCKED` pula a linha, e o `updated_at` renovado segura o pagamento longe das próximas rodadas.
 - 2a. O PSP não responde (timeout ou 5xx): nada muda, e o pagamento volta na primeira rodada depois de ficar quieto de novo. As falhas contam no circuit breaker, como na cobrança.
-- 3a. O pagamento tem id de cobrança, mas o PSP não tem cobrança nenhuma: PSP de verdade não perde cobrança, então é caso para uma pessoa. No laboratório isso acontece quando o PayFake reinicia, porque ele guarda tudo em memória.
+- 3a. O pagamento tem id de cobrança, mas o PSP não tem cobrança nenhuma: a busca do PSP pode estar atrasada, então a cobrança ganha uma janela para aparecer (`PAYMENTS_RECONCILIATION_LOST_CHARGE_AFTER_SECONDS`, uma hora por padrão). Fechada a janela, o pagamento falha com `charge_lost`, e um pedido que ainda espera por ele é cancelado. No laboratório isso acontece quando o PayFake reinicia, porque ele guarda tudo em memória.
+- 3b. Um estorno pedido, ou dinheiro que apareceu para um pagamento `abandoned`, e o PSP não tem a cobrança: ali pode haver dinheiro no PSP, então é caso para uma pessoa (`needs_attention`).
 - 4a. Um webhook chega enquanto o PSP é consultado: quem chegar depois encontra o pagamento resolvido, e nada muda (`already_settled`).
 - 4b. O cliente repete o pagamento no instante em que o sistema desiste: a cobrança criada depois chega por webhook ou por uma conciliação seguinte, e o dinheiro volta. Por isso `abandoned` aceita a palavra tardia do PSP.
 - 4c. A captura de um pagamento `abandoned` não paga o pedido, que já não espera: o pagamento vai direto para `refund_requested`.

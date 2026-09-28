@@ -4,7 +4,9 @@
 FROM chaos-playground/php-base:8.4
 
 # Without io_uring: Docker's default seccomp profile blocks those system calls,
-# and a Swoole built with them fails to start inside a container.
+# and a Swoole built with them fails to start inside a container. Two compile
+# jobs: with four, cc1plus runs out of memory in a 4 GB VM with the stack up.
+ARG IPE_PROCESSOR_COUNT=2
 RUN IPE_SWOOLE_WITHOUT_IOURING=1 install-php-extensions swoole-6.2.3
 
 WORKDIR /srv/services/tracking

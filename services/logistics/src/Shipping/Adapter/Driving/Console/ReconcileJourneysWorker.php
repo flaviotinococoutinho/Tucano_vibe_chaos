@@ -18,12 +18,10 @@ use Tucano\Messaging\Worker\StopSignal;
 #[AsCommand(name: 'logistics:reconcile-journeys', description: 'Catch shipments up with the tracking history of their carriers until SIGTERM')]
 final class ReconcileJourneysWorker extends Command
 {
-    private const int IDLE_MILLISECONDS = 5_000;
-
-    private const int FAILURE_MILLISECONDS = 2_000;
-
     public function handle(ForReconcilingJourneys $journeys, LoggerInterface $logger): int
     {
+        $idle = (int) config('journeys.reconciliation.idle_pause_ms');
+        $afterFailure = (int) config('journeys.reconciliation.failure_pause_ms');
         $stop = StopSignal::onTermination();
         $logger->info('journey reconciliation started');
         while (!$stop->requested()) {
@@ -31,12 +29,12 @@ final class ReconcileJourneysWorker extends Command
                 $reconciled = $journeys->reconcileNext();
             } catch (Throwable $failure) {
                 $logger->error('Journey reconciliation failed: {message}', ['message' => $failure->getMessage(), 'exception' => $failure]);
-                $stop->pause(self::FAILURE_MILLISECONDS);
+                $stop->pause($afterFailure);
 
                 continue;
             }
             if ($reconciled === null) {
-                $stop->pause(self::IDLE_MILLISECONDS);
+                $stop->pause($idle);
 
                 continue;
             }
@@ -51,7 +49,7 @@ final class ReconcileJourneysWorker extends Command
     {
         $level = match ($reconciled->result) {
             JourneyResult::Stopped => LogLevel::WARNING,
-            JourneyResult::CarrierUnreachable => LogLevel::NOTICE,
+            JourneyResult::CarrierUnreachable, JourneyResult::UnknownToCarrier => LogLevel::NOTICE,
             JourneyResult::CaughtUp, JourneyResult::UpToDate => LogLevel::INFO,
         };
         $logger->log($level, 'Shipment {trackingCode} against its carrier: {result}, {applied} steps applied{refusal}', [

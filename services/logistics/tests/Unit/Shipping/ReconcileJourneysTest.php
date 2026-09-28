@@ -26,6 +26,7 @@ use Tests\Doubles\Shared\DirectTransactions;
 use Tests\Doubles\Shared\InMemoryInbox;
 use Tests\Doubles\Shared\RecordedEvents;
 use Tests\Doubles\Shipping\InMemoryShipments;
+use Tests\Doubles\Shipping\RecordedJourneyChecks;
 use Tests\Doubles\Shipping\ScriptedTracking;
 use Tucano\SharedKernel\Time\FrozenClock;
 
@@ -41,6 +42,8 @@ final class ReconcileJourneysTest extends TestCase
 
     private CarrierJourney $journey;
 
+    private RecordedJourneyChecks $checks;
+
     private ReconcileJourneys $reconciliation;
 
     protected function setUp(): void
@@ -51,7 +54,8 @@ final class ReconcileJourneysTest extends TestCase
         $this->carrier = new ScriptedTracking();
         $progress = new ShipmentProgress(new DirectTransactions(), new InMemoryInbox(), $this->shipments, $this->events);
         $this->journey = new CarrierJourney(new RecordPickup($progress), new RecordHubScan($progress), new DispatchForDelivery($progress), new RecordDeliveryOutcome($progress), new ReturnToSender($progress));
-        $this->reconciliation = new ReconcileJourneys($this->shipments, $this->carrier, $this->journey, $this->clock, 60);
+        $this->checks = new RecordedJourneyChecks();
+        $this->reconciliation = new ReconcileJourneys($this->shipments, $this->carrier, $this->journey, $this->checks, $this->clock, 60);
     }
 
     #[Test]
@@ -77,6 +81,17 @@ final class ReconcileJourneysTest extends TestCase
             ['tucano.logistics.shipment.picked_up', 'tucano.logistics.shipment.out_for_delivery', 'tucano.logistics.shipment.delivered'],
             $this->events->types(),
         );
+        self::assertSame([[$shipment->toSnapshot()->reference->id->toString(), JourneyResult::CaughtUp]], $this->checks->rounds, 'Every round is recorded for the watch of stalled journeys.');
+    }
+
+    #[Test]
+    public function a_shipment_the_carrier_has_no_pickup_for_is_unknown_to_it(): void
+    {
+        $shipment = $this->readyForPickup();
+        $this->quietSince($shipment, '-2 minutes');
+
+        self::assertSame(JourneyResult::UnknownToCarrier, $this->reconciliation->reconcileNext()?->result);
+        self::assertSame(JourneyResult::UnknownToCarrier, $this->checks->rounds[0][1]);
     }
 
     #[Test]

@@ -25,14 +25,14 @@ $errors->registerFatalHandler();
 // finishes its requests and delivers the responses before exiting. In PROCESS
 // mode the master closes every connection at once. WebSocket fan-out between
 // workers goes through Redis pub/sub, as it has to between instances anyway.
-$server = new Server('0.0.0.0', 9501, SWOOLE_BASE);
+$server = new Server($config->host, $config->port, SWOOLE_BASE);
 $server->set([
     'worker_num' => $config->workers,
     'daemonize' => false,
     // Sockets, phpredis, curl, sleep and file calls yield to other coroutines instead of blocking the worker.
     'hook_flags' => SWOOLE_HOOK_ALL,
     // On SIGTERM, requests in flight get this many seconds to finish, within Docker's 10 second stop timeout.
-    'max_wait_time' => 5,
+    'max_wait_time' => $config->maxWaitSeconds,
     // Swoole's own log lines are plain text, so they are kept for warnings and errors.
     'log_level' => SWOOLE_LOG_WARNING,
 ]);

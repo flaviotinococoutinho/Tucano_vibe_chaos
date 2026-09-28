@@ -7,6 +7,20 @@ ok()   { printf '  [ok]   %s\n' "$1"; }
 warn() { printf '  [warn] %s\n' "$1"; }
 fail() { printf '  [fail] %s\n' "$1"; exit 1; }
 
+# On a Mac the Docker VM keeps its disk as a file on the Mac disk, and that file grows as the
+# VM writes. The VM may think it has room while the Mac has none, and then every write inside
+# the VM fails with an I/O error (the kernel remounts the disk read-only). The Mac disk counts first.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  host_free_gb=$(df -Pk "$HOME" | awk 'NR==2 {print int($4 / 1024 / 1024)}')
+  if (( host_free_gb >= 20 )); then
+    ok "mac disk free ${host_free_gb} GB"
+  elif (( host_free_gb >= 10 )); then
+    warn "mac disk free ${host_free_gb} GB (20 GB recommended: the VM disk grows inside it)"
+  else
+    fail "mac disk free ${host_free_gb} GB: the VM disk grows inside it; free space first (docker image prune, then make trim)"
+  fi
+fi
+
 command -v docker >/dev/null || fail "docker not found"
 docker info >/dev/null 2>&1 || fail "docker daemon is not running"
 ok "docker $(docker version --format '{{.Server.Version}}')"

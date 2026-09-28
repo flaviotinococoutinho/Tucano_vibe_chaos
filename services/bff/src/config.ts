@@ -55,7 +55,7 @@ export function loadConfig(env: Env): Config {
   };
 
   const config: Config = {
-    serviceName: text('SERVICE_NAME', 'bff'),
+    serviceName: text('APP_NAME', 'bff'),
     environment: environmentOf(text('APP_ENV', 'production')),
     host: text('HOST', '0.0.0.0'),
     port: port('PORT', 3000),

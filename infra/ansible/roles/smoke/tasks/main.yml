@@ -1,0 +1,23 @@
+---
+# GET only: it also runs under --check.
+- name: Ask each service whether it is ready
+  ansible.builtin.uri:
+    url: "{{ item.url }}"
+    status_code: 200
+    timeout: 5
+  loop: "{{ smoke_checks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: smoke_answers
+  until: smoke_answers.status == 200
+  retries: 20
+  delay: 3
+  check_mode: false
+
+- name: Say where everything is
+  ansible.builtin.debug:
+    msg:
+      - "Gateway (Kong): http://localhost:8000, with /api/catalog, /api/commerce, /api/logistics, /api/tracking and /bff"
+      - "Mailpit, the alerts by e-mail: http://localhost:8025"
+      - "Toxiproxy, the chaos between the services and their dependencies: http://localhost:8474"
+      - "make help lists the commands; docs/README.md is the way into the docs."

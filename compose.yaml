@@ -38,7 +38,8 @@ x-catalog: &catalog
     FLAGD_HOST: toxiproxy
     FLAGD_PORT: "18013"
     KAFKA_BROKERS: toxiproxy:19092
-    KAFKA_MESSAGE_TIMEOUT_MS: "5000"
+    # A write waits this long for Kafka at most, after MySQL has already committed it.
+    KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS: "5000"
   depends_on:
     mysql:
       condition: service_healthy
@@ -124,7 +125,19 @@ x-logistics: &logistics
     CARRIERS_URL: http://toxiproxy:14002
     CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
     # UC-SHP-12: a shipment with a carrier is checked against the carrier's history after this long without news.
-    CARRIERS_RECONCILIATION_QUIET_SECONDS: "60"
+    JOURNEYS_RECONCILIATION_QUIET_SECONDS: "60"
+    # UC-SHP-13: no step for this long with a carrier is a stalled journey; the watch alerts by log and e-mail.
+    JOURNEYS_STALLED_AFTER_SECONDS: "3600"
+    JOURNEYS_STALLED_WATCH_EVERY_SECONDS: "900"
+    JOURNEYS_STALLED_ALERT_LIMIT: "50"
+    JOURNEYS_STALLED_ALERT_REPEAT_SECONDS: "14400"
+    ALERTS_EMAIL_TO: ops@tucano.local
+    # The alerts of the operation land in Mailpit (http://localhost:8025), through Toxiproxy like every other dependency.
+    MAIL_MAILER: smtp
+    MAIL_HOST: toxiproxy
+    MAIL_PORT: "11025"
+    MAIL_FROM_ADDRESS: logistics@tucano.local
+    MAIL_FROM_NAME: Tucano logistics
   depends_on:
     postgres:
       condition: service_healthy
@@ -374,6 +387,11 @@ services:
       KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
       KONG_STATUS_LISTEN: 0.0.0.0:8100
       KONG_NGINX_WORKER_PROCESSES: "1"
+      # Docker's DNS answers with a TTL of 600 s, so a service recreated by compose would keep
+      # getting its old IP for ten minutes (502 on every call). Five seconds and Kong follows it.
+      KONG_DNS_VALID_TTL: "5"
+      # The same for the new DNS client, off in 3.9 (new_dns_client), in case it is turned on.
+      KONG_RESOLVER_VALID_TTL: "5"
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -620,6 +638,20 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  # UC-SHP-10: every shipment event becomes a step of the timeline (MongoDB) and of the public page (DynamoDB).
+  logistics-timeline-projector:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:project-timelines"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      floci:
+        condition: service_healthy
+    mem_limit: 128m
+
   # UC-SHP-12 in a loop: shipments quiet for too long are caught up with the history of their carrier.
   logistics-journey-reconciler:
     <<: [*service, *logistics]
@@ -632,12 +664,26 @@ services:
         condition: service_started
     mem_limit: 128m
 
+  # UC-SHP-13 on a schedule: the analytical read of the stalled journeys, and the alert when it finds any.
+  logistics-stalled-journeys-watch:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:watch-stalled-journeys"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+      toxiproxy:
+        condition: service_started
+    mem_limit: 128m
+
   # Laravel's queue worker on label-jobs. It finishes the current job on SIGTERM, and
   # --max-time recycles it every hour; the restart policy brings it back.
   logistics-label-worker:
     <<: [*service, *logistics]
-    # --quiet: the job logs its outcome in JSON, like every other line of the stack.
-    command: ["php", "artisan", "queue:work", "sqs", "--queue=label-jobs", "--sleep=3", "--max-time=3600", "--quiet"]
+    # No --queue: the sqs connection reads LABELS_QUEUE. --quiet: the job logs its outcome in JSON, like every other line of the stack.
+    command: ["php", "artisan", "queue:work", "sqs", "--sleep=3", "--max-time=3600", "--quiet"]
     stop_signal: SIGTERM
     depends_on:
       logistics-migrate:
@@ -685,7 +731,7 @@ services:
       dockerfile: services/bff/Dockerfile
     image: chaos-playground/bff
     environment:
-      SERVICE_NAME: bff
+      APP_NAME: bff
       APP_ENV: ${APP_ENV:-local}
       PORT: "3000"
       LOG_LEVEL: info
@@ -703,7 +749,7 @@ services:
       dockerfile: services/partners-sim/Dockerfile
     image: chaos-playground/partners-sim
     environment:
-      SERVICE_NAME: partners-sim
+      APP_NAME: partners-sim
       APP_ENV: ${APP_ENV:-local}
       PORT: "4000"
       LOG_LEVEL: info

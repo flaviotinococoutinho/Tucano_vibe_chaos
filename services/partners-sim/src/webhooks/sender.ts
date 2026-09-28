@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Clock } from '../clock.ts';
+import type { WebhookDeliveryConfig } from '../config.ts';
 import { CORRELATION_ID_HEADER } from '../platform/correlation-id.ts';
 import type { WebhookPlan } from './chaos-plan.ts';
 import { sign } from './signature.ts';
@@ -16,11 +17,6 @@ export type Origin = { readonly log: FastifyBaseLogger; readonly correlationId: 
 
 export type WebhookTarget = { readonly url: string; readonly secret: string };
 
-/** Waits before each retry. After the first attempt fails, five more come within 31 seconds. */
-const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
-
-const ATTEMPT_TIMEOUT_MS = 5_000;
-
 export type Delivery = { readonly outcome: 'delivered' | 'abandoned'; readonly attempts: number };
 
 /** Decides the fate of an event before it is sent: the chaos of the simulator it belongs to. */
@@ -33,6 +29,8 @@ export type WebhooksOptions<TData> = {
   readonly target: WebhookTarget;
   /** The header a webhook is signed under, so each simulator carries its own name. */
   readonly signatureHeader: string;
+  /** The retries and the timeout of each attempt. */
+  readonly delivery: WebhookDeliveryConfig;
   readonly clock: Clock;
   readonly plan: WebhookChaosPlanner<TData>;
   /** Aborts when the server shuts down, which stops waits and requests in flight. */
@@ -47,13 +45,15 @@ export type WebhooksOptions<TData> = {
 export class Webhooks<TData = unknown> {
   private readonly target: WebhookTarget;
   private readonly signatureHeader: string;
+  private readonly delivery: WebhookDeliveryConfig;
   private readonly clock: Clock;
   private readonly plan: WebhookChaosPlanner<TData>;
   private readonly signal: AbortSignal;
 
-  constructor({ target, signatureHeader, clock, plan, signal }: WebhooksOptions<TData>) {
+  constructor({ target, signatureHeader, delivery, clock, plan, signal }: WebhooksOptions<TData>) {
     this.target = target;
     this.signatureHeader = signatureHeader;
+    this.delivery = delivery;
     this.clock = clock;
     this.plan = plan;
     this.signal = signal;
@@ -91,7 +91,7 @@ export class Webhooks<TData = unknown> {
         origin.log.info({ ...context, attempt }, 'webhook delivered');
         return { outcome: 'delivered', attempts: attempt };
       }
-      const retryInMs = RETRY_DELAYS_MS[attempt - 1];
+      const retryInMs = this.delivery.retryDelaysMs[attempt - 1];
       if (retryInMs === undefined) {
         origin.log.error(
           { ...context, attempt, failure },
@@ -119,7 +119,7 @@ export class Webhooks<TData = unknown> {
         body,
         // A redirect is not an acknowledgement: it counts as a failure, like at real PSPs.
         redirect: 'manual',
-        signal: AbortSignal.any([this.signal, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
+        signal: AbortSignal.any([this.signal, AbortSignal.timeout(this.delivery.attemptTimeoutMs)]),
       });
       await response.body?.cancel();
 
@@ -128,17 +128,17 @@ export class Webhooks<TData = unknown> {
       if (this.signal.aborted) {
         throw error;
       }
-      return reasonOf(error);
+      return reasonOf(error, this.delivery.attemptTimeoutMs);
     }
   }
 }
 
-function reasonOf(error: unknown): string {
+function reasonOf(error: unknown, attemptTimeoutMs: number): string {
   if (!(error instanceof Error)) {
     return String(error);
   }
   if (error.name === 'TimeoutError') {
-    return `no answer within ${ATTEMPT_TIMEOUT_MS} ms`;
+    return `no answer within ${attemptTimeoutMs} ms`;
   }
   // fetch reports every network error as "fetch failed" and puts the real one in the cause.
   return error.cause instanceof Error ? error.cause.message : error.message;

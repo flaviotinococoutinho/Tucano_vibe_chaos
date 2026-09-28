@@ -16,13 +16,11 @@ use Illuminate\Database\ConnectionInterface;
  */
 final readonly class OptimisticStockHolder implements ForHoldingStock
 {
-    private const int ATTEMPTS = 5;
-
-    public function __construct(private ConnectionInterface $connection) {}
+    public function __construct(private ConnectionInterface $connection, private int $attempts) {}
 
     public function hold(string $fulfillmentCenter, string $sku, int $quantity): bool
     {
-        for ($attempt = 1; $attempt <= self::ATTEMPTS; $attempt++) {
+        for ($attempt = 1; $attempt <= $this->attempts; $attempt++) {
             $row = $this->connection->selectOne(
                 'SELECT on_hand, reserved, version FROM stock_items WHERE sku = ? AND fulfillment_center = ?',
                 [$sku, $fulfillmentCenter],
@@ -40,6 +38,6 @@ final readonly class OptimisticStockHolder implements ForHoldingStock
             }
         }
 
-        throw StockContention::on($sku, $fulfillmentCenter, self::ATTEMPTS);
+        throw StockContention::on($sku, $fulfillmentCenter, $this->attempts);
     }
 }

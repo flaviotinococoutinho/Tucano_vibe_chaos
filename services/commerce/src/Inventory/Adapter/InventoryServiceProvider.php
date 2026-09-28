@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Commerce\Inventory\Adapter;
 
 use Commerce\Inventory\Adapter\Driven\FlaggedStrategies;
+use Commerce\Inventory\Adapter\Driven\OptimisticStockHolder;
 use Commerce\Inventory\Adapter\Driven\PostgresFulfillmentCenters;
 use Commerce\Inventory\Adapter\Driven\PostgresReservations;
 use Commerce\Inventory\Adapter\Driven\StrategicStockHolder;
@@ -33,4 +34,9 @@ final class InventoryServiceProvider extends ServiceProvider
         ForRecordingReservations::class => PostgresReservations::class,
         ForFindingFulfillmentCenters::class => PostgresFulfillmentCenters::class,
     ];
+
+    public function register(): void
+    {
+        $this->app->when(OptimisticStockHolder::class)->needs('$attempts')->giveConfig('inventory.optimistic_hold_attempts');
+    }
 }

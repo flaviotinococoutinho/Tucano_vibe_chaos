@@ -26,9 +26,11 @@ final readonly class Flagd
         int $port,
         FlagCache $cache,
         int $cacheSeconds = 2,
+        int $timeoutMs = 300,
+        int $connectTimeoutMs = 200,
     ): FeatureFlags {
         // Flags must never slow a request down: short timeouts, then the fallback wins.
-        $http = new HttpClient(['timeout' => 0.3, 'connect_timeout' => 0.2]);
+        $http = new HttpClient(['timeout' => $timeoutMs / 1_000, 'connect_timeout' => $connectTimeoutMs / 1_000]);
         $factory = new HttpFactory();
 
         $api = OpenFeatureAPI::getInstance();

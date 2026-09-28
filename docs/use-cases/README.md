@@ -50,9 +50,10 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-SHP-07](UC-SHP-07-record-delivery-outcome.md) | usuário | Entregador | registrar o resultado da entrega | Shipping |
 | [UC-SHP-08](UC-SHP-08-return-to-sender.md) | subfunção | Transportadora | devolver ao remetente | Shipping |
 | [UC-SHP-09](UC-SHP-09-cancel-shipment.md) | subfunção | Commerce | cancelar a remessa | Shipping |
-| UC-SHP-10 | usuário | Cliente | rastrear pelo código | Shipping |
+| [UC-SHP-10](UC-SHP-10-track-by-code.md) | usuário | Cliente | rastrear pelo código | Timeline |
 | [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso e dimensões dos produtos | Shipping |
 | [UC-SHP-12](UC-SHP-12-reconcile-journeys.md) | subfunção | Relógio | conciliar a jornada com a transportadora | Shipping |
+| [UC-SHP-13](UC-SHP-13-watch-stalled-journeys.md) | subfunção | Relógio | vigiar as jornadas paradas | Shipping |
 | UC-TRK-01 | usuário | Entregador | transmitir a posição | Tracking |
 | UC-TRK-02 | subfunção | Logistics | encontrar o entregador disponível mais próximo | Tracking |
 | [UC-TRK-03](UC-TRK-03-follow-delivery-live.md) | usuário | Cliente | acompanhar a entrega ao vivo | Tracking |

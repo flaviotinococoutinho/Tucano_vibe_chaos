@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Models\Product;
 use App\Services\ProductCache;
+use App\Services\ProductCacheSettings;
 use Closure;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository;
@@ -92,7 +93,7 @@ final class ProductCacheStampedeTest extends IntegrationTestCase
     /** @param (Closure(int): void)|null $pause */
     private function productCache(?Closure $pause = null): ProductCache
     {
-        return new ProductCache($this->app->make(Repository::class), $this->locks(), new NullLogger(), $pause);
+        return new ProductCache($this->app->make(Repository::class), $this->locks(), new NullLogger(), $this->app->make(ProductCacheSettings::class), $pause);
     }
 
     private function locks(): LockProvider

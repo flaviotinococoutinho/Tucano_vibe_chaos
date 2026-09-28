@@ -5,13 +5,25 @@ COMPOSE := docker compose
 db ?= commerce
 PHP ?= 8.4
 
-.PHONY: help doctor base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies php packages-check kong-reload check lint-workflows
+.PHONY: help doctor setup setup-check trim base up down ps logs restart tools clean topics consume psql mysql mongo redis-cli aws flags flag flag-reset proxies stalled php packages-check kong-reload check config-check lint-workflows
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-doctor: ## Check that Docker has enough resources for the stack
+doctor: ## Check that Docker has enough resources for the stack (and, on a Mac, that the Mac disk has room)
 	@scripts/doctor.sh
+
+setup: ## Prepare this machine with Ansible (tools, Docker VM, .env) and bring the stack up
+	@command -v ansible-playbook >/dev/null || { echo "Ansible first: brew install ansible (macOS) or pipx install --include-deps ansible"; exit 1; }
+	cd infra/ansible && ansible-playbook playbooks/setup.yml
+
+setup-check: ## Check the machine and the running stack with Ansible, changing nothing
+	@command -v ansible-playbook >/dev/null || { echo "Ansible first: brew install ansible (macOS) or pipx install --include-deps ansible"; exit 1; }
+	cd infra/ansible && ansible-playbook playbooks/check.yml
+
+trim: ## Give the space freed inside the Colima VM back to the Mac (after docker image prune)
+	@command -v colima >/dev/null || { echo "trim is for Colima: elsewhere Docker writes straight to the host disk"; exit 0; }
+	colima ssh -- sudo fstrim -av
 
 base: ## Build the PHP base images (8.3 and 8.4); cached after the first run
 	@for version in 8.3 8.4; do \
@@ -20,7 +32,10 @@ base: ## Build the PHP base images (8.3 and 8.4); cached after the first run
 	done
 
 up: base ## Start the stack and wait until it is healthy (APP_ENV=local|staging|production)
-	$(COMPOSE) up -d --build --wait
+	@# Build first, then up without --build: up --build labels each container with the digest the
+	@# build returns, which changes on every build even from cache, and recreates every service.
+	$(COMPOSE) build
+	$(COMPOSE) up -d --wait
 
 down: ## Stop the stack, keeping the data
 	$(COMPOSE) --profile tools down
@@ -81,11 +96,17 @@ flag-reset: ## Put a flag back as it is in the repository (key=<flag>)
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
 
+config-check: ## Check that compose, the code and docs/operations/configuration.md agree on every variable
+	@python3 scripts/check-config.py
+
 lint-workflows: ## Validate the GitHub Actions workflows with actionlint
 	docker run --rm -v "$(CURDIR)":/repo -w /repo rhysd/actionlint:1.7.12 -color
 
 proxies: ## List Toxiproxy proxies and their active toxics
 	@curl -s localhost:8474/proxies | jq 'to_entries | map({name: .key, listen: .value.listen, upstream: .value.upstream, enabled: .value.enabled, toxics: [.value.toxics[].name]})'
+
+stalled: ## Run one round of the stalled journey watch now and print what it found (UC-SHP-13)
+	$(COMPOSE) exec logistics-stalled-journeys-watch php artisan logistics:watch-stalled-journeys --once
 
 php: ## Run a command in the PHP base image (dir=<path> c="<command>" PHP=8.3|8.4 net=<docker network>)
 	@docker image inspect chaos-playground/php-base:$(PHP) >/dev/null 2>&1 || $(MAKE) --no-print-directory base

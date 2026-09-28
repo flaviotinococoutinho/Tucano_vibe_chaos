@@ -130,7 +130,7 @@ docker compose exec catalog php artisan catalog:republish --sku=BOOK-DDD-001  # 
 
 Repetir é seguro: o tópico compactado guarda a última mensagem de cada chave, e o consumidor fica com a versão mais alta que já viu. Se o Kafka falha no meio, o comando sai com código 1, e basta rodar de novo. Um rascunho nunca é publicado, nem pelo comando.
 
-O `KAFKA_MESSAGE_TIMEOUT_MS` limita quanto uma escrita espera pelo Kafka. Com o broker fora, um `PATCH` demora esse tempo e responde 200.
+O `KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS` limita quanto uma escrita espera pelo Kafka. Com o broker fora, um `PATCH` demora esse tempo e responde 200.
 
 ## Rodando
 
@@ -149,23 +149,7 @@ make logs s=catalog
 
 Os testes do grupo `integration` precisam do MySQL e do Redis de verdade: o `make check` roda dentro da rede da stack, e a CI sobe os dois como service containers. Cada teste roda numa transação desfeita no fim e usa um prefixo próprio no Redis, então nada vaza para a stack. O Kafka fica de fora: o `InMemoryProducer` guarda o que seria publicado e também finge um broker fora do ar.
 
-A configuração vem só de variáveis de ambiente, e os valores padrão já servem para a stack:
-
-| Variável | Padrão |
-|---|---|
-| `APP_NAME` | `catalog` |
-| `APP_ENV` | `production` (a stack passa `local`) |
-| `APP_DEBUG` | `false` |
-| `LOG_CHANNEL` e `LOG_LEVEL` | `stderr` e `debug` |
-| `DB_CONNECTION` | `mysql` |
-| `DB_HOST` e `DB_PORT` | `toxiproxy` e `13306` |
-| `DB_DATABASE`, `DB_USERNAME` e `DB_PASSWORD` | `catalog` |
-| `REDIS_HOST` e `REDIS_PORT` | `toxiproxy` e `16379` |
-| `CACHE_STORE` | `redis` |
-| `FLAGD_HOST` e `FLAGD_PORT` | `toxiproxy` e `18013` |
-| `FLAGS_DRIVER` | `flagd` (`memory` nos testes) |
-| `KAFKA_BROKERS` | `toxiproxy:19092` |
-| `KAFKA_MESSAGE_TIMEOUT_MS` | `5000` |
+A configuração vem só de variáveis de ambiente, e os valores padrão já servem para a stack. A lista completa, com o que cada uma faz, está na [referência de configuração](../../docs/operations/configuration.md#catalog). As que mais mexo nos experimentos são o TTL do cache (`CATALOG_CACHE_TTL_SECONDS`) e a espera pelo Kafka (`KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS`).
 
 ## Decisões do runtime
 

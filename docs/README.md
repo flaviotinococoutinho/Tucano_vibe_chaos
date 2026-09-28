@@ -22,6 +22,8 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 ## 3. Operação
 
 - [Ambiente local](operations/local-environment.md): subir a stack, endereços, comandos e problemas comuns.
+- [Setup com Ansible](../infra/ansible/README.md): prepara uma máquina nova e sobe a stack com um comando.
+- [Configuração](operations/configuration.md): as regras dos nomes e cada variável de cada serviço, com o padrão e o porquê.
 
 ## 4. Laboratórios
 

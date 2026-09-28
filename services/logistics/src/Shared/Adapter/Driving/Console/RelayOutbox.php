@@ -32,9 +32,11 @@ final class RelayOutbox extends Command
                 $database->reconnect();
 
                 return $database->getPdo();
-            }, $producer),
+            }, $producer, (int) config('messaging.outbox.batch_size')),
             $logger,
             static fn(): bool => $flags->enabled('chaos.logistics.outbox-relay-paused'),
+            (int) config('messaging.outbox.idle_pause_ms'),
+            (int) config('messaging.outbox.failure_pause_ms'),
         );
         $worker->run(StopSignal::onTermination());
 

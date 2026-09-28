@@ -103,7 +103,7 @@ C4Container
 | `bff` | Node 24 + Fastify | agrega dados para a web e empurra eventos do Kafka por WebSocket | esqueleto rodando (health, erros) |
 | `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |
-| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, coleta e jornada até a entrega ou a devolução pelos webhooks das transportadoras, cópia do catálogo, outbox |
+| `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, coleta e jornada até a entrega ou a devolução pelos webhooks das transportadoras, conciliação com o histórico delas, alerta das jornadas paradas no log e por e-mail, página pública de rastreio no DynamoDB e linha do tempo no MongoDB, cópia do catálogo, outbox |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | esqueleto rodando (health, erros) |
 | `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | PayFake (cobranças, estornos, webhooks assinados) e CarrierFake (coleta e jornada da encomenda até a entrega ou a devolução), os dois com caos em tempo real |
 | `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
@@ -114,7 +114,7 @@ C4Container
 | `kafka` + `zookeeper` | Apache Kafka 3.9.2 | backbone de eventos entre contextos | rodando |
 | `floci` | Floci 2.1 | S3, SQS, SNS, DynamoDB e SES locais | rodando |
 | `toxiproxy` | Toxiproxy 2.12 | injeção de latência, cortes e timeouts entre serviços e dependências | rodando |
-| `mailpit` | Mailpit | caixa de entrada dos e-mails enviados pelo SES local | rodando |
+| `mailpit` | Mailpit | caixa de entrada dos e-mails: os do SES local e os alertas da logística, pelo Toxiproxy | rodando |
 | `flagd` | flagd 0.17 (OpenFeature) | flags privadas por ambiente, avaliadas no servidor | rodando |
 
 ## Fluxo principal: comprar e receber

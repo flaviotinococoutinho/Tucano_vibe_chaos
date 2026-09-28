@@ -1,18 +1,35 @@
+import type { Retention } from './expiring-map.ts';
+
 const environments = ['local', 'staging', 'production'] as const;
 const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
 // Ten minutes is plenty for a simulation and stays far from Node's timer limit
 // (about 24 days), past which a timer fires at once.
 const MAX_PROCESSING_DELAY_MS = 600_000;
+const HOUR_MS = 3_600_000;
+// A month of memory at most, and a limit on entries that keeps it inside the container.
+const MAX_RETENTION_HOURS = 720;
+const MAX_RETENTION_ENTRIES = 1_000_000;
 
 export type Environment = (typeof environments)[number];
 export type LogLevel = (typeof logLevels)[number];
+
+export type WebhookDeliveryConfig = {
+  /** The wait before each retry; when the last one fails too, the webhook is abandoned. */
+  readonly retryDelaysMs: readonly number[];
+  /** How long one attempt waits for the receiver to answer. */
+  readonly attemptTimeoutMs: number;
+};
 
 export type PayFakeConfig = {
   /** Where webhooks go and the secret they are signed with. */
   readonly webhook: { readonly url: string; readonly secret: string };
   /** How long a charge or a refund stays processing before it settles. */
   readonly processingDelayMs: { readonly min: number; readonly max: number };
+  /** How long charges, refunds and idempotency keys are kept, and how many at most. */
+  readonly retention: Retention;
+  /** The longest the timeout rate holds an answer, for a client that never gives up. */
+  readonly timeoutHoldMs: number;
 };
 
 export type CarriersConfig = {
@@ -20,6 +37,8 @@ export type CarriersConfig = {
   readonly webhook: { readonly url: string; readonly secret: string };
   /** How long one step of a pickup's journey takes before its webhook goes out. */
   readonly stepDelayMs: { readonly min: number; readonly max: number };
+  /** How long pickups, their history and idempotency keys are kept, and how many at most. */
+  readonly retention: Retention;
 };
 
 export type Config = {
@@ -28,6 +47,7 @@ export type Config = {
   readonly host: string;
   readonly port: number;
   readonly logLevel: LogLevel;
+  readonly webhooks: WebhookDeliveryConfig;
   readonly payfake: PayFakeConfig;
   readonly carriers: CarriersConfig;
 };
@@ -96,6 +116,34 @@ export function loadConfig(env: Env): Config {
     return fallback;
   };
 
+  const millisecondsList = (name: string, fallback: readonly number[]): readonly number[] => {
+    const value = text(name, fallback.join(','));
+    const parts = value.split(',').map((part) => part.trim());
+    if (parts.every((part) => /^\d+$/.test(part) && Number(part) <= MAX_PROCESSING_DELAY_MS)) {
+      return parts.map(Number);
+    }
+    problems.push(
+      `${name} must be a comma separated list of integers from 0 to ${MAX_PROCESSING_DELAY_MS}, got "${value}"`,
+    );
+    return fallback;
+  };
+
+  const count = (name: string, fallback: number, max: number): number => {
+    const value = text(name, String(fallback));
+    const parsed = Number(value);
+    if (/^\d+$/.test(value) && parsed >= 1 && parsed <= max) {
+      return parsed;
+    }
+    problems.push(`${name} must be an integer from 1 to ${max}, got "${value}"`);
+    return fallback;
+  };
+
+  // The names are written out in full, so a search for a variable finds where it is read.
+  const retention = (hoursName: string, maxEntriesName: string): Retention => ({
+    ttlMs: count(hoursName, 24, MAX_RETENTION_HOURS) * HOUR_MS,
+    maxEntries: count(maxEntriesName, 20_000, MAX_RETENTION_ENTRIES),
+  });
+
   const processingMin = milliseconds('PAYFAKE_PROCESSING_MIN_MS', 300);
   const processingMax = milliseconds('PAYFAKE_PROCESSING_MAX_MS', 1500);
   if (processingMax < processingMin) {
@@ -113,17 +161,24 @@ export function loadConfig(env: Env): Config {
   }
 
   const config: Config = {
-    serviceName: text('SERVICE_NAME', 'partners-sim'),
+    serviceName: text('APP_NAME', 'partners-sim'),
     environment: environmentOf(text('APP_ENV', 'production')),
     host: text('HOST', '0.0.0.0'),
     port: port('PORT', 4000),
     logLevel: choice('LOG_LEVEL', logLevels, 'info'),
+    webhooks: {
+      // After the first attempt fails, five more come within 31 seconds.
+      retryDelaysMs: millisecondsList('WEBHOOKS_RETRY_DELAYS_MS', [1000, 2000, 4000, 8000, 16000]),
+      attemptTimeoutMs: milliseconds('WEBHOOKS_ATTEMPT_TIMEOUT_MS', 5000),
+    },
     payfake: {
       webhook: {
         url: url('PAYFAKE_WEBHOOK_URL', 'http://kong:8000/api/commerce/v1/webhooks/payfake'),
         secret: text('PAYFAKE_WEBHOOK_SECRET', 'whsec_local_payfake'),
       },
       processingDelayMs: { min: processingMin, max: processingMax },
+      retention: retention('PAYFAKE_RETENTION_HOURS', 'PAYFAKE_RETENTION_MAX_ENTRIES'),
+      timeoutHoldMs: milliseconds('PAYFAKE_TIMEOUT_HOLD_MS', 30000),
     },
     carriers: {
       webhook: {
@@ -131,6 +186,7 @@ export function loadConfig(env: Env): Config {
         secret: text('CARRIERS_WEBHOOK_SECRET', 'whsec_local_carriers'),
       },
       stepDelayMs: { min: stepMin, max: stepMax },
+      retention: retention('CARRIERS_RETENTION_HOURS', 'CARRIERS_RETENTION_MAX_ENTRIES'),
     },
   };
   if (problems.length > 0) {

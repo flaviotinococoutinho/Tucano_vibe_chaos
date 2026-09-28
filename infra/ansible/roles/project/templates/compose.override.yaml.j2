@@ -1,0 +1,11 @@
+# Written by infra/ansible from lab_overrides; the Git ignores this file.
+# Compose merges it into compose.yaml, and a service picks it up when recreated:
+#   docker compose up -d --no-deps <service>
+services:
+{% for service, variables in lab_overrides | dictsort %}
+  {{ service }}:
+    environment:
+{% for name, value in variables | dictsort %}
+      {{ name }}: "{{ value }}"
+{% endfor %}
+{% endfor %}

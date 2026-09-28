@@ -26,6 +26,11 @@ final readonly class ReconciledJourney
         return new self($trackingCode, JourneyResult::UpToDate, 0, null);
     }
 
+    public static function unknownToCarrier(TrackingCode $trackingCode): self
+    {
+        return new self($trackingCode, JourneyResult::UnknownToCarrier, 0, null);
+    }
+
     public static function carrierUnreachable(TrackingCode $trackingCode): self
     {
         return new self($trackingCode, JourneyResult::CarrierUnreachable, 0, null);

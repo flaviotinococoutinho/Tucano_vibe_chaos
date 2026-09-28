@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Logistics\Shipping\Application\UseCase;
 
 use Logistics\Shipping\Application\CarrierJourney;
+use Logistics\Shipping\Application\Port\Driven\ForRecordingJourneyChecks;
 use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
 use Logistics\Shipping\Application\Port\Driven\ForTrackingPickups;
 use Logistics\Shipping\Application\Port\Driving\ForReconcilingJourneys;
 use Logistics\Shipping\Application\ProgressOutcome;
 use Logistics\Shipping\Application\ReconciledJourney;
 use Logistics\Shipping\Domain\Error\CarrierUnreachable;
+use Logistics\Shipping\Domain\Shipment\ShipmentReference;
 use Tucano\SharedKernel\Documentation\UseCase;
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Time\Clock;
@@ -29,6 +31,7 @@ final readonly class ReconcileJourneys implements ForReconcilingJourneys
         private ForStoringShipments $shipments,
         private ForTrackingPickups $carriers,
         private CarrierJourney $journey,
+        private ForRecordingJourneyChecks $checks,
         private Clock $clock,
         private int $quietSeconds,
     ) {}
@@ -40,12 +43,23 @@ final readonly class ReconcileJourneys implements ForReconcilingJourneys
         if ($shipment === null) {
             return null;
         }
+        $reconciled = $this->compare($shipment);
+        // What the round found, for the watch of stalled journeys (UC-SHP-13).
+        $this->checks->record($shipment->id, $reconciled->result, $now);
 
+        return $reconciled;
+    }
+
+    private function compare(ShipmentReference $shipment): ReconciledJourney
+    {
         try {
             $history = $this->carriers->eventsOf($shipment->id);
         } catch (CarrierUnreachable) {
             // The claim keeps it out of the way until it is quiet again; then it is asked about again.
             return ReconciledJourney::carrierUnreachable($shipment->trackingCode);
+        }
+        if ($history === []) {
+            return ReconciledJourney::unknownToCarrier($shipment->trackingCode);
         }
 
         $applied = 0;

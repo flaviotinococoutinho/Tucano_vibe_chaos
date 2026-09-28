@@ -48,6 +48,7 @@ async function webhooksFor(
   const webhooks = new Webhooks({
     target,
     signatureHeader: HEADER,
+    delivery: loadConfig({}).webhooks,
     clock,
     plan: () => plan,
     signal: shutdown.signal,
