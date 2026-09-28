@@ -7,15 +7,12 @@ namespace Logistics\Shipping\Adapter\Driving\Kafka;
 use Logistics\Shipping\Application\CancelledOrder;
 use Logistics\Shipping\Application\OrderLine;
 use Logistics\Shipping\Application\PaidOrder;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
-use Logistics\Shipping\Domain\Destination\Coordinates;
-use Logistics\Shipping\Domain\Destination\Destination;
-use Logistics\Shipping\Domain\Destination\PostalCode;
 use Logistics\Shipping\Domain\Parcel\Quantity;
 use Logistics\Shipping\Domain\Product\Sku;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Recipient;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Messaging\CloudEvent;
 use Tucano\SharedKernel\Messaging\EventFields;
 
@@ -28,18 +25,22 @@ final readonly class OrderEventTranslator
 {
     private const string UNPAID = 'pending_payment';
 
+    /** Carries the shipping address as it was before ADR 0020, until it drains. */
+    private const string LEGACY_TOPIC = 'commerce.orders.v1';
+
     private function __construct() {}
 
-    public static function paidOrder(CloudEvent $event): PaidOrder
+    public static function paidOrder(CloudEvent $event, string $topic): PaidOrder
     {
         $data = new EventFields($event->data);
         $customer = $data->object('customer');
+        $address = $data->object('shippingAddress');
 
         return new PaidOrder(
             $event->id,
             OrderId::fromString($data->text('orderId')),
             Recipient::of($customer->text('name'), $customer->text('email')),
-            self::destination($data->object('shippingAddress')),
+            $topic === self::LEGACY_TOPIC ? LegacyShippingAddress::read($address) : Address::fromArray($address->toArray()),
             FulfillmentCenterCode::of($data->text('fulfillmentCenter')),
             array_map(
                 static fn(EventFields $line): OrderLine => new OrderLine(Sku::of($line->text('sku')), Quantity::of($line->integer('quantity'))),
@@ -57,22 +58,5 @@ final readonly class OrderEventTranslator
         }
 
         return new CancelledOrder($event->id, OrderId::fromString($data->text('orderId')));
-    }
-
-    private static function destination(EventFields $address): Destination
-    {
-        $latitude = $address->optionalNumber('latitude');
-        $longitude = $address->optionalNumber('longitude');
-
-        return new Destination(
-            $address->text('street'),
-            $address->text('number'),
-            $address->optionalText('complement'),
-            $address->text('district'),
-            $address->text('city'),
-            BrazilianState::from($address->text('state')),
-            PostalCode::of($address->text('postalCode')),
-            $latitude === null || $longitude === null ? null : new Coordinates($latitude, $longitude),
-        );
     }
 }

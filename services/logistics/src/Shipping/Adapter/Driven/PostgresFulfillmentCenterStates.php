@@ -6,9 +6,9 @@ namespace Logistics\Shipping\Adapter\Driven;
 
 use Illuminate\Database\ConnectionInterface;
 use Logistics\Shipping\Application\Port\Driven\ForLocatingFulfillmentCenters;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
 use Logistics\Shipping\Domain\Error\InvalidShipment;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
+use Tucano\SharedKernel\Address\BrazilianState;
 
 final readonly class PostgresFulfillmentCenterStates implements ForLocatingFulfillmentCenters
 {

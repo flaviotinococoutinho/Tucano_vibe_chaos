@@ -35,7 +35,7 @@ final readonly class OutboxEvents implements ForPublishingEvents
     private static function topicOf(DomainEvent $event): string
     {
         return match (true) {
-            str_starts_with($event->eventType(), 'tucano.commerce.order.') => 'commerce.orders.v1',
+            str_starts_with($event->eventType(), 'tucano.commerce.order.') => 'commerce.orders.v2',
             default => throw new LogicException(sprintf('No topic is mapped for %s.', $event->eventType())),
         };
     }

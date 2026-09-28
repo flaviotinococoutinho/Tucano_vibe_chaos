@@ -47,7 +47,7 @@ O `config/queue.php` que vem com o Laravel guarda os jobs que falharam em `env('
 ```bash
 docker compose stop logistics-label-requests
 docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 \
-  --group logistics.label-requests --topic logistics.shipments.v1 --reset-offsets --to-earliest --execute
+  --group logistics.label-requests --topic logistics.shipments.v2 --reset-offsets --to-earliest --execute
 docker compose up -d --no-deps logistics-label-requests
 ```
 

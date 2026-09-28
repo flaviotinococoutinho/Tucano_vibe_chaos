@@ -84,6 +84,9 @@ erDiagram
     varchar(254) customer_email
     varchar(24) status "máquina de estados"
     char(4) fulfillment_center FK
+    varchar(30) ship_thoroughfare_type "Rua, Avenida, Rodovia"
+    varchar(20) ship_number "texto: KM 500, S/N"
+    jsonb ship_divisions "da UF ao bairro (ADR 0020)"
     char(8) ship_postal_code
     bigint total_cents
     char(3) currency
@@ -140,7 +143,7 @@ erDiagram
 
   fulfillment_centers {
     char(4) code PK
-    varchar(80) city
+    varchar(80) municipality
     char(2) state
     numeric latitude
     numeric longitude
@@ -158,6 +161,9 @@ erDiagram
     varchar(24) status "máquina de estados"
     varchar(32) carrier_code FK
     char(4) origin FK
+    varchar(30) dest_thoroughfare_type
+    varchar(20) dest_number
+    jsonb dest_divisions "da UF ao bairro (ADR 0020)"
     char(8) dest_postal_code
     smallint delivery_attempts "0 a 3"
     varchar(200) label_object_key "obrigatória depois de created"
@@ -191,8 +197,8 @@ O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_r
 
 | Coleção | Chave | Índices | Alimentada por |
 |---|---|---|---|
-| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v1` e `logistics.shipments.v1` |
-| `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário) | `trackingCode` único, `orderId` único | `logistics.shipments.v1` |
+| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v2` e `logistics.shipments.v2` |
+| `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário) | `trackingCode` único, `orderId` único | `logistics.shipments.v2` |
 
 ```json
 {

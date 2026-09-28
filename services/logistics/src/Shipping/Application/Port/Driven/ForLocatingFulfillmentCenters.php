@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Application\Port\Driven;
 
-use Logistics\Shipping\Domain\Destination\BrazilianState;
 use Logistics\Shipping\Domain\Error\InvalidShipment;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
+use Tucano\SharedKernel\Address\BrazilianState;
 
 interface ForLocatingFulfillmentCenters
 {

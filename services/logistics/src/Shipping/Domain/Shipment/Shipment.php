@@ -6,7 +6,6 @@ namespace Logistics\Shipping\Domain\Shipment;
 
 use DateTimeImmutable;
 use LogicException;
-use Logistics\Shipping\Domain\Destination\Destination;
 use Logistics\Shipping\Domain\Error\TransitionNotAllowed;
 use Logistics\Shipping\Domain\Event\DeliveryAttemptFailed;
 use Logistics\Shipping\Domain\Event\ShipmentCancelled;
@@ -32,6 +31,7 @@ use Logistics\Shipping\Domain\Transition\Hub;
 use Logistics\Shipping\Domain\Transition\ProofOfDelivery;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
 use Logistics\Shipping\Domain\Transition\TransitionRequest;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\AggregateRoot;
 
 /**
@@ -54,7 +54,7 @@ final class Shipment extends AggregateRoot
         private readonly CarrierCode $carrier,
         private readonly FulfillmentCenterCode $origin,
         private readonly Recipient $recipient,
-        private readonly Destination $destination,
+        private readonly Address $destination,
         private readonly Parcels $parcels,
         private readonly DateTimeImmutable $createdAt,
         public private(set) ShipmentStatus $status,
@@ -68,7 +68,7 @@ final class Shipment extends AggregateRoot
         CarrierCode $carrier,
         FulfillmentCenterCode $origin,
         Recipient $recipient,
-        Destination $destination,
+        Address $destination,
         Parcels $parcels,
         DateTimeImmutable $createdAt,
     ): self {

@@ -26,7 +26,7 @@ use Tucano\SharedKernel\Messaging\CloudEvent;
 use ValueError;
 
 /**
- * Reads commerce.orders.v1 for the consumer group logistics.order-intake: a
+ * Reads commerce.orders.v1 and v2 for the consumer group logistics.order-intake: a
  * paid order becomes a shipment and a cancelled one stops it; the other order
  * events are not for Logistics. What a retry cannot fix goes to the dead
  * letter topic at once: an unreadable event, or a refusal of the domain, which
@@ -65,7 +65,7 @@ final readonly class OrderEventHandler implements MessageHandler
 
     private function create(CloudEvent $event, ReceivedMessage $message): void
     {
-        $order = self::translate($message, static fn(): PaidOrder => OrderEventTranslator::paidOrder($event));
+        $order = self::translate($message, static fn(): PaidOrder => OrderEventTranslator::paidOrder($event, $message->topic));
         $created = $this->attempt($event, fn(): CreatedShipment|ShipmentSkipped => $this->creations->create($order));
         if ($created instanceof ShipmentSkipped) {
             $this->logger->info(match ($created) {

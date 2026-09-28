@@ -61,7 +61,7 @@ flowchart LR
 
 ## Criar e cancelar a remessa
 
-O worker `logistics:order-intake` lê `commerce.orders.v1` no consumer group `logistics.order-intake`.
+O worker `logistics:order-intake` lê `commerce.orders.v2` no consumer group `logistics.order-intake`, e também o `commerce.orders.v1` até ele esvaziar. No `.v1` o endereço ainda vem na forma antiga, e o `LegacyShippingAddress` traduz para o modelo da [ADR 0020](../../docs/adr/0020-address-by-thoroughfare-and-divisions.md).
 
 | Evento | O que acontece |
 |---|---|
@@ -121,10 +121,10 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 
 | Serviço no compose | Comando | O que faz |
 |---|---|---|
-| `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v1` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
+| `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v2` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
 | `logistics-catalog-sync` | `php artisan logistics:sync-catalog` | mantém peso e dimensões em `product_snapshots` a partir de `catalog.products.v1` ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)); snapshot ilegível vai para `dlq.logistics.catalog-sync` |
-| `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v1`; roda com `SNOWFLAKE_WORKER_ID=12` |
-| `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v1` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
+| `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v2` (e do `.v1` até ele esvaziar); roda com `SNOWFLAKE_WORKER_ID=12` |
+| `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v2` (e do `.v1` até ele esvaziar) vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
 | `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
 
@@ -134,7 +134,7 @@ A etiqueta sai em ZPL, a linguagem das impressoras térmicas: é texto, e a impr
 
 ```mermaid
 sequenceDiagram
-  participant K as Kafka (logistics.shipments.v1)
+  participant K as Kafka (logistics.shipments.v2)
   participant R as logistics-label-requests
   participant Q as SQS (label-jobs)
   participant W as logistics-label-worker
@@ -185,7 +185,7 @@ Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierF
 | `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
 | `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
-O `ShipmentCreated` leva o destino só com cidade, estado e CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato.
+O `ShipmentCreated` leva o destino até o município, com as divisões de estado e município e o CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato.
 
 ## Rodando
 

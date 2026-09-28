@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Application;
 
-use Logistics\Shipping\Domain\Destination\Destination;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Recipient;
+use Tucano\SharedKernel\Address\Address;
 
 /**
  * What Logistics takes from an order.paid event: enough to ship without ever
@@ -20,7 +20,7 @@ final readonly class PaidOrder
         public string $eventId,
         public OrderId $orderId,
         public Recipient $recipient,
-        public Destination $destination,
+        public Address $destination,
         public FulfillmentCenterCode $origin,
         public array $lines,
     ) {}

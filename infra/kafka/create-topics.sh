@@ -22,8 +22,12 @@ two_weeks_ms=1209600000
 
 # Full product state, one record per key: compaction keeps the latest version forever.
 create catalog.products.v1 --config cleanup.policy=compact --config min.compaction.lag.ms=60000
+# The address of ADR 0020 changed the shape of both: v2 is current, and v1 stays
+# until its consumer groups have no lag left on it.
 create commerce.orders.v1 --config retention.ms="$week_ms"
+create commerce.orders.v2 --config retention.ms="$week_ms"
 create logistics.shipments.v1 --config retention.ms="$week_ms"
+create logistics.shipments.v2 --config retention.ms="$week_ms"
 
 consumer_groups=(
   commerce.catalog-sync

@@ -5,7 +5,7 @@
 | **Nível** | subfunção |
 | **Ator principal** | Fila de etiquetas (os workers `logistics-label-requests` e `logistics-label-worker`) |
 | **Escopo** | Logistics (Shipping) |
-| **Gatilho** | uma remessa é criada: `tucano.logistics.shipment.created` chega em `logistics.shipments.v1` |
+| **Gatilho** | uma remessa é criada: `tucano.logistics.shipment.created` chega em `logistics.shipments.v2` |
 
 ## Partes interessadas e interesses
 
@@ -32,14 +32,14 @@
 1. O worker `logistics-label-requests` lê o `ShipmentCreated` e põe um job com o id da remessa na fila `label-jobs` (SQS).
 2. O worker `logistics-label-worker` recebe o job, e a mensagem fica invisível para os outros workers por 60 s.
 3. O sistema lê a remessa e confere que ela ainda está em `created`.
-4. O sistema monta a etiqueta em ZPL: transportadora, CD de origem, destinatário, endereço, CEP, o código de barras Code 128 do código de rastreio e os volumes com o peso.
+4. O sistema monta a etiqueta em ZPL: transportadora, CD de origem, destinatário, a linha do logradouro (tipo, nome, número e complemento), as divisões dentro do município, o município com a UF, o CEP, o código de barras Code 128 do código de rastreio e os volumes com o peso.
 5. O sistema grava a etiqueta no S3, fora de transação.
 6. Numa transação, o sistema trava a remessa, move para `ready_for_pickup` com a chave do objeto e grava o histórico e o `ShipmentReadyForPickup` na outbox.
 7. O worker apaga a mensagem da fila.
 
 ## Extensões
 
-- 1a. O SQS não responde: a partição de `logistics.shipments.v1` espera a fila voltar, e nenhum pedido de etiqueta vai para a DLQ.
+- 1a. O SQS não responde: a partição de `logistics.shipments.v2` espera a fila voltar, e nenhum pedido de etiqueta vai para a DLQ.
 - 1b. Evento ilegível: vai direto para `dlq.logistics.label-requests`.
 - 3a. A remessa já saiu de `created` (já tem etiqueta ou foi cancelada): nada muda, e o job termina com `not_needed`.
 - 3b. A remessa não existe: tentar de novo não resolve, e o job vai direto para `failed_jobs`.

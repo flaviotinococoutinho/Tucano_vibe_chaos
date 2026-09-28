@@ -9,6 +9,7 @@ use Database\Seeders\FulfillmentCenterSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Ramsey\Uuid\Uuid;
@@ -60,6 +61,30 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertAttempt($shipmentId, 1, 'delivered'));
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function malformedDivisions(): iterable
+    {
+        yield 'not a list' => ['{"kind": "state", "code": "SP", "name": "São Paulo"}'];
+        yield 'only the state' => ['[{"kind": "state", "code": "SP", "name": "São Paulo"}]'];
+        yield 'the municipality first' => ['[{"kind": "municipality", "code": null, "name": "São Paulo"}, {"kind": "state", "code": "SP", "name": "São Paulo"}]'];
+        yield 'a state without its UF' => ['[{"kind": "state", "code": null, "name": "São Paulo"}, {"kind": "municipality", "code": null, "name": "São Paulo"}]'];
+    }
+
+    #[Test]
+    #[DataProvider('malformedDivisions')]
+    public function the_destination_starts_with_the_state_and_the_municipality(string $divisions): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['dest_divisions' => $divisions]));
+    }
+
+    #[Test]
+    public function the_thoroughfare_and_the_number_are_never_blank(): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['dest_thoroughfare_name' => ' ']));
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['dest_number' => '']));
+        self::assertNotSame('', $this->insertShipment(['dest_number' => 'S/N']));
+    }
+
     /** @param array<string, mixed> $overrides */
     private function insertShipment(array $overrides = []): string
     {
@@ -71,11 +96,10 @@ final class SchemaConstraintsTest extends TestCase
             'origin' => 'GRU1',
             'recipient_name' => 'Ana Souza',
             'recipient_email' => 'ana@example.com',
-            'dest_street' => 'Avenida Paulista',
+            'dest_thoroughfare_type' => 'Avenida',
+            'dest_thoroughfare_name' => 'Paulista',
             'dest_number' => '1000',
-            'dest_district' => 'Bela Vista',
-            'dest_city' => 'São Paulo',
-            'dest_state' => 'SP',
+            'dest_divisions' => '[{"kind": "state", "code": "SP", "name": "São Paulo"}, {"kind": "municipality", "code": "3550308", "name": "São Paulo"}]',
             'dest_postal_code' => '01310100',
             'total_weight_grams' => 1100,
             'created_at' => now(),

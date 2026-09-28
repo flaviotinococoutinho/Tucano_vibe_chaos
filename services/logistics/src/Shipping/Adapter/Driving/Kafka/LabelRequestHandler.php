@@ -15,7 +15,7 @@ use Tucano\Messaging\Kafka\ReceivedMessage;
 use Tucano\SharedKernel\Messaging\EventFields;
 
 /**
- * Reads logistics.shipments.v1 for the consumer group logistics.label-requests:
+ * Reads logistics.shipments.v1 and v2 for the consumer group logistics.label-requests:
  * every created shipment asks for its label. Kafka is the log and SQS the work
  * queue, and this handler is the bridge between the two.
  */

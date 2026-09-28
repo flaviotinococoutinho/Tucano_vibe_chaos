@@ -7,9 +7,6 @@ namespace Tests\Unit\Ordering;
 use Commerce\Ordering\Application\PlaceOrderCommand;
 use Commerce\Ordering\Application\RequestedItem;
 use Commerce\Ordering\Application\UseCase\PlaceOrder;
-use Commerce\Ordering\Domain\Address\BrazilianState;
-use Commerce\Ordering\Domain\Address\PostalCode;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
@@ -26,6 +23,7 @@ use Commerce\Shared\Application\Idempotency\IdempotencyKeyReused;
 use Commerce\Shared\Application\Idempotency\Outcome;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Builders\Addresses;
 use Tests\Doubles\Ordering\FakeStockReservations;
 use Tests\Doubles\Ordering\InMemoryCatalog;
 use Tests\Doubles\Ordering\InMemoryOrders;
@@ -160,7 +158,7 @@ final class PlaceOrderTest extends TestCase
         return new PlaceOrderCommand(
             IdempotencyKey::of($key),
             new Customer(CustomerId::fromString(self::CUSTOMER), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
-            new ShippingAddress('Rua da Bahia', '1200', null, 'Centro', 'Belo Horizonte', BrazilianState::MG, PostalCode::of('30160-011')),
+            Addresses::bahia(),
             $requested,
         );
     }

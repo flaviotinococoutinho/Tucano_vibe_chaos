@@ -13,9 +13,6 @@ use Commerce\Inventory\Application\StockRequest;
 use Commerce\Inventory\Domain\InsufficientStock;
 use Commerce\Inventory\Domain\StockContention;
 use Commerce\Ordering\Adapter\Driven\InventoryStockReservations;
-use Commerce\Ordering\Domain\Address\BrazilianState;
-use Commerce\Ordering\Domain\Address\PostalCode;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLines;
@@ -23,7 +20,9 @@ use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Builders\Addresses;
 use Tests\Builders\OrderBuilder;
+use Tucano\SharedKernel\Address\Address;
 
 final class InventoryStockReservationsTest extends TestCase
 {
@@ -90,8 +89,8 @@ final class InventoryStockReservationsTest extends TestCase
         return OrderLines::of(OrderBuilder::line('BOOK-DDD-001', 'Domain-Driven Design', 1, 18990));
     }
 
-    private static function address(): ShippingAddress
+    private static function address(): Address
     {
-        return new ShippingAddress('Avenida Paulista', '1000', null, 'Bela Vista', 'São Paulo', BrazilianState::SP, PostalCode::of('01310-100'));
+        return Addresses::paulista();
     }
 }

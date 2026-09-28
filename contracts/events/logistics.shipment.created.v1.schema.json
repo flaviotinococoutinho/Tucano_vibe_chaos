@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/logistics.shipment.created.schema.json",
-  "title": "tucano.logistics.shipment.created",
-  "description": "The data of a ShipmentCreated event: a paid order became a shipment with its tracking code, carrier and parcels. The creation time is the CloudEvent time. The destination goes out down to the municipality, without the thoroughfare, the number or the recipient: no consumer needs personal data from a topic kept for a week.",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/events/logistics.shipment.created.v1.schema.json",
+  "title": "tucano.logistics.shipment.created (logistics.shipments.v1)",
+  "description": "Frozen: the shape of this event on logistics.shipments.v1, kept while that topic drains; logistics.shipment.created.schema.json is the contract on logistics.shipments.v2. The data of a ShipmentCreated event: a paid order became a shipment with its tracking code, carrier and parcels. The creation time is the CloudEvent time. The destination goes out without street or recipient: no consumer needs personal data from a topic kept for a week.",
   "type": "object",
   "required": ["shipmentId", "trackingCode", "orderId", "carrier", "origin", "destination", "parcels", "totalWeightGrams"],
   "properties": {
@@ -21,15 +21,10 @@
     },
     "destination": {
       "type": "object",
-      "description": "Where the parcels go, enough to route them and to tell people: the state, the municipality and the CEP.",
-      "required": ["divisions", "postalCode"],
+      "required": ["city", "state", "postalCode"],
       "properties": {
-        "divisions": {
-          "type": "array",
-          "prefixItems": [{ "$ref": "#/$defs/stateDivision" }, { "$ref": "#/$defs/municipalityDivision" }],
-          "items": false,
-          "minItems": 2
-        },
+        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
         "postalCode": { "type": "string", "pattern": "^[0-9]{8}$" }
       },
       "additionalProperties": false
@@ -70,33 +65,6 @@
       "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$",
       "description": "Snowflake in Crockford Base32 after the TX prefix (CHAR(15)). It also names the shipment to people."
     },
-    "positiveInteger": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
-    "division": {
-      "type": "object",
-      "description": "One level of the territory: its kind, its official code when it has one, and its name.",
-      "required": ["kind", "code", "name"],
-      "properties": {
-        "kind": { "enum": ["state", "municipality", "district", "subdistrict", "neighborhood"] },
-        "code": { "type": ["string", "null"], "minLength": 1, "maxLength": 20 },
-        "name": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" }
-      },
-      "additionalProperties": false
-    },
-    "stateDivision": {
-      "description": "The state, known by its UF.",
-      "allOf": [{ "$ref": "#/$defs/division" }],
-      "properties": {
-        "kind": { "const": "state" },
-        "code": { "type": "string", "pattern": "^[A-Z]{2}$" }
-      }
-    },
-    "municipalityDivision": {
-      "description": "The municipality, with its IBGE geocode when known (7 digits, starting with the IBGE code of the state).",
-      "allOf": [{ "$ref": "#/$defs/division" }],
-      "properties": {
-        "kind": { "const": "municipality" },
-        "code": { "type": ["string", "null"], "pattern": "^[0-9]{7}$" }
-      }
-    }
+    "positiveInteger": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
   }
 }

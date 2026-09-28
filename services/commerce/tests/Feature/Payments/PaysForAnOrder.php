@@ -9,6 +9,7 @@ use Database\Seeders\FulfillmentCenterSeeder;
 use Database\Seeders\StockSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Builders\Addresses;
 use Tests\Doubles\Payments\FakeCardGateway;
 use Tucano\SharedKernel\Time\Clock;
 use Tucano\SharedKernel\Time\FrozenClock;
@@ -45,7 +46,7 @@ trait PaysForAnOrder
         ]);
         $this->orderId = (string) $this->postJson('/v1/orders', [
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
-            'shippingAddress' => ['street' => 'Avenida Paulista', 'number' => '1000', 'district' => 'Bela Vista', 'city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310-100'],
+            'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'LAB-CONSOLE-001', 'quantity' => 2]],
         ], ['Idempotency-Key' => (string) Str::uuid7()])->assertCreated()->json('orderId');
         $this->paymentId = (string) $this->postJson("/v1/orders/{$this->orderId}/payments", ['cardToken' => 'tok_visa'], ['Idempotency-Key' => (string) Str::uuid7()])

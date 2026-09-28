@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Builders\Addresses;
 use Tests\TestCase;
 use Tucano\FeatureFlags\FeatureFlags;
 use Tucano\FeatureFlags\InMemoryFlags;
@@ -100,14 +101,7 @@ final class ReservationStrategyTest extends TestCase
     {
         return $this->postJson('/v1/orders', [
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
-            'shippingAddress' => [
-                'street' => 'Avenida Paulista',
-                'number' => '1000',
-                'district' => 'Bela Vista',
-                'city' => 'São Paulo',
-                'state' => 'SP',
-                'postalCode' => '01310-100',
-            ],
+            'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'BOOK-DDD-001', 'quantity' => 1]],
         ], ['Idempotency-Key' => (string) Str::uuid7(), ...$headers]);
     }

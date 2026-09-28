@@ -7,11 +7,11 @@ namespace Logistics\Shipping\Adapter\Driven;
 use Logistics\CarrierSelection\Application\CarrierRequest;
 use Logistics\CarrierSelection\Application\Port\Driving\ForChoosingCarriers as CarrierSelection;
 use Logistics\Shipping\Application\Port\Driven\ForChoosingCarriers;
-use Logistics\Shipping\Domain\Destination\Destination;
 use Logistics\Shipping\Domain\Error\NoCarrierChosen;
 use Logistics\Shipping\Domain\Parcel\Parcels;
 use Logistics\Shipping\Domain\Shipment\CarrierCode;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\DomainError;
 
 /**
@@ -23,12 +23,12 @@ final readonly class CarrierSelectionChoices implements ForChoosingCarriers
 {
     public function __construct(private CarrierSelection $carrierSelection) {}
 
-    public function choose(FulfillmentCenterCode $origin, Destination $destination, Parcels $parcels): CarrierCode
+    public function choose(FulfillmentCenterCode $origin, Address $destination, Parcels $parcels): CarrierCode
     {
         try {
             $chosen = $this->carrierSelection->choose(new CarrierRequest(
                 (string) $origin,
-                $destination->state->value,
+                $destination->state()->value,
                 $parcels->totalWeight()->grams(),
             ));
         } catch (DomainError $refusal) {

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Builders;
 
-use Commerce\Ordering\Domain\Address\BrazilianState;
-use Commerce\Ordering\Domain\Address\PostalCode;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
@@ -72,7 +69,7 @@ final class OrderBuilder
             OrderId::generate(),
             new OrderNumber(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), self::$sequence++ % 4096)),
             new Customer(CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
-            new ShippingAddress('Avenida Paulista', '1000', 'Apto 12', 'Bela Vista', 'São Paulo', BrazilianState::SP, PostalCode::of('01310-100')),
+            Addresses::paulista(),
             OrderLines::of(...$this->lines),
             FulfillmentCenterCode::of('GRU1'),
             $this->placedAt,

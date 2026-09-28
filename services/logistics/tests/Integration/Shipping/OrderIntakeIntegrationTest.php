@@ -24,6 +24,7 @@ use Tests\TestCase;
 use Tucano\FeatureFlags\FeatureFlags;
 use Tucano\FeatureFlags\InMemoryFlags;
 use Tucano\Messaging\Kafka\PermanentFailure;
+use Tucano\SharedKernel\Address\Divisions;
 use Tucano\SharedKernel\Identity\Snowflake\NodeId;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 use Tucano\SharedKernel\Time\Clock;
@@ -55,8 +56,12 @@ final class OrderIntakeIntegrationTest extends TestCase
 
         $shipment = DB::table('shipments')->sole();
         self::assertSame(
-            ['created', 'tucano-express', 'GRU1', 'Ana Souza', 'SP', '01310100', 2550, 0, 1],
-            [$shipment->status, $shipment->carrier_code, $shipment->origin, $shipment->recipient_name, $shipment->dest_state, $shipment->dest_postal_code, $shipment->total_weight_grams, $shipment->delivery_attempts, $shipment->version],
+            ['created', 'tucano-express', 'GRU1', 'Ana Souza', 'Avenida', 'Paulista', 'SP', '01310100', 2550, 0, 1],
+            [
+                $shipment->status, $shipment->carrier_code, $shipment->origin, $shipment->recipient_name,
+                $shipment->dest_thoroughfare_type, $shipment->dest_thoroughfare_name, Divisions::fromJson((string) $shipment->dest_divisions)->state()->value,
+                $shipment->dest_postal_code, $shipment->total_weight_grams, $shipment->delivery_attempts, $shipment->version,
+            ],
         );
         self::assertEquals(new NodeId(1, 11), Snowflake::fromInt((int) $shipment->tracking_code)->node(), 'The tracking code comes from the Snowflake node configured for the process.');
         self::assertEquals(
@@ -77,7 +82,7 @@ final class OrderIntakeIntegrationTest extends TestCase
 
         $shipmentId = (string) DB::table('shipments')->value('id');
         $message = DB::table('outbox_messages')->sole();
-        self::assertSame(['logistics.shipments.v1', $shipmentId, 'tucano.logistics.shipment.created'], [$message->topic, $message->message_key, $message->event_type]);
+        self::assertSame(['logistics.shipments.v2', $shipmentId, 'tucano.logistics.shipment.created'], [$message->topic, $message->message_key, $message->event_type]);
 
         $event = self::decode((string) $message->payload);
         self::assertSame(['/logistics', 'req-42#3', OrderEvents::PAID_EVENT], [$event->source, $event->correlationid, $event->causationid]);

@@ -28,7 +28,7 @@
 
 ## Cenário principal de sucesso
 
-1. O cliente envia os itens, o endereço de entrega e uma `Idempotency-Key`.
+1. O cliente envia os itens, o endereço de entrega (logradouro, número em texto, complemento, divisões da UF ao bairro e CEP, como na [ADR 0020](../adr/0020-address-by-thoroughfare-and-divisions.md)) e uma `Idempotency-Key`.
 2. O sistema valida os itens contra o snapshot do catálogo e congela os preços.
 3. O sistema escolhe o centro de distribuição e reserva o estoque de cada item (UC-INV-01).
 4. O sistema cria o pedido com número Snowflake e registra `OrderPlaced` na outbox, na mesma transação da reserva.
@@ -38,6 +38,7 @@
 
 - 1a. `Idempotency-Key` já usada com o mesmo corpo: o sistema devolve a resposta original.
 - 1b. `Idempotency-Key` já usada com outro corpo: o sistema recusa (`422`).
+- 1c. Endereço que ninguém entregaria (divisões fora da ordem, município de outra UF pelo geocódigo, número vazio ou enviado como número JSON): o sistema recusa (`422`) dizendo o que está errado.
 - 2a. Produto desconhecido ou descontinuado: o sistema recusa o pedido indicando o SKU.
 - 3a. Estoque insuficiente em algum item: o sistema desfaz tudo e informa o que falta (`409`).
 - 3b. Disputa pelo mesmo estoque: a estratégia de reserva configurada decide quem leva (veja o lab de overselling).

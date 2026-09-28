@@ -23,7 +23,7 @@ final class BookPickups extends Command
 
     public function handle(PickupBookingHandler $handler, Producer $deadLetters, LoggerInterface $logger): int
     {
-        $consumer = new RdKafkaConsumer((string) config('messaging.brokers'), self::GROUP, ['logistics.shipments.v1'], $deadLetters, $logger, self::patience());
+        $consumer = new RdKafkaConsumer((string) config('messaging.brokers'), self::GROUP, ['logistics.shipments.v1', 'logistics.shipments.v2'], $deadLetters, $logger, self::patience());
         $consumer->run($handler, StopSignal::onTermination());
 
         return self::SUCCESS;
