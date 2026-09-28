@@ -3,7 +3,7 @@
 
 It reads every Markdown file tracked by Git and fails when:
   1. a link or an image points to a file or folder that does not exist;
-  2. a link names an anchor that no heading of the target file produces.
+  2. a link names an anchor that no heading or explicit HTML anchor of the target file produces.
 
 External links (http, https, mailto) are left alone: they break for reasons the repository
 cannot fix, and a CI that fails because a site is down teaches people to ignore it. Anchors
@@ -25,6 +25,7 @@ INLINE_CODE = re.compile(r"`[^`\n]*`")
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 HTML_LINK = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""")
 HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$")
+HTML_ANCHOR = re.compile(r"""<a\s+(?:id|name)\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 EXTERNAL = ("http://", "https://", "mailto:", "tel:")
 
 
@@ -94,7 +95,11 @@ def anchors_of(file: Path) -> set[str]:
         if FENCE.match(line):
             in_fence = not in_fence
             continue
-        heading = None if in_fence else HEADING.match(line)
+        if in_fence:
+            continue
+        # An explicit anchor, such as the relations of the BFF contract, is linked to as it is written.
+        produced.update(anchor.lower() for anchor in HTML_ANCHOR.findall(line))
+        heading = HEADING.match(line)
         if heading is None:
             continue
         slug = slug_of(heading.group(2))
