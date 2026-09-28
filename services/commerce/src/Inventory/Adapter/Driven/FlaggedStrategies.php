@@ -11,15 +11,17 @@ use Psr\Log\LoggerInterface;
 use Tucano\FeatureFlags\FeatureFlags;
 
 /**
- * The strategy comes from the flag inventory.reservation-strategy. In the lab,
- * the X-Inventory-Strategy header overrides it for one request, and only while
- * labs.enabled is on (the ProductionGuard keeps labs.* off in production).
+ * The strategy comes from the flag inventory.reservation-strategy. In the lab, the
+ * preference `Prefer: reservation-strategy=<name>` (RFC 7240) overrides it for one
+ * request, and only while labs.enabled is on (the ProductionGuard keeps labs.* off in
+ * production). A preference is a hint: out of the lab, or naming a strategy that does
+ * not exist, it is ignored, and the answer does not say Preference-Applied.
  * The choice goes into the request Context: the holds and the isolation of the
  * transaction read the same answer, and every log line of the request shows it.
  */
 final readonly class FlaggedStrategies implements ForChoosingStrategy
 {
-    public const string LAB_HEADER = 'X-Inventory-Strategy';
+    public const string PREFERENCE = 'reservation-strategy';
 
     private const string CONTEXT_KEY = 'inventory_strategy';
 
@@ -34,22 +36,25 @@ final readonly class FlaggedStrategies implements ForChoosingStrategy
         return (is_string($chosen) ? ReservationStrategy::tryFrom($chosen) : null) ?? $this->fromFlag();
     }
 
-    /** @throws \ValueError when the lab header names a strategy that does not exist */
-    public function chooseFor(?string $labHeader): ReservationStrategy
+    /**
+     * Chooses the strategy of this request and returns the preference when the lab applied
+     * it, or null when the flag chose.
+     */
+    public function chooseFor(?string $preferred): ?ReservationStrategy
     {
-        $strategy = $this->fromLab($labHeader) ?? $this->fromFlag();
-        Context::add(self::CONTEXT_KEY, $strategy->value);
+        $fromLab = $this->fromLab($preferred);
+        Context::add(self::CONTEXT_KEY, ($fromLab ?? $this->fromFlag())->value);
 
-        return $strategy;
+        return $fromLab;
     }
 
-    private function fromLab(?string $header): ?ReservationStrategy
+    private function fromLab(?string $preferred): ?ReservationStrategy
     {
-        if ($header === null || $header === '' || !$this->flags->enabled('labs.enabled')) {
+        if ($preferred === null || !$this->flags->enabled('labs.enabled')) {
             return null;
         }
 
-        return ReservationStrategy::from(strtolower($header));
+        return ReservationStrategy::tryFrom(strtolower($preferred));
     }
 
     private function fromFlag(): ReservationStrategy

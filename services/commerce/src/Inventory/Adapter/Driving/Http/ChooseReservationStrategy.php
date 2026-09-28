@@ -6,29 +6,28 @@ namespace Commerce\Inventory\Adapter\Driving\Http;
 
 use Closure;
 use Commerce\Inventory\Adapter\Driven\FlaggedStrategies;
-use Commerce\Inventory\Application\ReservationStrategy;
+use Commerce\Shared\Adapter\Driving\Http\Preferences;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use ValueError;
 
-/** Chooses the reservation strategy once, before a request that reserves stock starts its transaction. */
+/**
+ * Chooses the reservation strategy once, before a request that reserves stock starts its
+ * transaction. When the lab follows the preference of the request, the answer says so in
+ * Preference-Applied (RFC 7240), so an experiment knows which strategy really ran.
+ */
 final readonly class ChooseReservationStrategy
 {
     public function __construct(private FlaggedStrategies $strategies) {}
 
     public function handle(Request $request, Closure $next): Response
     {
-        try {
-            $this->strategies->chooseFor($request->header(FlaggedStrategies::LAB_HEADER));
-        } catch (ValueError) {
-            throw new BadRequestHttpException(sprintf(
-                '%s must be one of %s.',
-                FlaggedStrategies::LAB_HEADER,
-                implode(', ', array_map(static fn(ReservationStrategy $strategy): string => $strategy->value, ReservationStrategy::cases())),
-            ));
+        $applied = $this->strategies->chooseFor(Preferences::of($request)->valueOf(FlaggedStrategies::PREFERENCE));
+
+        $response = $next($request);
+        if ($applied !== null) {
+            $response->headers->set('Preference-Applied', FlaggedStrategies::PREFERENCE . '=' . $applied->value);
         }
 
-        return $next($request);
+        return $response;
     }
 }
