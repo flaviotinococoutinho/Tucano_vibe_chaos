@@ -2,6 +2,10 @@
 .github
 .claude
 docs
+# The service images copy only packages/php and their own folder; the rest never needs to reach the builder.
+infra
+contracts
+scripts
 **/vendor
 **/node_modules
 **/.phpunit.cache
