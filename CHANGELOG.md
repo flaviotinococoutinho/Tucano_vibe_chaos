@@ -4,17 +4,16 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-28
+
 ### Added
 
-- Setup com Ansible (`infra/ansible`, `make setup` e `make setup-check`): confere disco e memória, instala o que falta no macOS (Homebrew e Colima) ou no Debian e Ubuntu (Docker Engine), liga a VM, escreve o `.env` e sobe a stack até os health checks passarem. O CI roda o `ansible-lint` e a parte da máquina num Ubuntu limpo, e o workflow manual `setup` roda o playbook inteiro num runner limpo.
-- `make trim`, que devolve ao Mac o espaço liberado dentro da VM do Colima.
-
 - Rastreio pelo código (UC-SHP-10), o lado de leitura das remessas no pacote `Timeline`: o projetor `logistics-timeline-projector` leva cada evento de `logistics.shipments.v2` para a linha do tempo no MongoDB e para a página pública no DynamoDB, cada um deduplicando pelo id do evento, e `GET /v1/tracking/{código}` lê a página por chave.
-
 - Vigia das jornadas paradas (UC-SHP-13): o worker `logistics-stalled-journeys-watch` faz, a cada 15 min, uma leitura analítica (transação `READ ONLY` com `statement_timeout`) das remessas com a transportadora e sem passo há mais de uma hora, e manda o alerta no log, no nível `alert`, e por e-mail (Mailpit, pelo Toxiproxy). Cada linha traz o motivo, pela última rodada da conciliação, e o mesmo alerta só se repete depois de 4 h (`Cache::add` no Redis). `make stalled` roda uma rodada na hora.
-
 - Referência de configuração (`docs/operations/configuration.md`) com as regras dos nomes e cada variável de cada serviço, e a fitness function `make config-check`, que também roda no CI (ADR 0021).
 - Variáveis novas para o que estava fixo no código: pausas dos workers, retries e poll dos consumers, lote e pausas do relay da outbox, timeouts dos clientes (transportadora, PSP, S3, SQS, DynamoDB, flagd, SMTP), tentativas do job de etiqueta, cache e página do catálogo, porta e espera do tracking, retries e retenção do partners-sim.
+- Setup com Ansible (`infra/ansible`, `make setup` e `make setup-check`): confere disco e memória, instala o que falta no macOS (Homebrew e Colima) ou no Debian e Ubuntu (Docker Engine), liga a VM, escreve o `.env` e sobe a stack até os health checks passarem. O CI roda o `ansible-lint` e a parte da máquina num Ubuntu limpo, e o workflow manual `setup` roda o playbook inteiro num runner limpo.
+- `make trim`, que devolve ao Mac o espaço liberado dentro da VM do Colima.
 
 ### Changed
 
@@ -28,7 +27,6 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - O `make up` agora constrói e depois sobe sem `--build`: o `up --build` recriava todos os serviços a cada chamada, mesmo sem mudança nenhuma, porque o digest que o compose guarda muda a cada build, até com cache. Uma stack igual fica como está.
 - O Kong pergunta de novo ao DNS a cada 5 s (`KONG_DNS_VALID_TTL`): com o TTL de 600 s do Docker, um serviço recriado pelo compose ficava 502 atrás do gateway por até dez minutos.
 - O `make doctor` agora olha o disco do Mac, e não só o da VM: o disco da VM cresce dentro do disco do Mac, e um Mac cheio fez a VM remontar o disco do Docker como somente leitura no meio de um rebuild.
-
 - O README da logística agora lista o webhook das transportadoras entre os endpoints.
 
 ## [0.6.0] - 2026-09-27
@@ -152,7 +150,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.6.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.7.0...develop
+[0.7.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
