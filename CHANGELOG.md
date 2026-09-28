@@ -6,10 +6,12 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Added
 
+- Experimento `tracking-without-the-timeline`: corta o MongoDB, compra uma caneca durante a queda e exige que a página pública chegue a entregue, com todos os passos da jornada, em até 90 s. Na primeira execução, a jornada inteira da encomenda foi para a DLQ, e a página ficou sem nenhum passo.
 - Experimento `tracking-without-its-copy`: corta o DynamoDB (o Floci inteiro) e exige que a página de rastreio responda em até 1 s, com a entrega ou com `503` e `Retry-After`. Na primeira execução, ela pendurava até o BFF desistir, em 5,05 s.
 
 ### Fixed
 
+- Uma queda do MongoDB apagava passos da página pública de rastreio, que mora no DynamoDB: o mesmo projetor escrevia os dois read models, o MongoDB primeiro, e mandava para a DLQ mensagens que não tinham defeito nenhum. Agora cada read model lê os eventos no seu grupo de consumo (`logistics.timeline-projector` e o novo `logistics.tracking-pages`, com o worker `logistics-tracking-pages`), e cada um espera sem limite quando a sua loja está fora de alcance (ADR 0027).
 - Com o DynamoDB fora, a leitura do rastreio levava 12,4 s na logistics e respondia `500`, porque o SDK repetia a chamada com espera entre as tentativas. Agora a leitura usa um cliente próprio, com uma tentativa só e até 800 ms (`DYNAMODB_READ_TIMEOUT_MS`), e a falta de resposta vira `TrackingPagesUnavailable`, que o controller devolve como `503` com `Retry-After: 5`: a página recusa em 0,06 s. A escrita do projetor mantém as tentativas.
 
 ## [0.9.0] - 2026-09-28
