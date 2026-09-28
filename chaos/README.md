@@ -27,7 +27,7 @@ flowchart LR
 1. **O estado estável** é a hipótese, em sondas que respondem sim ou não. Ela é conferida antes da falha: se o sistema já está doente, não há o que concluir.
 2. **O método** provoca uma falha do mundo real, pela mesma alavanca que um laboratório usaria: um toxic no Toxiproxy, um corte de rede, um controle de caos do partners-sim.
 3. **O estado estável de novo**, com a falha ainda ativa. É aqui que o experimento dá o veredito: a hipótese se manteve ou o sistema se desviou.
-4. **Os rollbacks** tiram a falha.
+4. **Os rollbacks** tiram a falha e devolvem o estado estável, não só a configuração de antes. O `psp-slow` espera 25 s depois de tirar a latência: o circuito que ele abriu fica aberto 20 s depois que o PSP volta, e o experimento seguinte encontraria o sistema ainda se recuperando. Foi o `lost-psp-webhooks` que acusou isso, recusando começar com o pagamento ainda em `503`.
 
 As sondas compram na loja do jeito que a web compra: abrem as telas do BFF e seguem os links e as ações que vêm nelas, sem montar nenhum endereço. Elas pagam com o cartão de teste recusado, então cada pedido cancela e devolve o estoque, e dá para rodar os experimentos o dia inteiro sem esvaziar prateleira nenhuma. A exceção é o `tracking-without-its-database`, que precisa de uma encomenda coletada: cada execução compra e entrega uma caneca, de um estoque de 200.
 

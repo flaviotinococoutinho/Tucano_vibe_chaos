@@ -95,6 +95,9 @@
         "method": "DELETE",
         "url": "${toxiproxy}/proxies/payfake/toxics/slow-psp",
         "timeout": 10
+      },
+      "pauses": {
+        "after": 25
       }
     }
   ],
