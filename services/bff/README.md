@@ -58,7 +58,7 @@ Os logs são do pino que já vem no Fastify: uma linha JSON por evento, com `tim
 
 | Variável | Default | Para quê |
 |---|---|---|
-| `SERVICE_NAME` | `bff` | campo `service` dos logs |
+| `APP_NAME` | `bff` | campo `service` dos logs |
 | `APP_ENV` | `production` | `local`, `staging` ou `production`; qualquer outro valor roda como `production`, a mesma regra dos serviços PHP |
 | `HOST` | `0.0.0.0` | interface onde o servidor escuta |
 | `PORT` | `3000` | porta HTTP |

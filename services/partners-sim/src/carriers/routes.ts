@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
-import type { CarriersConfig } from '../config.ts';
+import type { CarriersConfig, WebhookDeliveryConfig } from '../config.ts';
 import { IdempotencyKeys, idempotencyKeyOf } from '../idempotency.ts';
 import { type Origin, Webhooks } from '../webhooks/sender.ts';
-import { Carriers, type ParcelEventData, type PickupRequest, RETENTION } from './carriers.ts';
+import { Carriers, type ParcelEventData, type PickupRequest } from './carriers.ts';
 import { Chaos, type ChaosSettings } from './chaos.ts';
 import { type Pickup, pickupResponse } from './pickup.ts';
 import { chaosSettingsSchema, pickupLookupSchema, pickupRequestSchema } from './schemas.ts';
@@ -14,6 +14,7 @@ const SIGNATURE_HEADER = 'Carrier-Signature';
 
 export type CarriersRoutesOptions = {
   readonly config: CarriersConfig;
+  readonly webhookDelivery: WebhookDeliveryConfig;
   readonly clock: Clock;
   readonly random: Random;
 };
@@ -26,13 +27,14 @@ type PickupRoute = { Params: { pickupId: string } };
  */
 export const carriersRoutes: FastifyPluginAsync<CarriersRoutesOptions> = async (
   app,
-  { config, clock, random },
+  { config, webhookDelivery, clock, random },
 ) => {
   const shutdown = new AbortController();
   const chaos = new Chaos(random);
   const webhooks = new Webhooks<ParcelEventData>({
     target: config.webhook,
     signatureHeader: SIGNATURE_HEADER,
+    delivery: webhookDelivery,
     clock,
     plan: (log, event) => chaos.planWebhook(log, event.data.pickupId, event.id),
     signal: shutdown.signal,
@@ -43,9 +45,10 @@ export const carriersRoutes: FastifyPluginAsync<CarriersRoutesOptions> = async (
     chaos,
     webhooks,
     stepDelayMs: config.stepDelayMs,
+    retention: config.retention,
     signal: shutdown.signal,
   });
-  const pickupKeys = new IdempotencyKeys<Pickup>(clock, RETENTION);
+  const pickupKeys = new IdempotencyKeys<Pickup>(clock, config.retention);
 
   // preClose runs before the server waits for the requests in flight; journeys still walking
   // keep the webhook client and the clock's sleeps open otherwise.

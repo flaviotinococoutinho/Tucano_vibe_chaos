@@ -726,7 +726,7 @@ services:
       dockerfile: services/bff/Dockerfile
     image: chaos-playground/bff
     environment:
-      SERVICE_NAME: bff
+      APP_NAME: bff
       APP_ENV: ${APP_ENV:-local}
       PORT: "3000"
       LOG_LEVEL: info
@@ -744,7 +744,7 @@ services:
       dockerfile: services/partners-sim/Dockerfile
     image: chaos-playground/partners-sim
     environment:
-      SERVICE_NAME: partners-sim
+      APP_NAME: partners-sim
       APP_ENV: ${APP_ENV:-local}
       PORT: "4000"
       LOG_LEVEL: info

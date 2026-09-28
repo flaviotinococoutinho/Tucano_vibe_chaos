@@ -56,8 +56,18 @@ export function buildApp({
   app.setErrorHandler(sendProblem);
   app.setNotFoundHandler(sendNotFound);
   app.register(healthRoutes, { checks });
-  app.register(payfakeRoutes, { config: config.payfake, clock, random });
-  app.register(carriersRoutes, { config: config.carriers, clock, random });
+  app.register(payfakeRoutes, {
+    config: config.payfake,
+    webhookDelivery: config.webhooks,
+    clock,
+    random,
+  });
+  app.register(carriersRoutes, {
+    config: config.carriers,
+    webhookDelivery: config.webhooks,
+    clock,
+    random,
+  });
 
   return app;
 }
