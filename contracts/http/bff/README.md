@@ -4,7 +4,7 @@ The BFF speaks [Siren](https://github.com/kevinswiber/siren) (`application/vnd.s
 
 Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
 
-The examples in [`examples/`](examples) are real documents: the BFF tests check them against [`siren.schema.json`](siren.schema.json), and the web tests render them.
+The examples in [`examples/`](examples) are real documents: the BFF tests check them against [`siren.schema.json`](siren.schema.json), and the web tests render them. Problems live apart, in [`examples/problems/`](examples/problems).
 
 ## Addresses
 

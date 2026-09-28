@@ -89,7 +89,7 @@ jobs:
       - name: Screens of the BFF follow their Siren schema
         run: |
           pipx run check-jsonschema --check-metaschema contracts/http/bff/siren.schema.json
-          pipx run check-jsonschema --schemafile contracts/http/bff/siren.schema.json $(ls contracts/http/bff/examples/*.json | grep -v problem)
+          pipx run check-jsonschema --schemafile contracts/http/bff/siren.schema.json contracts/http/bff/examples/*.json
       - name: HTTP contracts
         run: npx -y @redocly/cli@2.54.3 lint contracts/http/*.openapi.yaml
 
