@@ -1,0 +1,46 @@
+{
+  "class": [
+    "screen",
+    "home"
+  ],
+  "title": "Tucano",
+  "properties": {
+    "headline": "Tudo o que você pede, entregue por quem cuida do caminho.",
+    "tagline": "Compre, pague e acompanhe a entrega do começo ao fim."
+  },
+  "actions": [
+    {
+      "name": "track-by-code",
+      "title": "Acompanhar",
+      "method": "GET",
+      "href": "/bff/v1/tracking",
+      "fields": [
+        {
+          "name": "code",
+          "type": "text",
+          "title": "Código de rastreio",
+          "required": true,
+          "placeholder": "TX02PX83Y5M5G00",
+          "pattern": "^TX[0-9A-HJKMNP-TV-Z]{13}$",
+          "maxlength": 15,
+          "autocomplete": "off"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Ver o catálogo"
+    }
+  ]
+}

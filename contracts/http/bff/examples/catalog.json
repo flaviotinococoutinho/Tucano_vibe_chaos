@@ -1,0 +1,83 @@
+{
+  "class": [
+    "screen",
+    "catalog"
+  ],
+  "title": "Catálogo",
+  "properties": {
+    "page": 1,
+    "perPage": 20,
+    "total": 16
+  },
+  "entities": [
+    {
+      "class": [
+        "product-card"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "sku": "BOOK-DDD-001",
+        "name": "Domain-Driven Design",
+        "category": "books",
+        "categoryLabel": "Livros",
+        "price": {
+          "amount": 15990,
+          "currency": "BRL",
+          "formatted": "R$ 159,90"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/products/BOOK-DDD-001"
+        }
+      ]
+    },
+    {
+      "class": [
+        "product-card"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "sku": "HOME-COFFEE-001",
+        "name": "Cafeteira elétrica",
+        "category": "home",
+        "categoryLabel": "Casa",
+        "price": {
+          "amount": 34990,
+          "currency": "BRL",
+          "formatted": "R$ 349,90"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/products/HOME-COFFEE-001"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/products?page=1"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1",
+      "title": "Início"
+    }
+  ]
+}

@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flaviotinococoutinho/chaos_playground/contracts/http/bff/siren.schema.json",
+  "title": "Screen of the Tucano BFF (Siren entity)",
+  "$ref": "#/$defs/screen",
+  "$defs": {
+    "screen": {
+      "type": "object",
+      "required": [
+        "class",
+        "title",
+        "links"
+      ],
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/classes"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "properties": {
+          "type": "object"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/subEntity"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/link"
+          },
+          "contains": {
+            "type": "object",
+            "properties": {
+              "rel": {
+                "contains": {
+                  "const": "self"
+                }
+              }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "subEntity": {
+      "type": "object",
+      "required": [
+        "class",
+        "rel"
+      ],
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/classes"
+        },
+        "rel": {
+          "$ref": "#/$defs/rels"
+        },
+        "title": {
+          "type": "string"
+        },
+        "properties": {
+          "type": "object"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/link"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "classes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z-]*$"
+      },
+      "minItems": 1
+    },
+    "rels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "link": {
+      "type": "object",
+      "required": [
+        "rel",
+        "href"
+      ],
+      "properties": {
+        "rel": {
+          "$ref": "#/$defs/rels"
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "class": {
+          "$ref": "#/$defs/classes"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "name",
+        "title",
+        "method",
+        "href"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z-]*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "application/json"
+        },
+        "class": {
+          "$ref": "#/$defs/classes"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "email",
+            "number",
+            "hidden",
+            "tel",
+            "select"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "autocomplete": {
+          "type": "string"
+        },
+        "inputmode": {
+          "enum": [
+            "text",
+            "numeric",
+            "decimal",
+            "email",
+            "tel",
+            "search",
+            "url",
+            "none"
+          ]
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "maxlength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "value",
+              "title"
+            ],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
