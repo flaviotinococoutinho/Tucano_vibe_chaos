@@ -18,9 +18,6 @@ import {
 } from './pickup.ts';
 import { randomReceiverDocument, randomReceiverName } from './receiver.ts';
 
-/** How long CarrierFake remembers pickups and Idempotency-Keys, and how many at most. */
-export const RETENTION: Retention = { ttlMs: 24 * 60 * 60 * 1000, maxEntries: 20_000 };
-
 export type PickupRequest = {
   readonly carrier: CarrierCode;
   readonly reference: string;
@@ -74,6 +71,8 @@ export type CarriersOptions = {
   readonly webhooks: Webhooks<ParcelEventData>;
   /** How long a step of the journey takes before its webhook goes out. */
   readonly stepDelayMs: Range;
+  /** How long CarrierFake remembers pickups and their history, and how many at most. */
+  readonly retention: Retention;
   /** Aborts when the server shuts down, which cancels the journeys still walking. */
   readonly signal: AbortSignal;
 };
@@ -95,10 +94,10 @@ export class Carriers {
   private readonly stepDelayMs: Range;
   private readonly signal: AbortSignal;
 
-  constructor({ clock, random, chaos, webhooks, stepDelayMs, signal }: CarriersOptions) {
-    this.pickups = new ExpiringMap(clock, RETENTION);
-    this.eventsByPickup = new ExpiringMap(clock, RETENTION);
-    this.pickupIdsByReference = new ExpiringMap(clock, RETENTION);
+  constructor({ clock, random, chaos, webhooks, stepDelayMs, retention, signal }: CarriersOptions) {
+    this.pickups = new ExpiringMap(clock, retention);
+    this.eventsByPickup = new ExpiringMap(clock, retention);
+    this.pickupIdsByReference = new ExpiringMap(clock, retention);
     this.clock = clock;
     this.random = random;
     this.chaos = chaos;

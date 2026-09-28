@@ -33,6 +33,7 @@ use Logistics\Shipping\Adapter\Driving\Console\RequestLabels;
 use Logistics\Shipping\Adapter\Driving\Console\SyncCatalog;
 use Logistics\Shipping\Adapter\Driving\Console\WatchStalledJourneysWorker;
 use Logistics\Shipping\Adapter\Driving\Http\CarrierWebhookController;
+use Logistics\Shipping\Adapter\Driving\Queue\LabelJobSettings;
 use Logistics\Shipping\Application\Port\Driven\ForChoosingCarriers;
 use Logistics\Shipping\Application\Port\Driven\ForFindingProducts;
 use Logistics\Shipping\Application\Port\Driven\ForFindingStalledJourneys;
@@ -118,7 +119,7 @@ final class ShippingServiceProvider extends ServiceProvider
                 // Floci, like MinIO, serves buckets by path and not by subdomain.
                 'use_path_style_endpoint' => true,
                 'credentials' => ['key' => (string) config('labels.s3.key'), 'secret' => (string) config('labels.s3.secret')],
-                'http' => ['timeout' => 5, 'connect_timeout' => 2],
+                'http' => ['timeout' => (int) config('labels.s3.timeout_ms') / 1_000, 'connect_timeout' => (int) config('labels.s3.connect_timeout_ms') / 1_000],
             ]),
             (string) config('labels.bucket'),
             $this->app->make(FeatureFlags::class),
@@ -127,13 +128,15 @@ final class ShippingServiceProvider extends ServiceProvider
         $this->app->bind(ForSchedulingPickups::class, static fn(): ForSchedulingPickups => new CarrierFakePickups(
             new Client(['base_uri' => (string) config('carriers.url')]),
             (int) config('carriers.timeout_ms'),
+            (int) config('carriers.connect_timeout_ms'),
         ));
         $this->app->bind(ForTrackingPickups::class, fn(): ForTrackingPickups => new CarrierFakeTracking(
             new Client(['base_uri' => (string) config('carriers.url')]),
             (int) config('carriers.timeout_ms'),
+            (int) config('carriers.connect_timeout_ms'),
             $this->app->make(LoggerInterface::class),
         ));
-        $this->app->when(ReconcileJourneys::class)->needs('$quietSeconds')->giveConfig('carriers.reconciliation.quiet_seconds');
+        $this->app->when(ReconcileJourneys::class)->needs('$quietSeconds')->giveConfig('journeys.reconciliation.quiet_seconds');
         $this->app->when(WatchStalledJourneys::class)->needs('$stalledAfterSeconds')->giveConfig('journeys.stalled.after_seconds');
         $this->app->when(WatchStalledJourneys::class)->needs('$alertLimit')->giveConfig('journeys.stalled.alert_limit');
         $this->app->when(PostgresStalledJourneys::class)->needs('$statementTimeoutMs')->giveConfig('journeys.stalled.query_timeout_ms');
@@ -143,11 +146,19 @@ final class ShippingServiceProvider extends ServiceProvider
             $this->app->make(LoggerInterface::class),
             (int) config('journeys.stalled.alert_repeat_seconds'),
         ));
-        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('carriers.webhook_secret')));
+        $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature(
+            (string) config('carriers.webhook_secret'),
+            (int) config('carriers.webhook_tolerance_seconds'),
+        ));
         $this->app->bind(ForQueuingLabels::class, fn(): ForQueuingLabels => new LaravelLabelQueue(
             $this->app->make(Queues::class),
             (string) config('labels.queue.connection'),
             (string) config('labels.queue.name'),
+            LabelJobSettings::of(
+                (int) config('labels.job.tries'),
+                array_values(array_map(intval(...), (array) config('labels.job.backoff_seconds'))),
+                (int) config('labels.job.timeout_seconds'),
+            ),
         ));
     }
 

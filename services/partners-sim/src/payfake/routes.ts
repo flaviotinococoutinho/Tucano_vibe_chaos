@@ -2,12 +2,12 @@ import { once } from 'node:events';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
-import type { PayFakeConfig } from '../config.ts';
+import type { PayFakeConfig, WebhookDeliveryConfig } from '../config.ts';
 import { IdempotencyKeys, idempotencyKeyOf } from '../idempotency.ts';
 import { type Origin, Webhooks } from '../webhooks/sender.ts';
 import { Chaos, type ChaosSettings, InjectedFailure } from './chaos.ts';
 import type { Charge, Money, Refund } from './charge.ts';
-import { type ChargeRequest, PayFake, RETENTION, type WebhookEvent } from './payfake.ts';
+import { type ChargeRequest, PayFake, type WebhookEvent } from './payfake.ts';
 import {
   chaosSettingsSchema,
   chargeLookupSchema,
@@ -15,14 +15,12 @@ import {
   refundRequestSchema,
 } from './schemas.ts';
 
-/** The longest the timeout rate holds an answer, for a client that never gives up. */
-const HOLD_LIMIT_MS = 30_000;
-
 /** The header every PayFake webhook carries. */
 const SIGNATURE_HEADER = 'PayFake-Signature';
 
 export type PayFakeRoutesOptions = {
   readonly config: PayFakeConfig;
+  readonly webhookDelivery: WebhookDeliveryConfig;
   readonly clock: Clock;
   readonly random: Random;
 };
@@ -35,13 +33,14 @@ type ChargeRoute = { Params: { id: string } };
  */
 export const payfakeRoutes: FastifyPluginAsync<PayFakeRoutesOptions> = async (
   app,
-  { config, clock, random },
+  { config, webhookDelivery, clock, random },
 ) => {
   const shutdown = new AbortController();
   const chaos = new Chaos(random);
   const webhooks = new Webhooks<WebhookEvent['data']>({
     target: config.webhook,
     signatureHeader: SIGNATURE_HEADER,
+    delivery: webhookDelivery,
     clock,
     plan: (log, event) => chaos.planWebhook(log, event.data.chargeId, event.id),
     signal: shutdown.signal,
@@ -52,10 +51,11 @@ export const payfakeRoutes: FastifyPluginAsync<PayFakeRoutesOptions> = async (
     chaos,
     webhooks,
     processingDelayMs: config.processingDelayMs,
+    retention: config.retention,
     signal: shutdown.signal,
   });
-  const chargeKeys = new IdempotencyKeys<Charge>(clock, RETENTION);
-  const refundKeys = new IdempotencyKeys<Refund>(clock, RETENTION);
+  const chargeKeys = new IdempotencyKeys<Charge>(clock, config.retention);
+  const refundKeys = new IdempotencyKeys<Refund>(clock, config.retention);
 
   // preClose runs before the server waits for the requests in flight, which a held answer
   // or a pending settlement would otherwise keep open.
@@ -93,7 +93,10 @@ export const payfakeRoutes: FastifyPluginAsync<PayFakeRoutesOptions> = async (
     if (!reply.raw.destroyed) {
       const released = new AbortController();
       const signal = AbortSignal.any([shutdown.signal, released.signal]);
-      await Promise.race([once(reply.raw, 'close', { signal }), clock.sleep(HOLD_LIMIT_MS, signal)])
+      await Promise.race([
+        once(reply.raw, 'close', { signal }),
+        clock.sleep(config.timeoutHoldMs, signal),
+      ])
         .catch(() => undefined)
         .finally(() => released.abort());
     }

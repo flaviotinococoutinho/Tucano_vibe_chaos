@@ -20,7 +20,7 @@ final readonly class RedisCheck implements HealthCheck
     public function __construct(
         private string $host,
         private int $port,
-        private float $timeoutSeconds = 1.0,
+        private float $timeoutSeconds,
     ) {}
 
     public function name(): string

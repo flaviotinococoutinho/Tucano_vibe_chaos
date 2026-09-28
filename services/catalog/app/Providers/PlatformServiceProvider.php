@@ -10,6 +10,9 @@ use App\Health\Readiness;
 use App\Health\RedisCheck;
 use App\Logging\LogContext;
 use App\Messaging\LazyProducer;
+use App\Repositories\ProductRepository;
+use App\Services\ProductCacheSettings;
+use App\Services\ProductService;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Support\ServiceProvider;
@@ -45,6 +48,9 @@ final class PlatformServiceProvider extends ServiceProvider
         $this->app->singleton(FeatureFlags::class, fn(): FeatureFlags => $this->featureFlags());
         $this->app->singleton(LogContext::class);
         $this->app->singleton(Producer::class, fn(): Producer => new LazyProducer($this->kafkaProducer(...)));
+        $this->app->singleton(ProductCacheSettings::class, static fn(): ProductCacheSettings => ProductCacheSettings::fromArray((array) config('catalog.cache')));
+        $this->app->when(ProductRepository::class)->needs('$pageSize')->giveConfig('catalog.page_size');
+        $this->app->when(ProductService::class)->needs('$republishBatchSize')->giveConfig('catalog.republish_batch_size');
         $this->app->bind(LockProvider::class, fn(): LockProvider => $this->locks());
 
         $this->app->tag([DatabaseCheck::class, RedisCheck::class], HealthCheck::TAG);
@@ -71,6 +77,8 @@ final class PlatformServiceProvider extends ServiceProvider
             (int) config('platform.flags.port'),
             $this->flagCache(),
             (int) config('platform.flags.cache_seconds'),
+            (int) config('platform.flags.timeout_ms'),
+            (int) config('platform.flags.connect_timeout_ms'),
         );
     }
 
@@ -84,7 +92,10 @@ final class PlatformServiceProvider extends ServiceProvider
         return new RdKafkaProducer(
             (string) config('platform.kafka.brokers'),
             (string) config('platform.service'),
-            ['message.timeout.ms' => (string) config('platform.kafka.message_timeout_ms')],
+            [
+                'linger.ms' => (string) config('platform.kafka.linger_ms'),
+                'message.timeout.ms' => (string) config('platform.kafka.message_timeout_ms'),
+            ],
             $this->app->make(LoggerInterface::class),
         );
     }

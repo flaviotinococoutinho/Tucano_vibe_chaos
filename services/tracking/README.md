@@ -45,17 +45,7 @@ Com `LOG_LEVEL=debug` sai uma linha por request. Um readiness que falha deixa um
 
 ## Configuração
 
-Tudo vem de variáveis de ambiente. Os defaults servem para a stack do compose, onde Redis e flagd são acessados pelo Toxiproxy. Um valor inválido derruba o boot com uma mensagem clara, em vez de falhar no primeiro request.
-
-| Variável | Default | Para quê |
-|---|---|---|
-| `APP_NAME` | `tracking` | campo `service` dos logs e nome do cliente de flags |
-| `APP_ENV` | `production` | ambiente das flags; desconhecido conta como produção |
-| `LOG_LEVEL` | `info` | nível PSR-3 mínimo dos logs |
-| `SWOOLE_WORKERS` | `2` | número de processos worker |
-| `REDIS_HOST` e `REDIS_PORT` | `toxiproxy` e `16379` | Redis via Toxiproxy |
-| `FLAGD_HOST` e `FLAGD_PORT` | `toxiproxy` e `18013` | flagd via Toxiproxy |
-| `FLAGS_DRIVER` | `flagd` | `memory` nos testes, para rodar sem flagd |
+Tudo vem de variáveis de ambiente. Os defaults servem para a stack do compose, onde Redis e flagd são acessados pelo Toxiproxy. Um valor inválido derruba o boot com uma mensagem clara, em vez de falhar no primeiro request. A lista completa (porta, workers, espera no `SIGTERM`, timeouts do Redis e do flagd) está na [referência de configuração](../../docs/operations/configuration.md#tracking).
 
 ## Como está organizado
 

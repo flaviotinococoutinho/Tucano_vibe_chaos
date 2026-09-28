@@ -30,6 +30,7 @@ final readonly class PayFakeGateway implements ForChargingCards
         private ClientInterface $http,
         private FeatureFlags $flags,
         private int $timeoutMilliseconds,
+        private int $connectTimeoutMilliseconds,
     ) {}
 
     public function ensureAvailable(): void {}
@@ -85,7 +86,7 @@ final readonly class PayFakeGateway implements ForChargingCards
             $response = $this->http->request($method, $uri, [
                 ...$options,
                 'timeout' => $budget / 1_000,
-                'connect_timeout' => min(0.5, $budget / 1_000),
+                'connect_timeout' => min($this->connectTimeoutMilliseconds, $budget) / 1_000,
                 'http_errors' => false,
             ]);
         } catch (GuzzleException $failure) {

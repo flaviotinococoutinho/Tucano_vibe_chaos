@@ -22,10 +22,11 @@ final class ConfigTest extends TestCase
 
         self::assertSame('tracking', $config->service);
         self::assertSame(Level::Info, $config->logLevel);
-        self::assertSame(2, $config->workers);
-        self::assertSame(['toxiproxy', 16379], [$config->redisHost, $config->redisPort]);
+        self::assertSame(['0.0.0.0', 9501, 2, 5], [$config->host, $config->port, $config->workers, $config->maxWaitSeconds]);
+        self::assertSame(['toxiproxy', 16379, 1000], [$config->redisHost, $config->redisPort, $config->redisTimeoutMs]);
         self::assertSame(FlagsDriver::Flagd, $config->flagsDriver);
         self::assertSame(['toxiproxy', 18013], [$config->flagdHost, $config->flagdPort]);
+        self::assertSame([2, 300, 200], [$config->flagsCacheSeconds, $config->flagdTimeoutMs, $config->flagdConnectTimeoutMs]);
     }
 
     #[Test]
@@ -41,21 +42,29 @@ final class ConfigTest extends TestCase
             'APP_NAME' => 'tracking-canary',
             'APP_ENV' => 'local',
             'LOG_LEVEL' => 'DEBUG',
+            'HOST' => '127.0.0.1',
+            'PORT' => '9601',
             'SWOOLE_WORKERS' => '4',
+            'SWOOLE_MAX_WAIT_SECONDS' => '8',
             'REDIS_HOST' => 'redis',
             'REDIS_PORT' => '6379',
+            'REDIS_TIMEOUT_MS' => '250',
             'FLAGS_DRIVER' => 'memory',
             'FLAGD_HOST' => 'flagd',
             'FLAGD_PORT' => '8013',
+            'FLAGS_CACHE_SECONDS' => '5',
+            'FLAGD_TIMEOUT_MS' => '500',
+            'FLAGD_CONNECT_TIMEOUT_MS' => '100',
         ]);
 
         self::assertSame('tracking-canary', $config->service);
         self::assertSame(Environment::Local, $config->environment);
         self::assertSame(Level::Debug, $config->logLevel);
-        self::assertSame(4, $config->workers);
-        self::assertSame(['redis', 6379], [$config->redisHost, $config->redisPort]);
+        self::assertSame(['127.0.0.1', 9601, 4, 8], [$config->host, $config->port, $config->workers, $config->maxWaitSeconds]);
+        self::assertSame(['redis', 6379, 250], [$config->redisHost, $config->redisPort, $config->redisTimeoutMs]);
         self::assertSame(FlagsDriver::Memory, $config->flagsDriver);
         self::assertSame(['flagd', 8013], [$config->flagdHost, $config->flagdPort]);
+        self::assertSame([5, 500, 100], [$config->flagsCacheSeconds, $config->flagdTimeoutMs, $config->flagdConnectTimeoutMs]);
     }
 
     #[Test]
@@ -83,6 +92,9 @@ final class ConfigTest extends TestCase
         yield 'workers in words' => ['SWOOLE_WORKERS', 'two'];
         yield 'port out of range' => ['REDIS_PORT', '70000'];
         yield 'port with a fraction' => ['FLAGD_PORT', '8013.5'];
+        yield 'a server port out of range' => ['PORT', '0'];
+        yield 'a timeout in words' => ['REDIS_TIMEOUT_MS', 'one second'];
+        yield 'no time to finish on SIGTERM' => ['SWOOLE_MAX_WAIT_SECONDS', '0'];
         yield 'log level outside PSR-3' => ['LOG_LEVEL', 'verbose'];
         yield 'unknown flag driver' => ['FLAGS_DRIVER', 'launchdarkly'];
     }

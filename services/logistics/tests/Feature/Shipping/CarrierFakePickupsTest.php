@@ -79,7 +79,7 @@ final class CarrierFakePickupsTest extends TestCase
             return $request;
         }));
 
-        return new CarrierFakePickups(new Client(['handler' => $stack, 'base_uri' => 'http://carriers.test']), 2_000);
+        return new CarrierFakePickups(new Client(['handler' => $stack, 'base_uri' => 'http://carriers.test']), 2_000, 500);
     }
 
     private static function order(): PickupOrder

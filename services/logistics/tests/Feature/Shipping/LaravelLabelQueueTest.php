@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Support\Facades\Queue;
 use Logistics\Shipping\Adapter\Driven\LaravelLabelQueue;
 use Logistics\Shipping\Adapter\Driving\Queue\GenerateLabelJob;
+use Logistics\Shipping\Adapter\Driving\Queue\LabelJobSettings;
 use Logistics\Shipping\Domain\Error\LabelNotQueued;
 use Logistics\Shipping\Domain\Shipment\ShipmentId;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,7 +25,7 @@ final class LaravelLabelQueueTest extends TestCase
         Queue::fake();
         $shipment = ShipmentId::generate();
 
-        new LaravelLabelQueue($this->app->make(Queues::class), 'sqs', 'label-jobs')->queue($shipment);
+        new LaravelLabelQueue($this->app->make(Queues::class), 'sqs', 'label-jobs', LabelJobSettings::of(3, [5, 20], 30))->queue($shipment);
 
         Queue::assertPushedOn('label-jobs', GenerateLabelJob::class, static fn(GenerateLabelJob $job): bool => $job->shipmentId === $shipment->toString());
     }
@@ -39,6 +40,6 @@ final class LaravelLabelQueueTest extends TestCase
 
         $this->expectException(LabelNotQueued::class);
 
-        new LaravelLabelQueue($queues, 'sqs', 'label-jobs')->queue(ShipmentId::generate());
+        new LaravelLabelQueue($queues, 'sqs', 'label-jobs', LabelJobSettings::of(3, [5, 20], 30))->queue(ShipmentId::generate());
     }
 }

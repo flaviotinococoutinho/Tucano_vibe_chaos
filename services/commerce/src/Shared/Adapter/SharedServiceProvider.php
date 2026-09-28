@@ -35,8 +35,14 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(Producer::class, fn(): Producer => new RdKafkaProducer(
             (string) config('messaging.brokers'),
             (string) config('messaging.client_id'),
-            logger: $this->app->make(LoggerInterface::class),
+            [
+                'linger.ms' => (string) config('messaging.producer.linger_ms'),
+                'message.timeout.ms' => (string) config('messaging.producer.message_timeout_ms'),
+            ],
+            $this->app->make(LoggerInterface::class),
         ));
+        $this->app->when(LaravelTransactions::class)->needs('$serializableAttempts')->giveConfig('platform.transactions.serializable_attempts');
+        $this->app->when(PostgresRequestMemory::class)->needs('$ttlHours')->giveConfig('platform.idempotency.ttl_hours');
     }
 
     public function boot(): void

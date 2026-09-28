@@ -16,9 +16,6 @@ import {
   transition,
 } from './charge.ts';
 
-/** How long PayFake remembers charges and Idempotency-Keys, and how many at most. */
-export const RETENTION: Retention = { ttlMs: 24 * 60 * 60 * 1000, maxEntries: 20_000 };
-
 /** Card tokens with a fixed answer, so a test can ask for a refusal. Any other token pays. */
 const MAGIC_TOKENS = new Map<string, FailureCode>([
   ['tok_decline', 'card_declined'],
@@ -53,6 +50,8 @@ export type PayFakeOptions = {
   readonly webhooks: Webhooks<WebhookEvent['data']>;
   /** How long a charge or a refund stays processing before it settles. */
   readonly processingDelayMs: Range;
+  /** How long PayFake remembers charges, and how many at most. */
+  readonly retention: Retention;
   /** Aborts when the server shuts down, which cancels the settlements still waiting. */
   readonly signal: AbortSignal;
 };
@@ -72,9 +71,17 @@ export class PayFake {
   private readonly processingDelayMs: Range;
   private readonly signal: AbortSignal;
 
-  constructor({ clock, random, chaos, webhooks, processingDelayMs, signal }: PayFakeOptions) {
-    this.charges = new ExpiringMap(clock, RETENTION);
-    this.chargeIdsByReference = new ExpiringMap(clock, RETENTION);
+  constructor({
+    clock,
+    random,
+    chaos,
+    webhooks,
+    processingDelayMs,
+    retention,
+    signal,
+  }: PayFakeOptions) {
+    this.charges = new ExpiringMap(clock, retention);
+    this.chargeIdsByReference = new ExpiringMap(clock, retention);
     this.clock = clock;
     this.random = random;
     this.chaos = chaos;

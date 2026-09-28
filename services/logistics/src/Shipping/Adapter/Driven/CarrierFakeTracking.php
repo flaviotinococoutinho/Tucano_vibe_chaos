@@ -28,7 +28,7 @@ use ValueError;
  */
 final readonly class CarrierFakeTracking implements ForTrackingPickups
 {
-    public function __construct(private ClientInterface $http, private int $timeoutMilliseconds, private LoggerInterface $logger) {}
+    public function __construct(private ClientInterface $http, private int $timeoutMilliseconds, private int $connectTimeoutMilliseconds, private LoggerInterface $logger) {}
 
     public function eventsOf(ShipmentId $shipment): array
     {
@@ -65,7 +65,7 @@ final readonly class CarrierFakeTracking implements ForTrackingPickups
                 'query' => $query,
                 'headers' => ['X-Correlation-Id' => (string) Context::get('correlation_id', '')],
                 'timeout' => $this->timeoutMilliseconds / 1_000,
-                'connect_timeout' => min(0.5, $this->timeoutMilliseconds / 1_000),
+                'connect_timeout' => min($this->connectTimeoutMilliseconds, $this->timeoutMilliseconds) / 1_000,
                 'http_errors' => false,
             ]);
         } catch (GuzzleException $failure) {

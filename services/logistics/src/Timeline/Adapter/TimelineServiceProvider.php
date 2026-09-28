@@ -39,10 +39,10 @@ final class TimelineServiceProvider extends ServiceProvider
                 'region' => (string) config('tracking.dynamodb.region'),
                 'endpoint' => (string) config('tracking.dynamodb.endpoint'),
                 'credentials' => ['key' => (string) config('tracking.dynamodb.key'), 'secret' => (string) config('tracking.dynamodb.secret')],
-                'http' => ['timeout' => 3, 'connect_timeout' => 1],
+                'http' => ['timeout' => (int) config('tracking.dynamodb.timeout_ms') / 1_000, 'connect_timeout' => (int) config('tracking.dynamodb.connect_timeout_ms') / 1_000],
             ]),
             (string) config('tracking.dynamodb.table'),
-            (int) config('tracking.keep_days'),
+            (int) config('tracking.page_retention_days'),
         ));
     }
 

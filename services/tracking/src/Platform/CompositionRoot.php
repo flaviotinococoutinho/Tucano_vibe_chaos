@@ -37,7 +37,7 @@ final readonly class CompositionRoot
 
     public static function boot(Config $config, LoggerInterface $logger): self
     {
-        $health = new HealthController(new Readiness([new RedisCheck($config->redisHost, $config->redisPort)]), $logger);
+        $health = new HealthController(new Readiness([new RedisCheck($config->redisHost, $config->redisPort, $config->redisTimeoutMs / 1_000)]), $logger);
         $router = new Router(
             new Route('GET', '/health/live', $health->live(...)),
             new Route('GET', '/health/ready', $health->ready(...)),
@@ -73,6 +73,9 @@ final readonly class CompositionRoot
             $config->flagdHost,
             $config->flagdPort,
             new InMemoryFlagCache(),
+            $config->flagsCacheSeconds,
+            $config->flagdTimeoutMs,
+            $config->flagdConnectTimeoutMs,
         );
     }
 }

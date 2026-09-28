@@ -15,7 +15,7 @@ describe('config', () => {
 
   it('reads every value from the environment', () => {
     const config = loadConfig({
-      SERVICE_NAME: 'bff-canary',
+      APP_NAME: 'bff-canary',
       APP_ENV: 'local',
       HOST: '127.0.0.1',
       PORT: '3100',

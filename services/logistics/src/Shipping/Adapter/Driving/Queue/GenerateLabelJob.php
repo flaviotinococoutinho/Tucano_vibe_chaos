@@ -17,24 +17,29 @@ use Tucano\SharedKernel\Domain\ErrorCategory;
 
 /**
  * One message of the label-jobs queue, the driving side of UC-SHP-03. The job
- * and the queue agree on three tries: Laravel tries three times and records a
- * failure in failed_jobs, and a worker that dies mid-job records nothing, so
- * SQS moves the message to label-jobs-dlq on its third receive.
+ * and the queue agree on the tries (three in the lab): Laravel tries that many
+ * times and records a failure in failed_jobs, and a worker that dies mid-job
+ * records nothing, so SQS moves the message to label-jobs-dlq on the last receive.
  */
 final class GenerateLabelJob implements ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries;
 
-    /** @var list<int> seconds before the second and the third try */
-    public array $backoff = [5, 20];
+    /** @var list<int> seconds before each try after the first */
+    public array $backoff;
 
-    /** Below the visibility timeout of the queue (60 s), so SQS never hands the message to a second worker mid-job. */
-    public int $timeout = 30;
+    /** Below the visibility timeout of the queue, so SQS never hands the message to a second worker mid-job. */
+    public int $timeout;
 
-    public function __construct(public readonly string $shipmentId) {}
+    public function __construct(public readonly string $shipmentId, LabelJobSettings $settings)
+    {
+        $this->tries = $settings->tries;
+        $this->backoff = $settings->backoffSeconds;
+        $this->timeout = $settings->timeoutSeconds;
+    }
 
     /** Laravel calls this once the job is in failed_jobs, where `php artisan queue:retry` finds it. */
     public function failed(Throwable $reason): void

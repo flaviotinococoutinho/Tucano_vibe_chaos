@@ -22,6 +22,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 ## 3. Operação
 
 - [Ambiente local](operations/local-environment.md): subir a stack, endereços, comandos e problemas comuns.
+- [Configuração](operations/configuration.md): as regras dos nomes e cada variável de cada serviço, com o padrão e o porquê.
 
 ## 4. Laboratórios
 

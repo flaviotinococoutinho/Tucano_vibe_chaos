@@ -21,7 +21,8 @@ final readonly class LaravelTransactions implements ForRunningTransactions
 {
     private const string SERIALIZATION_FAILURE = '40001';
 
-    public function __construct(private ConnectionInterface $connection) {}
+    /** @param int $serializableAttempts a serializable transaction refused with 40001 runs again from the start, up to this many times in all */
+    public function __construct(private ConnectionInterface $connection, private int $serializableAttempts) {}
 
     public function run(Closure $work, Isolation $isolation = Isolation::ReadCommitted): mixed
     {
@@ -40,11 +41,17 @@ final readonly class LaravelTransactions implements ForRunningTransactions
                     return $work();
                 });
             } catch (Throwable $failure) {
-                if ($attempt >= $isolation->attempts() || !self::isSerializationFailure($failure)) {
+                if ($attempt >= $this->attemptsFor($isolation) || !self::isSerializationFailure($failure)) {
                     throw $failure;
                 }
             }
         }
+    }
+
+    /** Only serializable transactions are refused for the anomalies they would see; READ COMMITTED runs once. */
+    private function attemptsFor(Isolation $isolation): int
+    {
+        return $isolation === Isolation::Serializable ? $this->serializableAttempts : 1;
     }
 
     private static function isSerializationFailure(Throwable $failure): bool

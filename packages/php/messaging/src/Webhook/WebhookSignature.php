@@ -9,13 +9,12 @@ namespace Tucano\Messaging\Webhook;
  * the scheme Stripe made common: `t=<unix seconds>,v1=<hex>`, where the hex is
  * HMAC-SHA256 with the shared secret over `<t>.<raw body>`. The timestamp is
  * signed too, so an old request replayed later is refused, and several v1 may
- * come while a secret is rotated.
+ * come while a secret is rotated. Five minutes of tolerance is Stripe's
+ * default; each service sets its own from the environment.
  */
 final readonly class WebhookSignature
 {
-    private const int TOLERANCE_SECONDS = 300;
-
-    public function __construct(private string $secret) {}
+    public function __construct(private string $secret, private int $toleranceSeconds = 300) {}
 
     public function verify(string $rawBody, string $header, int $now): SignatureVerdict
     {
@@ -33,7 +32,7 @@ final readonly class WebhookSignature
         if ($timestamp === null || $candidates === []) {
             return SignatureVerdict::Malformed;
         }
-        if (abs($now - $timestamp) > self::TOLERANCE_SECONDS) {
+        if (abs($now - $timestamp) > $this->toleranceSeconds) {
             return SignatureVerdict::Stale;
         }
 

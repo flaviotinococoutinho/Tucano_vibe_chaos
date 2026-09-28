@@ -12,7 +12,7 @@ use LogicException;
 use Tucano\SharedKernel\Time\Clock;
 
 /**
- * Keys live in idempotency_keys for a day. The claim is an INSERT on the
+ * Keys live in idempotency_keys for a day (IDEMPOTENCY_KEYS_TTL_HOURS). The claim is an INSERT on the
  * primary key: a concurrent request with the same key blocks on that row until
  * the first transaction ends, then reads its result (or claims the key itself
  * if the first one rolled back). An expired key can be claimed again.
@@ -23,9 +23,7 @@ use Tucano\SharedKernel\Time\Clock;
  */
 final readonly class PostgresRequestMemory implements ForRememberingRequests
 {
-    private const string TTL = '+1 day';
-
-    public function __construct(private ConnectionInterface $connection, private Clock $clock) {}
+    public function __construct(private ConnectionInterface $connection, private Clock $clock, private int $ttlHours) {}
 
     public function recall(string $scope, IdempotencyKey $key, string $fingerprint): ?array
     {
@@ -38,7 +36,7 @@ final readonly class PostgresRequestMemory implements ForRememberingRequests
                     created_at = EXCLUDED.created_at, expires_at = EXCLUDED.expires_at
                 WHERE idempotency_keys.expires_at <= EXCLUDED.created_at
             RETURNING key
-            SQL, [$scope, $key->value, $fingerprint, $now->format(DATE_RFC3339_EXTENDED), $now->modify(self::TTL)->format(DATE_RFC3339_EXTENDED)]);
+            SQL, [$scope, $key->value, $fingerprint, $now->format(DATE_RFC3339_EXTENDED), $now->modify(sprintf('+%d hours', $this->ttlHours))->format(DATE_RFC3339_EXTENDED)]);
         if ($claimed !== null) {
             return null;
         }

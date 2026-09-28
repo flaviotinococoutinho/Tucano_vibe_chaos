@@ -10,12 +10,15 @@ describe('config', () => {
       host: '0.0.0.0',
       port: 4000,
       logLevel: 'info',
+      webhooks: { retryDelaysMs: [1000, 2000, 4000, 8000, 16000], attemptTimeoutMs: 5000 },
       payfake: {
         webhook: {
           url: 'http://kong:8000/api/commerce/v1/webhooks/payfake',
           secret: 'whsec_local_payfake',
         },
         processingDelayMs: { min: 300, max: 1500 },
+        retention: { ttlMs: 86_400_000, maxEntries: 20_000 },
+        timeoutHoldMs: 30000,
       },
       carriers: {
         webhook: {
@@ -23,13 +26,14 @@ describe('config', () => {
           secret: 'whsec_local_carriers',
         },
         stepDelayMs: { min: 1000, max: 4000 },
+        retention: { ttlMs: 86_400_000, maxEntries: 20_000 },
       },
     });
   });
 
   it('reads every value from the environment', () => {
     const config = loadConfig({
-      SERVICE_NAME: 'partners-sim-canary',
+      APP_NAME: 'partners-sim-canary',
       APP_ENV: 'local',
       HOST: '127.0.0.1',
       PORT: '4100',
@@ -42,6 +46,13 @@ describe('config', () => {
       CARRIERS_WEBHOOK_SECRET: 'whsec_carriers_rotated',
       CARRIERS_STEP_MIN_MS: '10',
       CARRIERS_STEP_MAX_MS: '60',
+      WEBHOOKS_RETRY_DELAYS_MS: '100, 200',
+      WEBHOOKS_ATTEMPT_TIMEOUT_MS: '1500',
+      PAYFAKE_RETENTION_HOURS: '1',
+      PAYFAKE_RETENTION_MAX_ENTRIES: '500',
+      PAYFAKE_TIMEOUT_HOLD_MS: '10000',
+      CARRIERS_RETENTION_HOURS: '2',
+      CARRIERS_RETENTION_MAX_ENTRIES: '800',
     });
 
     assert.deepEqual(config, {
@@ -50,13 +61,17 @@ describe('config', () => {
       host: '127.0.0.1',
       port: 4100,
       logLevel: 'debug',
+      webhooks: { retryDelaysMs: [100, 200], attemptTimeoutMs: 1500 },
       payfake: {
         webhook: { url: 'https://merchant.example/webhooks', secret: 'whsec_rotated' },
         processingDelayMs: { min: 0, max: 50 },
+        retention: { ttlMs: 3_600_000, maxEntries: 500 },
+        timeoutHoldMs: 10000,
       },
       carriers: {
         webhook: { url: 'https://logistics.example/webhooks', secret: 'whsec_carriers_rotated' },
         stepDelayMs: { min: 10, max: 60 },
+        retention: { ttlMs: 7_200_000, maxEntries: 800 },
       },
     });
   });
@@ -129,6 +144,23 @@ describe('config', () => {
         'CARRIERS_STEP_MIN_MS must be an integer from 0 to 600000, got "soon"; ' +
         'CARRIERS_STEP_MAX_MS must be an integer from 0 to 600000, got "900000"; ' +
         'CARRIERS_WEBHOOK_URL must be an http or https URL, got "kong:8000/webhooks".',
+    });
+  });
+
+  it('refuses webhook and retention settings it cannot run with', () => {
+    const invalid = {
+      WEBHOOKS_RETRY_DELAYS_MS: '1000,soon',
+      PAYFAKE_RETENTION_HOURS: '0',
+      CARRIERS_RETENTION_MAX_ENTRIES: 'all',
+    };
+
+    assert.throws(() => loadConfig(invalid), {
+      name: 'InvalidConfig',
+      message:
+        'Invalid configuration: ' +
+        'WEBHOOKS_RETRY_DELAYS_MS must be a comma separated list of integers from 0 to 600000, got "1000,soon"; ' +
+        'PAYFAKE_RETENTION_HOURS must be an integer from 1 to 720, got "0"; ' +
+        'CARRIERS_RETENTION_MAX_ENTRIES must be an integer from 1 to 1000000, got "all".',
     });
   });
 

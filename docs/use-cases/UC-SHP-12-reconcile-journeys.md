@@ -5,7 +5,7 @@
 | **Nível** | subfunção |
 | **Ator principal** | Relógio (o worker `logistics-journey-reconciler`) |
 | **Escopo** | Logistics (Shipping) |
-| **Gatilho** | uma remessa nas mãos da transportadora passa tempo demais sem notícia (60 s no laboratório, `CARRIERS_RECONCILIATION_QUIET_SECONDS`) |
+| **Gatilho** | uma remessa nas mãos da transportadora passa tempo demais sem notícia (60 s no laboratório, `JOURNEYS_RECONCILIATION_QUIET_SECONDS`) |
 
 ## Partes interessadas e interesses
 

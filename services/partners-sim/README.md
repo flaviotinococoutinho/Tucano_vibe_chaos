@@ -308,7 +308,7 @@ Os logs são do pino que já vem no Fastify: uma linha JSON por evento, com `tim
 
 | Variável | Default | Para quê |
 |---|---|---|
-| `SERVICE_NAME` | `partners-sim` | campo `service` dos logs |
+| `APP_NAME` | `partners-sim` | campo `service` dos logs |
 | `APP_ENV` | `production` | `local`, `staging` ou `production`; qualquer outro valor roda como `production`, a mesma regra dos serviços PHP |
 | `HOST` | `0.0.0.0` | interface onde o servidor escuta |
 | `PORT` | `4000` | porta HTTP |
@@ -321,6 +321,11 @@ Os logs são do pino que já vem no Fastify: uma linha JSON por evento, com `tim
 | `CARRIERS_WEBHOOK_SECRET` | `whsec_local_carriers` | segredo do HMAC da assinatura, o mesmo que o logistics usa para verificar |
 | `CARRIERS_STEP_MIN_MS` | `1000` | menor tempo entre um passo da jornada e o seguinte |
 | `CARRIERS_STEP_MAX_MS` | `4000` | maior tempo entre os passos; não pode ser menor que o mínimo, e os dois vão até 600000 |
+| `WEBHOOKS_RETRY_DELAYS_MS` | `1000,2000,4000,8000,16000` | a espera antes de cada nova tentativa de um webhook; depois da última, ele é abandonado |
+| `WEBHOOKS_ATTEMPT_TIMEOUT_MS` | `5000` | quanto uma tentativa espera a resposta de quem recebe |
+| `PAYFAKE_RETENTION_HOURS` e `PAYFAKE_RETENTION_MAX_ENTRIES` | `24` e `20000` | quanto tempo e quantas cobranças (e Idempotency-Keys) o PayFake guarda na memória |
+| `PAYFAKE_TIMEOUT_HOLD_MS` | `30000` | o máximo que a chance de timeout segura uma resposta, para um cliente que nunca desiste |
+| `CARRIERS_RETENTION_HOURS` e `CARRIERS_RETENTION_MAX_ENTRIES` | `24` e `20000` | quanto tempo e quantas coletas, com o histórico, a CarrierFake guarda; com pouco tempo, dá para ver a conciliação encontrar um histórico vazio |
 
 Valor inválido impede a subida: o processo sai com código 1 e uma linha `fatal` que lista cada problema. Variável vazia conta como não definida.
 

@@ -11,17 +11,17 @@ use Monolog\Processor\PsrLogMessageProcessor;
 return [
     'default' => env('LOG_CHANNEL', 'stderr'),
 
-    'deprecations' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),
+    'deprecations' => 'null',
 
     'channels' => [
         'stderr' => [
             'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
+            'level' => env('LOG_LEVEL', 'info'),
             'handler' => StreamHandler::class,
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER', JsonFormatter::class),
+            'formatter' => JsonFormatter::class,
             'processors' => [PsrLogMessageProcessor::class, LogContext::class],
         ],
 
