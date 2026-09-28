@@ -94,6 +94,16 @@ final readonly class PostgresPayments implements ForStoringPayments
         return $row instanceof stdClass ? self::paymentFrom($row) : null;
     }
 
+    public function capturedFor(string $orderId): ?Payment
+    {
+        $row = $this->connection->selectOne(
+            'SELECT ' . self::COLUMNS . " FROM payments WHERE order_id = ? AND status = 'captured' FOR UPDATE",
+            [$orderId],
+        );
+
+        return $row instanceof stdClass ? self::paymentFrom($row) : null;
+    }
+
     private static function paymentFrom(stdClass $row): Payment
     {
         return Payment::restore(

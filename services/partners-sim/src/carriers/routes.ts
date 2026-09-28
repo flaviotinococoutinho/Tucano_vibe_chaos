@@ -93,6 +93,12 @@ export const carriersRoutes: FastifyPluginAsync<CarriersRoutesOptions> = async (
     pickupResponse(carriers.pickup(request.params.pickupId)),
   );
 
+  // The tracking history a real carrier offers: the same events its webhooks carry, including
+  // the ones whose webhook never arrived, for the merchant to catch up with.
+  app.get<PickupRoute>('/carriers/v1/pickups/:pickupId/events', async (request) => ({
+    data: carriers.events(request.params.pickupId),
+  }));
+
   app.get('/_chaos/carriers', async () => chaos.settings);
 
   app.put<{ Body: ChaosSettings }>(

@@ -181,6 +181,42 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+  /carriers/v1/pickups/{pickupId}/events:
+    get:
+      tags: [pickups]
+      operationId: getPickupEvents
+      summary: Read the tracking history of a pickup
+      description: |
+        Every event of the pickup so far, oldest first, in the shape of the webhooks. A dropped
+        webhook loses the message, never the event, so a merchant catches up against this list.
+      parameters:
+        - name: pickupId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: pk_01M3HBNT8TE1R8SV13STYN9CXP
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The events of the pickup, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParcelEvent'
+        '404':
+          description: No pickup with this id, or it is older than the retention.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /_chaos/carriers:
     get:
       tags: [chaos]

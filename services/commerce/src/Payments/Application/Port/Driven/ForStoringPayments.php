@@ -18,6 +18,9 @@ interface ForStoringPayments
     /** Like get(), or null when there is no such payment. */
     public function find(PaymentId $id): ?Payment;
 
+    /** The captured payment of the order, locked for the rest of the transaction; an order has one success at most. */
+    public function capturedFor(string $orderId): ?Payment;
+
     /**
      * Adds the payment unless the order already has one pending (a unique index allows
      * one), and returns whichever is pending now: two attempts share a payment, and so

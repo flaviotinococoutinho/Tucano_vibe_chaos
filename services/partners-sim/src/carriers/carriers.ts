@@ -84,6 +84,8 @@ export type CarriersOptions = {
  */
 export class Carriers {
   private readonly pickups: ExpiringMap<Pickup>;
+  /** Every event of each pickup, webhook delivered or not: what a merchant reconciles against. */
+  private readonly eventsByPickup: ExpiringMap<readonly ParcelEvent[]>;
   /** The merchant's reference of each pickup, for a merchant that lost the answer to its POST. */
   private readonly pickupIdsByReference: ExpiringMap<string>;
   private readonly clock: Clock;
@@ -95,6 +97,7 @@ export class Carriers {
 
   constructor({ clock, random, chaos, webhooks, stepDelayMs, signal }: CarriersOptions) {
     this.pickups = new ExpiringMap(clock, RETENTION);
+    this.eventsByPickup = new ExpiringMap(clock, RETENTION);
     this.pickupIdsByReference = new ExpiringMap(clock, RETENTION);
     this.clock = clock;
     this.random = random;
@@ -117,6 +120,7 @@ export class Carriers {
       createdAt: this.timestamp(),
     };
     this.pickups.set(pickup.id, pickup);
+    this.eventsByPickup.set(pickup.id, []);
     this.pickupIdsByReference.set(request.reference, pickup.id);
     origin.log.info(
       { pickupId: pickup.id, reference: request.reference, carrier: pickup.carrier },
@@ -138,6 +142,19 @@ export class Carriers {
     }
 
     return pickup;
+  }
+
+  /**
+   * The events of a pickup so far, oldest first, whatever happened to their webhooks: a
+   * dropped webhook loses the message, never the event.
+   */
+  events(id: string): readonly ParcelEvent[] {
+    const events = this.eventsByPickup.get(id);
+    if (events === undefined) {
+      throw new PickupNotFound(id);
+    }
+
+    return events;
   }
 
   /** The pickup made for a merchant reference, if there is one. */
@@ -275,6 +292,7 @@ export class Carriers {
         ...extra(after),
       },
     };
+    this.eventsByPickup.set(id, [...(this.eventsByPickup.get(id) ?? []), parcelEvent]);
     // The next step waits for this one: a drop counts as done, same as a delivered webhook.
     await this.webhooks.publish(parcelEvent, origin);
 

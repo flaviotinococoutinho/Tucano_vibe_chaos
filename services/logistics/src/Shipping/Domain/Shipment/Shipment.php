@@ -127,6 +127,16 @@ final class Shipment extends AggregateRoot
         $this->recordThat(new ShipmentPickedUp($this->reference, $this->moveTo(ShipmentStatus::PickedUp, $at)));
     }
 
+    /**
+     * A hub scan can be skipped (the machine goes from in_transit straight to
+     * out_for_delivery), so one that arrives late, after the parcels left for
+     * the door, has nothing left to move.
+     */
+    public function hasLeftTheHubs(): bool
+    {
+        return $this->status->isPastTheHubs();
+    }
+
     public function recordHubScan(?Hub $hub, DateTimeImmutable $at): void
     {
         $this->recordThat(new ShipmentInTransit($this->reference, $this->moveTo(ShipmentStatus::InTransit, $at, new Evidence(hub: $hub))));

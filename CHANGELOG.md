@@ -4,6 +4,23 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-27
+
+### Added
+
+- Conciliação da jornada com a transportadora (UC-SHP-12): o worker `logistics-journey-reconciler` pega a remessa que passa 60 s sem notícia (lease pelo `updated_at` com `SKIP LOCKED` e índice parcial), lê o histórico da coleta na transportadora e aplica em ordem os passos que faltam, pelos mesmos casos de uso do webhook.
+- `GET /carriers/v1/pickups/{id}/events` na CarrierFake: o histórico de rastreio, com os eventos cujo webhook o caos derrubou.
+- Laboratório dos webhooks perdidos, com a leva de 12 pedidos que travou 10 remessas e a conciliação que recuperou todas.
+- O pedido acompanha a remessa (UC-ORD-04): o consumer group `commerce.shipment-sync` lê `logistics.shipments.v2`, e a coleta leva o pedido para `shipped`, a entrega para `delivered` e a devolução para `returned`, com `order.shipped`, `order.delivered` e `order.returned` na outbox e contrato em JSON Schema. Na devolução, o pagamento capturado fica `refund_requested` na mesma transação, e a conciliação manda o estorno ao PSP.
+
+### Changed
+
+- O webhook da transportadora e o histórico dela passam pelo mesmo tradutor (`CarrierFakeEvents`) e chegam aos casos de uso como `CarrierEvent`, com um construtor nomeado por passo.
+
+### Fixed
+
+- Um hub scan que chegava depois da saída para entrega era recusado para sempre, e na conciliação travava a remessa antes da entrega. Agora ele é `obsolete`: fica na inbox e não move nada.
+
 ## [0.5.0] - 2026-09-27
 
 ### Added
@@ -108,7 +125,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.6.0...develop
+[0.6.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.2.0...v0.3.0

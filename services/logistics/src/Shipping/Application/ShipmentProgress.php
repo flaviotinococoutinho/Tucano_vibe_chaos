@@ -17,6 +17,8 @@ use Logistics\Shipping\Domain\Shipment\Shipment;
  * step through the state machine, the history, the visits and the event in the
  * outbox. A step the machine refuses rolls everything back, the inbox mark
  * included, so the same event can be applied when it is retried in its turn.
+ * An event the shipment already went past keeps its inbox mark and moves
+ * nothing: it is handled, and it is not sent again.
  */
 final readonly class ShipmentProgress
 {
@@ -29,16 +31,22 @@ final readonly class ShipmentProgress
         private ForPublishingEvents $events,
     ) {}
 
-    /** @param Closure(Shipment): void $step */
-    public function apply(CarrierReport $report, Closure $step): ProgressOutcome
+    /**
+     * @param Closure(Shipment): void      $step
+     * @param (Closure(Shipment): bool)|null $obsolete true when the shipment already went past the step
+     */
+    public function apply(CarrierReport $report, Closure $step, ?Closure $obsolete = null): ProgressOutcome
     {
-        return $this->transactions->run(function () use ($report, $step): ProgressOutcome {
+        return $this->transactions->run(function () use ($report, $step, $obsolete): ProgressOutcome {
             if (!$this->inbox->firstTime(self::INBOX, $report->eventId)) {
                 return ProgressOutcome::Duplicate;
             }
             $shipment = $this->shipments->withTrackingCode($report->trackingCode);
             if ($shipment === null) {
                 return ProgressOutcome::UnknownShipment;
+            }
+            if ($obsolete !== null && $obsolete($shipment)) {
+                return ProgressOutcome::Obsolete;
             }
             $step($shipment);
             $this->shipments->save($shipment);

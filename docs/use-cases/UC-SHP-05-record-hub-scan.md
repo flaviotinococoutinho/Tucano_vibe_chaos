@@ -37,6 +37,7 @@
 - 1a. Um parceiro passa por dois hubs quando o destino é outro estado: o do estado de origem e o do estado de destino. Cada passagem é uma linha no histórico.
 - 1b. O evento chega sem hub: `400`.
 - 3a. O evento chega antes da coleta (o `parcel.picked_up` se perdeu ou ainda não chegou): `409`, e a transportadora reenvia depois.
+- 3b. O evento chega depois da saída para entrega (a remessa pulou esse hub porque o webhook dele se perdeu): `200` com `obsolete`, o evento fica marcado na inbox e nada muda.
 
 ## No código
 

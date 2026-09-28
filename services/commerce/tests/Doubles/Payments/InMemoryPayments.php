@@ -43,6 +43,17 @@ final class InMemoryPayments implements ForStoringPayments
         return $this->payments[$id->toString()] ?? null;
     }
 
+    public function capturedFor(string $orderId): ?Payment
+    {
+        foreach ($this->payments as $payment) {
+            if ($payment->orderId === $orderId && $payment->status === PaymentStatus::Captured) {
+                return $payment;
+            }
+        }
+
+        return null;
+    }
+
     public function claimUnsettled(DateTimeImmutable $untouchedSince, DateTimeImmutable $now): ?Payment
     {
         $due = array_filter(
