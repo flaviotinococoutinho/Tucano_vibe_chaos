@@ -13,7 +13,6 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Logistics\Shipping\Adapter\Driven\CarrierFakePickups;
 use Logistics\Shipping\Application\PickupOrder;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
 use Logistics\Shipping\Domain\Error\PickupNotBooked;
 use Logistics\Shipping\Domain\Error\PickupRefused;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
@@ -22,6 +21,7 @@ use Psr\Http\Message\RequestInterface;
 use Tests\Builders\ShipmentBuilder;
 use Tests\TestCase;
 use Throwable;
+use Tucano\SharedKernel\Address\BrazilianState;
 
 final class CarrierFakePickupsTest extends TestCase
 {

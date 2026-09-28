@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Validator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Ramsey\Uuid\Uuid;
@@ -61,7 +62,7 @@ final class PlaceOrderHttpTest extends TestCase
         $orderId = (string) $this->place('key-1', ['BOOK-DDD-001' => 1], ['X-Correlation-Id' => 'req-7#1'])->json('orderId');
 
         $message = DB::table('outbox_messages')->sole();
-        self::assertSame(['commerce.orders.v1', $orderId, 'tucano.commerce.order.placed'], [$message->topic, $message->message_key, $message->event_type]);
+        self::assertSame(['commerce.orders.v2', $orderId, 'tucano.commerce.order.placed'], [$message->topic, $message->message_key, $message->event_type]);
 
         $event = json_decode((string) $message->payload, flags: JSON_THROW_ON_ERROR);
         self::assertInstanceOf(stdClass::class, $event);
@@ -131,6 +132,57 @@ final class PlaceOrderHttpTest extends TestCase
     }
 
     #[Test]
+    public function on_a_highway_the_number_is_the_kilometre(): void
+    {
+        $body = self::body(['BOOK-DDD-001' => 1]);
+        $body['shippingAddress']['thoroughfare'] = ['type' => 'Rodovia', 'name' => 'Fernão Dias'];
+        $body['shippingAddress']['number'] = 'KM 500';
+        $body['shippingAddress']['divisions'] = [
+            ['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'],
+            ['kind' => 'municipality', 'code' => '3106705', 'name' => 'Betim'],
+        ];
+
+        $this->postJson('/v1/orders', $body, ['Idempotency-Key' => 'key-1'])
+            ->assertCreated()
+            ->assertJsonPath('shippingAddress.thoroughfare', ['type' => 'Rodovia', 'name' => 'Fernão Dias'])
+            ->assertJsonPath('shippingAddress.number', 'KM 500');
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function undeliverableAddresses(): iterable
+    {
+        $bh = ['kind' => 'municipality', 'code' => '3106200', 'name' => 'Belo Horizonte'];
+
+        yield 'the number as a JSON number' => [['number' => 1200], 'shippingAddress.number'];
+        yield 'a neighborhood above the municipality' => [
+            ['divisions' => [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], ['kind' => 'neighborhood', 'name' => 'Centro'], $bh]],
+            'The divisions of an address start with its state and its municipality.',
+        ];
+        yield 'a municipality of São Paulo in Minas Gerais' => [
+            ['divisions' => [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], ['kind' => 'municipality', 'code' => '3550308', 'name' => 'São Paulo']]],
+            'The IBGE geocode 3550308 of São Paulo is not inside Minas Gerais (31).',
+        ];
+        yield 'a kind of division nobody knows' => [
+            ['divisions' => [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], $bh, ['kind' => 'county', 'name' => 'Centro']]],
+            'shippingAddress.divisions.2.kind',
+        ];
+    }
+
+    /** @param array<string, mixed> $change */
+    #[Test]
+    #[DataProvider('undeliverableAddresses')]
+    public function an_address_nobody_could_deliver_to_is_refused(array $change, string $why): void
+    {
+        $body = self::body(['BOOK-DDD-001' => 1]);
+        $body['shippingAddress'] = [...$body['shippingAddress'], ...$change];
+
+        $response = $this->postJson('/v1/orders', $body, ['Idempotency-Key' => 'key-1'])->assertUnprocessable();
+
+        self::assertStringContainsString($why, (string) json_encode($response->json(), JSON_UNESCAPED_UNICODE));
+        self::assertSame(0, DB::table('orders')->count());
+    }
+
+    #[Test]
     public function an_order_that_does_not_exist_is_not_found(): void
     {
         $this->getJson('/v1/orders/' . Uuid::uuid7()->toString())->assertNotFound();
@@ -151,7 +203,7 @@ final class PlaceOrderHttpTest extends TestCase
     /**
      * @param non-empty-array<string, int> $items SKU => quantity
      *
-     * @return array<string, mixed>
+     * @return array{customer: array<string, string>, shippingAddress: array<string, mixed>, items: list<array{sku: string, quantity: int}>}
      */
     private static function body(array $items): array
     {
@@ -163,11 +215,13 @@ final class PlaceOrderHttpTest extends TestCase
         return [
             'customer' => ['id' => self::CUSTOMER, 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => [
-                'street' => 'Rua da Bahia',
+                'thoroughfare' => ['type' => 'Rua', 'name' => 'da Bahia'],
                 'number' => '1200',
-                'district' => 'Centro',
-                'city' => 'Belo Horizonte',
-                'state' => 'MG',
+                'divisions' => [
+                    ['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'],
+                    ['kind' => 'municipality', 'code' => '3106200', 'name' => 'Belo Horizonte'],
+                    ['kind' => 'neighborhood', 'name' => 'Centro'],
+                ],
                 'postalCode' => '30160-011',
             ],
             'items' => $lines,

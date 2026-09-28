@@ -67,6 +67,6 @@ final class LabelRequestHandlerTest extends TestCase
             'data' => ['shipmentId' => $shipmentId, 'trackingCode' => 'TX02PRCV4T05G00', 'orderId' => Uuid::uuid7()->toString()],
         ];
 
-        return new ReceivedMessage('logistics.shipments.v1', 0, 12, $shipmentId, (string) json_encode($event));
+        return new ReceivedMessage('logistics.shipments.v2', 0, 12, $shipmentId, (string) json_encode($event));
     }
 }

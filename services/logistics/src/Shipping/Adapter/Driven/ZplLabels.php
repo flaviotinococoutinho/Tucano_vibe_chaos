@@ -7,6 +7,9 @@ namespace Logistics\Shipping\Adapter\Driven;
 use Logistics\Shipping\Application\LabelDocument;
 use Logistics\Shipping\Application\Port\Driven\ForPrintingLabels;
 use Logistics\Shipping\Domain\Shipment\ShipmentSnapshot;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\Division;
+use Tucano\SharedKernel\Address\DivisionKind;
 
 /**
  * ZPL, the language of the thermal printers in the warehouses: the label is
@@ -20,9 +23,6 @@ final readonly class ZplLabels implements ForPrintingLabels
 {
     public function print(ShipmentSnapshot $shipment): LabelDocument
     {
-        $to = $shipment->destination;
-        $street = $to->complement === null ? sprintf('%s, %s', $to->street, $to->number) : sprintf('%s, %s - %s', $to->street, $to->number, $to->complement);
-        $postalCode = (string) $to->postalCode;
         $parcels = count($shipment->parcels);
 
         $zpl = implode("\n", [
@@ -34,10 +34,7 @@ final readonly class ZplLabels implements ForPrintingLabels
             self::text(40, 110, 30, sprintf('De: CD %s', $shipment->origin)),
             '^FO40,170^GB732,3,3^FS',
             self::text(40, 200, 40, $shipment->recipient->name),
-            self::text(40, 255, 32, $street),
-            self::text(40, 300, 32, $to->district),
-            self::text(40, 345, 32, sprintf('%s - %s', $to->city, $to->state->value)),
-            self::text(40, 390, 40, sprintf('CEP %s-%s', substr($postalCode, 0, 5), substr($postalCode, 5))),
+            ...self::addressBlock($shipment->destination),
             '^FO40,470^GB732,3,3^FS',
             sprintf('^FO80,520^BY3^BCN,200,Y,N,N^FD%s^FS', $shipment->reference->trackingCode),
             self::text(40, 820, 30, sprintf(
@@ -50,6 +47,25 @@ final readonly class ZplLabels implements ForPrintingLabels
         ]);
 
         return new LabelDocument($zpl . "\n", 'zpl', 'text/plain; charset=utf-8');
+    }
+
+    /**
+     * The thoroughfare line, the divisions inside the municipality (narrowest
+     * first, when there are any), the municipality with the UF, and the CEP.
+     *
+     * @return list<string>
+     */
+    private static function addressBlock(Address $to): array
+    {
+        $local = implode(', ', array_map(static fn(Division $division): string => $division->name, array_reverse($to->divisions->below(DivisionKind::Municipality))));
+        $lines = array_values(array_filter([
+            [$to->thoroughfareLine(), 32],
+            [$local, 32],
+            [sprintf('%s - %s', $to->municipality()->name, $to->state()->value), 32],
+            ['CEP ' . $to->postalCode->formatted(), 40],
+        ], static fn(array $line): bool => $line[0] !== ''));
+
+        return array_map(static fn(array $line, int $index): string => self::text(40, 255 + 45 * $index, $line[1], $line[0]), $lines, array_keys($lines));
     }
 
     /** A line of text at x, y and the given height, with ^, ~ and _ written as hex so they print instead of acting. */

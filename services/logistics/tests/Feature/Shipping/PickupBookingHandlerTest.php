@@ -108,6 +108,6 @@ final class PickupBookingHandlerTest extends TestCase
             'data' => ['shipmentId' => $shipmentId, 'trackingCode' => 'TX02PRCV4T05G00', 'orderId' => Uuid::uuid7()->toString()],
         ];
 
-        return new ReceivedMessage('logistics.shipments.v1', 1, 7, $shipmentId, (string) json_encode($event));
+        return new ReceivedMessage('logistics.shipments.v2', 1, 7, $shipmentId, (string) json_encode($event));
     }
 }

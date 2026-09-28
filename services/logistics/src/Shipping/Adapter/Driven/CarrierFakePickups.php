@@ -36,9 +36,10 @@ final readonly class CarrierFakePickups implements ForSchedulingPickups
                     'reference' => $shipment->reference->id->toString(),
                     'trackingCode' => (string) $shipment->reference->trackingCode,
                     'origin' => ['center' => (string) $shipment->origin, 'state' => $order->originState->value],
+                    // The contract is the carrier's: it calls the municipality a city.
                     'destination' => [
-                        'city' => $shipment->destination->city,
-                        'state' => $shipment->destination->state->value,
+                        'city' => $shipment->destination->municipality()->name,
+                        'state' => $shipment->destination->state()->value,
                         'postalCode' => (string) $shipment->destination->postalCode,
                     ],
                     'parcels' => count($shipment->parcels),

@@ -8,6 +8,7 @@ use Database\Seeders\FulfillmentCenterSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Ramsey\Uuid\Uuid;
@@ -63,6 +64,31 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['ship_postal_code' => '01310-10']));
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function malformedDivisions(): iterable
+    {
+        yield 'not a list' => ['{"kind": "state", "code": "SP", "name": "São Paulo"}'];
+        yield 'only the state' => ['[{"kind": "state", "code": "SP", "name": "São Paulo"}]'];
+        yield 'the municipality first' => ['[{"kind": "municipality", "code": null, "name": "São Paulo"}, {"kind": "state", "code": "SP", "name": "São Paulo"}]'];
+        yield 'a state without its UF' => ['[{"kind": "state", "code": null, "name": "São Paulo"}, {"kind": "municipality", "code": null, "name": "São Paulo"}]'];
+        yield 'a UF in lowercase' => ['[{"kind": "state", "code": "sp", "name": "São Paulo"}, {"kind": "municipality", "code": null, "name": "São Paulo"}]'];
+    }
+
+    #[Test]
+    #[DataProvider('malformedDivisions')]
+    public function the_divisions_start_with_the_state_and_the_municipality(string $divisions): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['ship_divisions' => $divisions]));
+    }
+
+    #[Test]
+    public function the_thoroughfare_and_the_number_are_never_blank(): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['ship_thoroughfare_type' => '  ']));
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['ship_number' => ' ']));
+        self::assertNotSame('', $this->insertOrder(['ship_number' => 'KM 500']));
+    }
+
     #[Test]
     public function the_same_idempotency_key_is_stored_once_per_scope(): void
     {
@@ -93,11 +119,10 @@ final class SchemaConstraintsTest extends TestCase
             'customer_email' => 'ana@example.com',
             'status' => 'pending_payment',
             'fulfillment_center' => 'GRU1',
-            'ship_street' => 'Avenida Paulista',
+            'ship_thoroughfare_type' => 'Avenida',
+            'ship_thoroughfare_name' => 'Paulista',
             'ship_number' => '1000',
-            'ship_district' => 'Bela Vista',
-            'ship_city' => 'São Paulo',
-            'ship_state' => 'SP',
+            'ship_divisions' => '[{"kind": "state", "code": "SP", "name": "São Paulo"}, {"kind": "municipality", "code": "3550308", "name": "São Paulo"}]',
             'ship_postal_code' => '01310100',
             'total_cents' => 18990,
             'currency' => 'BRL',

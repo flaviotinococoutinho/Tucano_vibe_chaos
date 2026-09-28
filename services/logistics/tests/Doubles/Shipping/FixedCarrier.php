@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Doubles\Shipping;
 
 use Logistics\Shipping\Application\Port\Driven\ForChoosingCarriers;
-use Logistics\Shipping\Domain\Destination\Destination;
 use Logistics\Shipping\Domain\Parcel\Parcels;
 use Logistics\Shipping\Domain\Shipment\CarrierCode;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\DomainError;
 
 /** Always the same carrier, and it remembers the weights it was asked about; or the refusal the test sets. */
@@ -26,7 +26,7 @@ final class FixedCarrier implements ForChoosingCarriers
         $this->refusal = $refusal;
     }
 
-    public function choose(FulfillmentCenterCode $origin, Destination $destination, Parcels $parcels): CarrierCode
+    public function choose(FulfillmentCenterCode $origin, Address $destination, Parcels $parcels): CarrierCode
     {
         if ($this->refusal !== null) {
             throw $this->refusal;

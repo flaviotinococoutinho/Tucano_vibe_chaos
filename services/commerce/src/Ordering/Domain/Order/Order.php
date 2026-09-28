@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Commerce\Ordering\Domain\Order;
 
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Error\OrderTransitionNotAllowed;
 use Commerce\Ordering\Domain\Event\OrderCancelled;
@@ -14,6 +13,7 @@ use Commerce\Ordering\Domain\Event\OrderPlaced;
 use Commerce\Ordering\Domain\Event\OrderReturned;
 use Commerce\Ordering\Domain\Event\OrderShipped;
 use DateTimeImmutable;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\AggregateRoot;
 use Tucano\SharedKernel\Money\Money;
 
@@ -32,7 +32,7 @@ final class Order extends AggregateRoot
         private readonly OrderId $id,
         private readonly OrderNumber $number,
         private readonly Customer $customer,
-        private readonly ShippingAddress $address,
+        private readonly Address $address,
         private readonly OrderLines $lines,
         private readonly FulfillmentCenterCode $fulfillmentCenter,
         private readonly DateTimeImmutable $placedAt,
@@ -45,7 +45,7 @@ final class Order extends AggregateRoot
         OrderId $id,
         OrderNumber $number,
         Customer $customer,
-        ShippingAddress $address,
+        Address $address,
         OrderLines $lines,
         FulfillmentCenterCode $fulfillmentCenter,
         DateTimeImmutable $placedAt,

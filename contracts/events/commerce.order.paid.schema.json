@@ -20,14 +20,40 @@
     },
     "shippingAddress": {
       "type": "object",
-      "required": ["street", "number", "complement", "district", "city", "state", "postalCode", "latitude", "longitude"],
+      "description": "The address as ADR 0020 models it: the thoroughfare and the number on it, the complement, the territorial divisions, the CEP and the coordinates.",
+      "required": ["thoroughfare", "number", "complement", "divisions", "postalCode", "latitude", "longitude"],
       "properties": {
-        "street": { "type": "string", "minLength": 1, "maxLength": 160 },
-        "number": { "type": "string", "minLength": 1, "maxLength": 16 },
-        "complement": { "type": ["string", "null"], "maxLength": 80 },
-        "district": { "type": "string", "minLength": 1, "maxLength": 80 },
-        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
-        "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "thoroughfare": {
+          "type": "object",
+          "description": "The public way, as a type and a name: Rua and da Bahia, Rodovia and Anhanguera.",
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "type": "string", "minLength": 1, "maxLength": 30, "pattern": "\\S" },
+            "name": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "\\S" }
+          },
+          "additionalProperties": false
+        },
+        "number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "pattern": "\\S",
+          "description": "Text, because it is not always a number: 1200, KM 500, S/N, 120-A."
+        },
+        "complement": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+        "divisions": {
+          "type": "array",
+          "description": "From the broadest division to the narrowest, each kind once: the state and the municipality always, then the district, the subdistrict and the neighborhood when they exist.",
+          "prefixItems": [{ "$ref": "#/$defs/stateDivision" }, { "$ref": "#/$defs/municipalityDivision" }],
+          "items": {
+            "allOf": [{ "$ref": "#/$defs/division" }],
+            "properties": {
+              "kind": { "enum": ["district", "subdistrict", "neighborhood"] }
+            }
+          },
+          "minItems": 2,
+          "maxItems": 5
+        },
         "postalCode": { "type": "string", "pattern": "^[0-9]{8}$" },
         "latitude": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
         "longitude": { "type": ["number", "null"], "minimum": -180, "maximum": 180 }
@@ -64,6 +90,33 @@
     "uuidv7": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "division": {
+      "type": "object",
+      "description": "One level of the territory: its kind, its official code when it has one, and its name.",
+      "required": ["kind", "code", "name"],
+      "properties": {
+        "kind": { "enum": ["state", "municipality", "district", "subdistrict", "neighborhood"] },
+        "code": { "type": ["string", "null"], "minLength": 1, "maxLength": 20 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" }
+      },
+      "additionalProperties": false
+    },
+    "stateDivision": {
+      "description": "The state, known by its UF.",
+      "allOf": [{ "$ref": "#/$defs/division" }],
+      "properties": {
+        "kind": { "const": "state" },
+        "code": { "type": "string", "pattern": "^[A-Z]{2}$" }
+      }
+    },
+    "municipalityDivision": {
+      "description": "The municipality, with its IBGE geocode when known (7 digits, starting with the IBGE code of the state).",
+      "allOf": [{ "$ref": "#/$defs/division" }],
+      "properties": {
+        "kind": { "const": "municipality" },
+        "code": { "type": ["string", "null"], "pattern": "^[0-9]{7}$" }
+      }
     }
   }
 }

@@ -8,10 +8,6 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\ConnectionInterface;
 use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
-use Logistics\Shipping\Domain\Destination\Coordinates;
-use Logistics\Shipping\Domain\Destination\Destination;
-use Logistics\Shipping\Domain\Destination\PostalCode;
 use Logistics\Shipping\Domain\Error\ShipmentChangedMeanwhile;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Parcel;
@@ -34,6 +30,8 @@ use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
 use Ramsey\Uuid\Uuid;
 use stdClass;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\Divisions;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 
 /**
@@ -62,12 +60,11 @@ final readonly class PostgresShipments implements ForStoringShipments
             'origin' => (string) $snapshot->origin,
             'recipient_name' => $snapshot->recipient->name,
             'recipient_email' => $snapshot->recipient->email,
-            'dest_street' => $destination->street,
+            'dest_thoroughfare_type' => $destination->thoroughfare->type,
+            'dest_thoroughfare_name' => $destination->thoroughfare->name,
             'dest_number' => $destination->number,
             'dest_complement' => $destination->complement,
-            'dest_district' => $destination->district,
-            'dest_city' => $destination->city,
-            'dest_state' => $destination->state->value,
+            'dest_divisions' => $destination->divisions->toJson(),
             'dest_postal_code' => (string) $destination->postalCode,
             'dest_latitude' => $destination->coordinates?->latitude,
             'dest_longitude' => $destination->coordinates?->longitude,
@@ -152,16 +149,14 @@ final readonly class PostgresShipments implements ForStoringShipments
             CarrierCode::of((string) $row->carrier_code),
             FulfillmentCenterCode::of((string) $row->origin),
             Recipient::of((string) $row->recipient_name, (string) $row->recipient_email),
-            new Destination(
-                (string) $row->dest_street,
-                (string) $row->dest_number,
-                $row->dest_complement === null ? null : (string) $row->dest_complement,
-                (string) $row->dest_district,
-                (string) $row->dest_city,
-                BrazilianState::from((string) $row->dest_state),
-                PostalCode::of((string) $row->dest_postal_code),
-                $row->dest_latitude === null ? null : new Coordinates((float) $row->dest_latitude, (float) $row->dest_longitude),
-            ),
+            Address::builder()
+                ->thoroughfare((string) $row->dest_thoroughfare_type, (string) $row->dest_thoroughfare_name)
+                ->number((string) $row->dest_number)
+                ->complement($row->dest_complement === null ? null : (string) $row->dest_complement)
+                ->divisions(Divisions::fromJson((string) $row->dest_divisions))
+                ->postalCode((string) $row->dest_postal_code)
+                ->coordinates(self::decimal($row->dest_latitude), self::decimal($row->dest_longitude))
+                ->build(),
             $this->parcelsOf($id),
             ShipmentStatus::from((string) $row->status),
             DeliveryAttempts::restore(
@@ -249,5 +244,11 @@ final readonly class PostgresShipments implements ForStoringShipments
     private static function instant(string $timestamptz): DateTimeImmutable
     {
         return new DateTimeImmutable($timestamptz)->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    /** A numeric column comes back as text, or null. */
+    private static function decimal(mixed $column): ?float
+    {
+        return $column === null ? null : (float) $column;
     }
 }

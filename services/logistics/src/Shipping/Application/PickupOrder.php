@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Logistics\Shipping\Application;
 
-use Logistics\Shipping\Domain\Destination\BrazilianState;
 use Logistics\Shipping\Domain\Shipment\ShipmentSnapshot;
+use Tucano\SharedKernel\Address\BrazilianState;
 
 /** What the carrier needs to collect a shipment: where from, where to, how much. Nobody's name goes out. */
 final readonly class PickupOrder

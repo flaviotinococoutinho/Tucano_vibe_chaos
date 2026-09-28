@@ -10,7 +10,6 @@ use Commerce\Inventory\Application\Port\Driving\ForReservingStock as Inventory;
 use Commerce\Inventory\Application\StockItem;
 use Commerce\Inventory\Application\StockRequest;
 use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Error\StockNotReserved;
 use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderId;
@@ -18,6 +17,7 @@ use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Shared\Application\Isolation;
 use DateTimeImmutable;
+use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Domain\DomainError;
 
 /**
@@ -35,14 +35,14 @@ final readonly class InventoryStockReservations implements ForReservingStock
         return $this->inventory->requiredIsolation();
     }
 
-    public function reserve(OrderId $order, OrderLines $lines, ShippingAddress $destination, DateTimeImmutable $until): FulfillmentCenterCode
+    public function reserve(OrderId $order, OrderLines $lines, Address $destination, DateTimeImmutable $until): FulfillmentCenterCode
     {
         $items = array_map(
             static fn(OrderLine $line): StockItem => new StockItem((string) $line->sku, $line->quantity->value),
             iterator_to_array($lines, false),
         );
         try {
-            $reserved = $this->inventory->reserve(new StockRequest($order->toString(), $items, $destination->state->value, $until));
+            $reserved = $this->inventory->reserve(new StockRequest($order->toString(), $items, $destination->state()->value, $until));
         } catch (DomainError $refusal) {
             throw StockNotReserved::because($refusal);
         }

@@ -64,7 +64,8 @@ final class ProducedEventsTest extends TestCase
     public function the_contracts_keep_out_what_consumers_must_not_rely_on(): void
     {
         $payload = ShipmentBuilder::aShipment()->create()->releaseEvents()[0]->payload();
-        $withTheStreet = [...$payload, 'destination' => ['city' => 'São Paulo', 'state' => 'SP', 'postalCode' => '01310100', 'street' => 'Avenida Paulista']];
+        $withTheThoroughfare = [...$payload, 'destination' => [...$payload['destination'], 'thoroughfare' => ['type' => 'Avenida', 'name' => 'Paulista']]];
+        $downToTheNeighborhood = [...$payload, 'destination' => [...$payload['destination'], 'divisions' => [...$payload['destination']['divisions'], ['kind' => 'neighborhood', 'code' => null, 'name' => 'Bela Vista']]]];
         $cancelledAfterPickup = [
             'shipmentId' => $payload['shipmentId'],
             'trackingCode' => $payload['trackingCode'],
@@ -74,7 +75,8 @@ final class ProducedEventsTest extends TestCase
         ];
 
         self::assertMatchesContract('logistics.shipment.created.schema.json', self::asJson($payload));
-        self::assertBreaksContract('logistics.shipment.created.schema.json', self::asJson($withTheStreet));
+        self::assertBreaksContract('logistics.shipment.created.schema.json', self::asJson($withTheThoroughfare));
+        self::assertBreaksContract('logistics.shipment.created.schema.json', self::asJson($downToTheNeighborhood));
         self::assertBreaksContract('logistics.shipment.cancelled.schema.json', self::asJson($cancelledAfterPickup));
     }
 

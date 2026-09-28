@@ -31,7 +31,7 @@ final class OutboxEventsTest extends TestCase
 
         $message = DB::table('outbox_messages')->sole();
         self::assertSame(
-            [$event->eventId(), 'logistics.shipments.v1', $event->aggregateId(), 'tucano.logistics.shipment.created'],
+            [$event->eventId(), 'logistics.shipments.v2', $event->aggregateId(), 'tucano.logistics.shipment.created'],
             [$message->id, $message->topic, $message->message_key, $message->event_type],
         );
         $envelope = self::decode((string) $message->payload);

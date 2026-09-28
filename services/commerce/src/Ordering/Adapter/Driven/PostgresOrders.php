@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace Commerce\Ordering\Adapter\Driven;
 
 use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
-use Commerce\Ordering\Domain\Address\BrazilianState;
-use Commerce\Ordering\Domain\Address\Coordinates;
-use Commerce\Ordering\Domain\Address\PostalCode;
-use Commerce\Ordering\Domain\Address\ShippingAddress;
 use Commerce\Ordering\Domain\Customer\Customer;
 use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Customer\EmailAddress;
@@ -30,6 +26,8 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\ConnectionInterface;
 use stdClass;
+use Tucano\SharedKernel\Address\Address;
+use Tucano\SharedKernel\Address\Divisions;
 use Tucano\SharedKernel\Identity\Snowflake\Snowflake;
 use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
@@ -54,12 +52,11 @@ final readonly class PostgresOrders implements ForStoringOrders
             'customer_email' => (string) $snapshot->customer->email,
             'status' => $snapshot->status->value,
             'fulfillment_center' => (string) $snapshot->fulfillmentCenter,
-            'ship_street' => $address->street,
+            'ship_thoroughfare_type' => $address->thoroughfare->type,
+            'ship_thoroughfare_name' => $address->thoroughfare->name,
             'ship_number' => $address->number,
             'ship_complement' => $address->complement,
-            'ship_district' => $address->district,
-            'ship_city' => $address->city,
-            'ship_state' => $address->state->value,
+            'ship_divisions' => $address->divisions->toJson(),
             'ship_postal_code' => (string) $address->postalCode,
             'ship_latitude' => $address->coordinates?->latitude,
             'ship_longitude' => $address->coordinates?->longitude,
@@ -149,16 +146,14 @@ final readonly class PostgresOrders implements ForStoringOrders
                 PersonName::of((string) $row->customer_name),
                 EmailAddress::of((string) $row->customer_email),
             ),
-            new ShippingAddress(
-                (string) $row->ship_street,
-                (string) $row->ship_number,
-                $row->ship_complement === null ? null : (string) $row->ship_complement,
-                (string) $row->ship_district,
-                (string) $row->ship_city,
-                BrazilianState::from((string) $row->ship_state),
-                PostalCode::of((string) $row->ship_postal_code),
-                $row->ship_latitude === null ? null : new Coordinates((float) $row->ship_latitude, (float) $row->ship_longitude),
-            ),
+            Address::builder()
+                ->thoroughfare((string) $row->ship_thoroughfare_type, (string) $row->ship_thoroughfare_name)
+                ->number((string) $row->ship_number)
+                ->complement($row->ship_complement === null ? null : (string) $row->ship_complement)
+                ->divisions(Divisions::fromJson((string) $row->ship_divisions))
+                ->postalCode((string) $row->ship_postal_code)
+                ->coordinates(self::decimal($row->ship_latitude), self::decimal($row->ship_longitude))
+                ->build(),
             OrderLines::of(...$lines),
             FulfillmentCenterCode::of((string) $row->fulfillment_center),
             OrderStatus::from((string) $row->status),
@@ -183,5 +178,11 @@ final readonly class PostgresOrders implements ForStoringOrders
     private static function instant(string $timestamptz): DateTimeImmutable
     {
         return new DateTimeImmutable($timestamptz)->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    /** A numeric column comes back as text, or null. */
+    private static function decimal(mixed $column): ?float
+    {
+        return $column === null ? null : (float) $column;
     }
 }

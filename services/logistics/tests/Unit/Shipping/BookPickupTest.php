@@ -7,7 +7,6 @@ namespace Tests\Unit\Shipping;
 use Logistics\Shipping\Application\BookingOutcome;
 use Logistics\Shipping\Application\Port\Driven\ForLocatingFulfillmentCenters;
 use Logistics\Shipping\Application\UseCase\BookPickup;
-use Logistics\Shipping\Domain\Destination\BrazilianState;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\Shipment;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
@@ -16,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Builders\ShipmentBuilder;
 use Tests\Doubles\Shipping\InMemoryShipments;
 use Tests\Doubles\Shipping\RecordedPickups;
+use Tucano\SharedKernel\Address\BrazilianState;
 
 final class BookPickupTest extends TestCase
 {
