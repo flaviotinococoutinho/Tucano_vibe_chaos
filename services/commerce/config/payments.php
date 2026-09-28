@@ -14,6 +14,8 @@ return [
     'reconciliation' => [
         // A payment without the provider's final word is looked at after this long without news.
         'quiet_seconds' => (int) env('PAYMENT_RECONCILIATION_QUIET_SECONDS', 60),
+        // A charge the provider took and no longer shows gets this long to turn up; then the payment fails as charge_lost.
+        'lost_charge_after_seconds' => (int) env('PAYMENTS_RECONCILIATION_LOST_CHARGE_AFTER_SECONDS', 3600),
     ],
 
     'circuit' => [

@@ -56,7 +56,9 @@ No fim, repeti o pagamento do C com a mesma chave: `202` com o pagamento `abando
 
 ## O que precisa de uma pessoa
 
-Na primeira rodada, três pagamentos de experimentos antigos apareceram como `needs_attention`: tinham id de cobrança, mas o PayFake não tinha cobrança nenhuma. O PayFake guarda tudo em memória e tinha sido reiniciado. PSP de verdade não perde cobrança, então a conciliação não inventa desfecho: ela avisa em warning a cada rodada, até alguém decidir.
+Na primeira rodada, três pagamentos de experimentos antigos apareceram como `needs_attention`: tinham id de cobrança, mas o PayFake não tinha cobrança nenhuma. O PayFake guarda tudo em memória e tinha sido reiniciado. Durante um tempo a conciliação só avisou em warning a cada rodada, esperando alguém decidir.
+
+Decidi que uma cobrança sumida tem prazo. Ela ganha uma janela para aparecer, porque a busca de um PSP pode estar atrasada, e a janela é configurável (`PAYMENTS_RECONCILIATION_LOST_CHARGE_AFTER_SECONDS`, uma hora por padrão). Fechada a janela, o pagamento falha com `charge_lost`, pelo mesmo caminho de uma recusa, e um pedido que ainda espera é cancelado. Os três pagamentos antigos terminaram `failed` na primeira rodada depois da mudança. O `needs_attention` ficou só para o que pode ser dinheiro parado no PSP: um estorno sem cobrança do outro lado.
 
 ## O que eu levo para a entrevista
 

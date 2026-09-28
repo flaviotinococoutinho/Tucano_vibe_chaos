@@ -8,6 +8,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 - Rastreio pelo código (UC-SHP-10), o lado de leitura das remessas no pacote `Timeline`: o projetor `logistics-timeline-projector` leva cada evento de `logistics.shipments.v2` para a linha do tempo no MongoDB e para a página pública no DynamoDB, cada um deduplicando pelo id do evento, e `GET /v1/tracking/{código}` lê a página por chave.
 
+### Changed
+
+- Uma cobrança que o PSP recebeu e não mostra mais ganha uma janela configurável (`PAYMENTS_RECONCILIATION_LOST_CHARGE_AFTER_SECONDS`, uma hora por padrão); fechada a janela, o pagamento falha com `charge_lost` em vez de pedir uma pessoa a cada rodada.
+
 ### Fixed
 
 - O README da logística agora lista o webhook das transportadoras entre os endpoints.

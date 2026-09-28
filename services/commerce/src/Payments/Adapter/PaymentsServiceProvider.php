@@ -54,6 +54,7 @@ final class PaymentsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->when(ReconcilePayments::class)->needs('$quietSeconds')->giveConfig('payments.reconciliation.quiet_seconds');
+        $this->app->when(ReconcilePayments::class)->needs('$lostChargeAfterSeconds')->giveConfig('payments.reconciliation.lost_charge_after_seconds');
         // The one webhook commerce receives is PayFake's, so the one signature to check is its.
         $this->app->bind(WebhookSignature::class, static fn(): WebhookSignature => new WebhookSignature((string) config('payments.payfake.webhook_secret')));
         // The provider behind a circuit breaker: a decorator of the same port.
