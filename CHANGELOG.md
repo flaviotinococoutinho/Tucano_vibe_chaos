@@ -4,6 +4,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- O pedido guarda o código de rastreio da remessa (`orders.tracking_code`, `CHAR(15)`), aprendido na coleta (UC-ORD-04), e a consulta do pedido devolve `trackingCode`, `null` até a coleta (UC-ORD-05). É o que deixa a web ir do pedido direto ao rastreio. Dois `CHECK`s guardam a regra no banco: o formato, e só pedido que saiu tem código.
+
 ### Changed
 
 - Fornecedor mora só nos adapters (ADR 0022): o Deptrac ganhou a camada `Vendor` e tirou da aplicação a licença de usar feature flags. Os eventos de domínio pegam o id do `EventId` do shared kernel, e o `ChooseCarrier` pergunta o `DispatchMode` (enum rico) a um port, em vez de ler a flag.

@@ -38,7 +38,7 @@ final readonly class FollowShipment implements ForFollowingShipments
 
     public function recordShipped(ShipmentNews $news): FollowOutcome
     {
-        return $this->follow($news, static fn(Order $order) => $order->markAsShipped($news->at));
+        return $this->follow($news, static fn(Order $order) => $order->markAsShipped($news->trackingCode, $news->at));
     }
 
     public function recordDelivered(ShipmentNews $news): FollowOutcome

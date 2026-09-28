@@ -13,6 +13,7 @@ use Commerce\Ordering\Domain\Order\FulfillmentCenterCode;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\Quantity;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use Commerce\Ordering\Domain\Product\CatalogProduct;
 use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
@@ -75,6 +76,8 @@ final class OrderRulesTest extends TestCase
         yield 'blank name' => [static fn() => PersonName::of('   ')];
         yield 'bad SKU' => [static fn() => Sku::of('a b')];
         yield 'bad warehouse' => [static fn() => FulfillmentCenterCode::of('gru1')];
+        yield 'tracking code with symbols Crockford leaves out' => [static fn() => TrackingCode::of('TX02PWW6JFR5GIL')];
+        yield 'tracking code in lowercase' => [static fn() => TrackingCode::of('tx02pww6jfr5g00')];
     }
 
     /** @param Closure(): mixed $build */

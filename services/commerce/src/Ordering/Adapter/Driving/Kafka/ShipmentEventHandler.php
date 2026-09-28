@@ -8,6 +8,7 @@ use Commerce\Ordering\Application\FollowOutcome;
 use Commerce\Ordering\Application\Port\Driving\ForFollowingShipments;
 use Commerce\Ordering\Application\ShipmentNews;
 use Commerce\Ordering\Domain\Order\OrderId;
+use Commerce\Ordering\Domain\Order\TrackingCode;
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -68,7 +69,9 @@ final readonly class ShipmentEventHandler implements MessageHandler
     private static function newsOf(CloudEvent $event, ReceivedMessage $message): ShipmentNews
     {
         try {
-            return ShipmentNews::of($event->id, OrderId::fromString((new EventFields($event->data))->uuid('orderId')), $event->time);
+            $fields = new EventFields($event->data);
+
+            return ShipmentNews::of($event->id, OrderId::fromString($fields->uuid('orderId')), TrackingCode::of($fields->text('trackingCode')), $event->time);
         } catch (InvalidArgumentException|DomainError $invalid) {
             throw IncomingEvent::unreadable($message, $invalid);
         }

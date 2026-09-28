@@ -9,7 +9,7 @@
 
 ## Partes interessadas e interesses
 
-- **Cliente**: ver o pedido que acabou de fazer, com status, itens, total e prazo para pagar.
+- **Cliente**: ver o pedido que acabou de fazer, com status, itens, total e prazo para pagar e, depois que ele sai do CD, ir direto ao rastreio.
 - **Tucano**: responder a mesma coisa que a criação do pedido respondeu, sem um segundo formato para manter.
 
 ## Pré-condições
@@ -23,6 +23,7 @@
 ## Garantias de sucesso
 
 - O pedido volta no mesmo formato da resposta do UC-ORD-01, com o status atual.
+- Depois da coleta, `trackingCode` traz o código da remessa, que abre a página de rastreio (UC-SHP-10). Antes disso ele vem `null`, e também fica `null` nos pedidos que saíram antes de o pedido guardar o código: a logística tem esses códigos, o pedido não.
 
 ## Cenário principal de sucesso
 

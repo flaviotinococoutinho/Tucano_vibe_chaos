@@ -58,6 +58,21 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['status' => 'shipped_and_cancelled']));
     }
 
+    /** @return iterable<string, array{array<string, string>}> */
+    public static function misplacedTrackingCodes(): iterable
+    {
+        yield 'an order that has not shipped' => [['status' => 'paid', 'tracking_code' => 'TX02PWW6JFR5G00']];
+        yield 'a code in another shape' => [['status' => 'shipped', 'tracking_code' => 'tx02pww6jfr5g00']];
+    }
+
+    /** @param array<string, string> $row */
+    #[Test]
+    #[DataProvider('misplacedTrackingCodes')]
+    public function only_an_order_that_shipped_has_a_tracking_code(array $row): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
+    }
+
     #[Test]
     public function postal_codes_are_eight_digits(): void
     {
