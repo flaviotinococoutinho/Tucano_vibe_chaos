@@ -14,6 +14,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Identidade visual redesenhada: o tucano virou uma figura de poucas formas chapadas, em três tintas sobre papel, com o grão de uma impressão pequena, e cada ilustração conta uma ideia só (a pedra que falta no rio, o varal de recibos, o plugue puxado com a lâmpada acesa, o hexágono com portas). Os originais ficam intactos em `docs/assets`, as ilustrações das telas ganharam a pasta `docs/assets/ui`, e as capturas da loja foram refeitas.
 - As ilustrações das telas trazem o próprio papel e aparecem como um cartão claro de cantos arredondados, também no tema escuro.
 
+### Fixed
+
+- A página de um problema tinha como título a frase do status em inglês ("Not Found"). A web agora dá nome ao status em português ("Não encontrado", "Fora do ar por um instante"), e o `detail` do servidor continua logo abaixo.
+
 ## [0.8.0] - 2026-09-28
 
 ### Added

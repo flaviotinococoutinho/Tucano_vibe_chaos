@@ -79,4 +79,40 @@ describe('the screen router', () => {
     const button = pageScreen.getByRole('button', { name: 'Fazer pedido' });
     expect(button.closest('form')).toHaveAttribute('novalidate');
   });
+
+  it('names a problem in the words of the store, never in the English of its status phrase', async () => {
+    const detail = 'Não encontrei o produto NO-SUCH-SKU.';
+    mockFetchAlways(
+      fakeResponse({
+        status: 404,
+        url: 'http://localhost/bff/v1/products/NO-SUCH-SKU',
+        body: { type: 'about:blank', title: 'Not Found', status: 404, detail },
+      }),
+    );
+    renderRouter();
+
+    await pageScreen.findByRole('heading', { level: 1, name: 'Não encontrado' });
+    expect(pageScreen.getByText(detail)).toBeInTheDocument();
+    expect(pageScreen.queryByText('Not Found')).not.toBeInTheDocument();
+  });
+
+  it('says a service is out for a moment, and when to try again', async () => {
+    mockFetchAlways(
+      fakeResponse({
+        status: 503,
+        url: 'http://localhost/bff/v1/products',
+        headers: { 'Retry-After': '5' },
+        body: {
+          type: 'about:blank',
+          title: 'Service Unavailable',
+          status: 503,
+          detail: 'O catálogo não respondeu a tempo.',
+        },
+      }),
+    );
+    renderRouter();
+
+    await pageScreen.findByRole('heading', { level: 1, name: 'Fora do ar por um instante' });
+    expect(pageScreen.getByText('Tente novamente em 5 segundos.')).toBeInTheDocument();
+  });
 });

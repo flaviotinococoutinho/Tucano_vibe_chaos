@@ -64,8 +64,24 @@ function wayBack(screen: SirenScreen): SirenLink | undefined {
   return findLink(screen.links, 'collection') ?? findLink(screen.links, 'up');
 }
 
+// The `title` of an RFC 9457 problem with no type of its own is the status phrase, in the
+// protocol's English ("Not Found"); the sentence in the store's words is the `detail`. The
+// heading names the status the way the store talks, and the detail below it tells the rest.
+const PROBLEM_HEADINGS: Readonly<Record<number, string>> = {
+  404: 'Não encontrado',
+  410: 'Não existe mais',
+  429: 'Muitas tentativas',
+  503: 'Fora do ar por um instante',
+};
+
 function problemTitle(problem: Problem): string {
-  return problem.kind === 'http' ? problem.title : 'Falha de conexão';
+  if (problem.kind === 'network') {
+    return 'Falha de conexão';
+  }
+  return (
+    PROBLEM_HEADINGS[problem.status] ??
+    (problem.status >= 500 ? 'Algo deu errado do nosso lado' : 'Não deu para abrir esta página')
+  );
 }
 
 function ProblemScreen({
