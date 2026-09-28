@@ -9,6 +9,7 @@ use Logistics\Timeline\Application\ProjectionOutcome;
 use Logistics\Timeline\Application\TimelineNews;
 use Logistics\Timeline\Application\UseCase\ProjectTimeline;
 use Logistics\Timeline\Application\UseCase\TrackShipment;
+use Logistics\Timeline\Application\UseCase\UpdateTrackingPage;
 use Logistics\Timeline\Domain\JourneyStatus;
 use Logistics\Timeline\Domain\Place;
 use Logistics\Timeline\Domain\TimelineStep;
@@ -22,29 +23,37 @@ use Tests\Doubles\Timeline\RecordedSteps;
 final class ProjectTimelineTest extends TestCase
 {
     #[Test]
-    public function a_step_goes_to_both_read_models_once(): void
+    public function a_step_goes_to_the_timeline_once(): void
     {
         $timelines = new RecordedSteps();
-        $pages = new RecordedSteps();
-        $projection = new ProjectTimeline($timelines, $pages);
+        $projection = new ProjectTimeline($timelines);
 
         self::assertSame(ProjectionOutcome::Applied, $projection->project(self::news('evt_1')));
         self::assertSame(ProjectionOutcome::Duplicate, $projection->project(self::news('evt_1')));
-
         self::assertCount(1, $timelines->taken);
+    }
+
+    #[Test]
+    public function a_step_goes_to_the_public_page_once(): void
+    {
+        $pages = new RecordedSteps();
+        $update = new UpdateTrackingPage($pages);
+
+        self::assertSame(ProjectionOutcome::Applied, $update->update(self::news('evt_1')));
+        self::assertSame(ProjectionOutcome::Duplicate, $update->update(self::news('evt_1')));
         self::assertCount(1, $pages->taken);
     }
 
     #[Test]
-    public function a_redelivery_catches_up_the_read_model_that_missed_the_step(): void
+    public function each_read_model_goes_at_its_own_pace(): void
     {
-        // The timeline took the step, then the process died before the page did.
+        // The page reads in a consumer group of its own: it takes the step whether or not the timeline has it.
         $timelines = new RecordedSteps();
         $timelines->alreadyHas('evt_1');
         $pages = new RecordedSteps();
 
-        self::assertSame(ProjectionOutcome::Applied, new ProjectTimeline($timelines, $pages)->project(self::news('evt_1')));
-        self::assertCount(1, $pages->taken);
+        self::assertSame(ProjectionOutcome::Duplicate, new ProjectTimeline($timelines)->project(self::news('evt_1')));
+        self::assertSame(ProjectionOutcome::Applied, new UpdateTrackingPage($pages)->update(self::news('evt_1')));
     }
 
     #[Test]

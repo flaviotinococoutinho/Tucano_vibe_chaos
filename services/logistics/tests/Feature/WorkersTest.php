@@ -18,7 +18,7 @@ final class WorkersTest extends TestCase
 
         $workers = [
             'logistics:relay-outbox', 'logistics:sync-catalog', 'logistics:order-intake', 'logistics:request-labels', 'logistics:book-pickups',
-            'logistics:project-timelines', 'logistics:reconcile-journeys', 'logistics:watch-stalled-journeys',
+            'logistics:project-timelines', 'logistics:update-tracking-pages', 'logistics:reconcile-journeys', 'logistics:watch-stalled-journeys',
         ];
         foreach ($workers as $worker) {
             self::assertArrayHasKey($worker, $commands);

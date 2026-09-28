@@ -9,6 +9,6 @@ use Logistics\Timeline\Application\TimelineNews;
 
 interface ForProjectingTimelines
 {
-    /** Adds the step to the timeline and to the public page; a step already there changes nothing. */
+    /** Adds the step to the internal timeline of the shipment; a step already there changes nothing. */
     public function project(TimelineNews $news): ProjectionOutcome;
 }
