@@ -7,7 +7,6 @@ namespace Logistics\Timeline\Application;
 enum ProjectionOutcome: string
 {
     case Applied = 'applied';
-
-    /** Both read models already had the step: a redelivery or a replay. */
+    /** The read model already had the step: a redelivery or a replay. */
     case Duplicate = 'duplicate';
 }

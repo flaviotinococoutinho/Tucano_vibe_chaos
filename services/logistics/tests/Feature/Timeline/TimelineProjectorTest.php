@@ -29,7 +29,7 @@ final class TimelineProjectorTest extends TestCase
     {
         parent::setUp();
         $this->timelines = new RecordedSteps();
-        $this->projector = new TimelineProjector(new ProjectTimeline($this->timelines, new RecordedSteps()), new RecordingLogger());
+        $this->projector = new TimelineProjector(new ProjectTimeline($this->timelines), new RecordingLogger());
     }
 
     #[Test]

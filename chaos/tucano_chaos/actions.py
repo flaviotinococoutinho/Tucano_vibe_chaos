@@ -3,6 +3,7 @@ experiment files: a toxic on Toxiproxy, a control on the partners simulator."""
 
 from __future__ import annotations
 
+from . import probes
 from .store import Shopper, logger
 
 
@@ -20,3 +21,14 @@ def pay_while_the_psp_is_slow(attempts: int = 5) -> list[int]:
         logger.info("attempt %d of %d answered %s", attempt, attempts, payment.described())
         statuses.append(payment.status)
     return statuses
+
+
+def buy_a_parcel() -> str:
+    """Buys a mug while the fault is on, for the probe after the method to follow to the door."""
+    order = probes._a_paid_order(Shopper())
+    if order is None:
+        raise RuntimeError("could not buy the parcel to follow")
+    probes._bought_during_the_fault = order
+    logger.info("bought a parcel to follow: %s", order)
+    return order
+

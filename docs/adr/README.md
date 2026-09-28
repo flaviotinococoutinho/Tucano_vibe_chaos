@@ -30,6 +30,7 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0024](0024-sensitive-data-behind-a-proxy.md) | Dado sensível passa por um proxy | aceito |
 | [0025](0025-chaos-experiments-as-code.md) | Experimentos de caos como código, com o Chaos Toolkit | aceito |
 | [0026](0026-a-database-outage-is-unavailability.md) | Tratar banco fora do ar como indisponibilidade, não como erro interno | aceito |
+| [0027](0027-one-consumer-group-per-read-model.md) | Um grupo de consumo por read model | aceito |
 
 ## Modelo
 

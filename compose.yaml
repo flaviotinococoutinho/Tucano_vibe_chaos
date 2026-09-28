@@ -643,9 +643,23 @@ services:
     mem_limit: 128m
 
   # UC-SHP-10: every shipment event becomes a step of the timeline (MongoDB) and of the public page (DynamoDB).
+  # UC-SHP-10 has two read models, and each reads the shipments in a consumer group of its own
+  # (ADR 0027): an outage of MongoDB never holds a step back from the public page, and an outage
+  # of DynamoDB never holds one back from the internal timeline.
   logistics-timeline-projector:
     <<: [*service, *logistics]
     command: ["php", "artisan", "logistics:project-timelines"]
+    stop_signal: SIGTERM
+    depends_on:
+      logistics-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    mem_limit: 128m
+
+  logistics-tracking-pages:
+    <<: [*service, *logistics]
+    command: ["php", "artisan", "logistics:update-tracking-pages"]
     stop_signal: SIGTERM
     depends_on:
       logistics-migrate:

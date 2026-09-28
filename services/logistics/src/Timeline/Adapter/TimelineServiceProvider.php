@@ -10,14 +10,17 @@ use Illuminate\Support\ServiceProvider;
 use Logistics\Timeline\Adapter\Driven\DynamoTrackingViews;
 use Logistics\Timeline\Adapter\Driven\MongoTimelines;
 use Logistics\Timeline\Adapter\Driving\Console\ProjectTimelines;
+use Logistics\Timeline\Adapter\Driving\Console\UpdateTrackingPages;
 use Logistics\Timeline\Adapter\Driving\Http\TrackingController;
 use Logistics\Timeline\Application\Port\Driven\ForPublishingTrackingViews;
 use Logistics\Timeline\Application\Port\Driven\ForReadingTrackingViews;
 use Logistics\Timeline\Application\Port\Driven\ForStoringTimelines;
 use Logistics\Timeline\Application\Port\Driving\ForProjectingTimelines;
 use Logistics\Timeline\Application\Port\Driving\ForTrackingShipments;
+use Logistics\Timeline\Application\Port\Driving\ForUpdatingTrackingPages;
 use Logistics\Timeline\Application\UseCase\ProjectTimeline;
 use Logistics\Timeline\Application\UseCase\TrackShipment;
+use Logistics\Timeline\Application\UseCase\UpdateTrackingPage;
 
 /** The read side of shipments (UC-SHP-10): the projection into MongoDB and DynamoDB, and the public tracking page. */
 final class TimelineServiceProvider extends ServiceProvider
@@ -25,6 +28,7 @@ final class TimelineServiceProvider extends ServiceProvider
     /** @var array<class-string, class-string> */
     public array $bindings = [
         ForProjectingTimelines::class => ProjectTimeline::class,
+        ForUpdatingTrackingPages::class => UpdateTrackingPage::class,
         ForTrackingShipments::class => TrackShipment::class,
         ForStoringTimelines::class => MongoTimelines::class,
         ForPublishingTrackingViews::class => DynamoTrackingViews::class,
@@ -58,7 +62,7 @@ final class TimelineServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
-        $this->commands([ProjectTimelines::class]);
+        $this->commands([ProjectTimelines::class, UpdateTrackingPages::class]);
         $router->middleware('api')->group(static function (Router $router): void {
             $router->get('/v1/tracking/{trackingCode}', TrackingController::class);
         });

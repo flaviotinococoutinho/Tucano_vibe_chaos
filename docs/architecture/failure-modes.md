@@ -61,15 +61,14 @@ Os números vêm da stack local, em 28/09/2026. Eles mudam de máquina para máq
 |---|---|---|---|---|---|
 | Redis fora | o catálogo perde o cache, e o pagamento perde o circuit breaker | falha de conexão | o catálogo lê direto do MySQL; o breaker deixa as chamadas passarem, porque um breaker quebrado não pode derrubar o serviço | medição: catálogo em 1,13 s e produto em 0,21 s, com o Redis cortado; laboratório do circuit breaker | sem o breaker, um PSP lento ao mesmo tempo voltaria a prender processos; a janela que evita alerta repetido não foi medida |
 | flagd fora | nenhum | a avaliação falha | cada avaliação tem um padrão seguro no código: caos desligado, estratégia `atomic` | [feature flags](feature-flags.md); [ADR 0015](../adr/0015-feature-flags-openfeature-flagd.md) | sem experimento como código ainda |
-| MongoDB fora | nenhum na web; a lista de pedidos e a linha do tempo param de andar | os projetores falham | os projetores tentam de novo, com as tentativas contadas; uma projeção se refaz relendo o tópico, porque deduplica pelo id do evento | medição: rastreio e catálogo em `200` com o MongoDB cortado | pela leitura do código, uma queda longa manda mensagens boas para a DLQ (item 2 abaixo) |
+| MongoDB fora | nenhum: a página pública segue a encomenda | o projetor da linha do tempo não alcança o MongoDB | a linha do tempo interna espera o MongoDB sem limite e alcança quando ele volta; a página pública lê os eventos num grupo de consumo próprio e nem percebe a queda ([ADR 0027](../adr/0027-one-consumer-group-per-read-model.md)) | experimento `tracking-without-the-timeline`: a página chegou a entregue em 14,6 s, com todos os passos; antes da correção, a jornada inteira foi para a DLQ e a página ficou sem nenhum passo | a linha do tempo interna atrasa enquanto durar a queda |
 | DynamoDB fora | o rastreio público não abre | a leitura falha sem resposta | a leitura tem uma tentativa só, de até 800 ms, e a página recusa na hora com `503` e `Retry-After: 5`; a escrita do projetor mantém as tentativas do SDK | experimento `tracking-without-its-copy`: `503` em 0,06 s, contra 5,05 s antes da correção | enquanto durar a queda, não há rastreio para mostrar |
 
 ## O que ainda não tem prova
 
 Uma análise honesta termina pelo que falta. Estes são os próximos experimentos, em ordem de valor:
 
-1. **MongoDB fora por muito tempo**: o retry sem limite dos consumidores só reconhece conexão perdida com o PostgreSQL. Pela leitura do código, o projetor da linha do tempo esgota as tentativas e manda para a DLQ mensagens que não têm defeito nenhum, o mesmo problema que o [ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md) resolveu para o PostgreSQL. Falta o experimento que prove, e depois a correção.
-2. **Kafka fora**: a outbox garante que nenhum evento se perde, mas nenhum experimento mede quanto tempo a remessa leva para nascer depois que o Kafka volta.
-3. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
-4. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
-5. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.
+1. **Kafka fora**: a outbox garante que nenhum evento se perde, mas nenhum experimento mede quanto tempo a remessa leva para nascer depois que o Kafka volta.
+2. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
+3. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
+4. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.
