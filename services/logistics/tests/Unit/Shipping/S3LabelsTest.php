@@ -85,7 +85,7 @@ final class S3LabelsTest extends TestCase
 
     private static function trackingCode(): TrackingCode
     {
-        return new TrackingCode(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 7));
+        return TrackingCode::fromSnowflake(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 7));
     }
 
     private static function document(): LabelDocument

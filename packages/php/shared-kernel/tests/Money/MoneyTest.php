@@ -62,6 +62,7 @@ final class MoneyTest extends TestCase
     #[Test]
     public function it_is_serialized_as_amount_and_currency(): void
     {
+        self::assertSame(['amount' => 12990, 'currency' => 'BRL'], Money::of(12990, Currency::brl())->toArray());
         self::assertSame('{"amount":12990,"currency":"BRL"}', json_encode(Money::of(12990, Currency::brl())));
     }
 }

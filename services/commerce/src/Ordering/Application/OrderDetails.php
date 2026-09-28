@@ -36,10 +36,10 @@ final readonly class OrderDetails
                 'sku' => (string) $line->sku,
                 'name' => $line->productName,
                 'quantity' => $line->quantity->value,
-                'unitPrice' => $line->unitPrice->jsonSerialize(),
-                'subtotal' => $line->subtotal()->jsonSerialize(),
+                'unitPrice' => $line->unitPrice->toArray(),
+                'subtotal' => $line->subtotal()->toArray(),
             ], iterator_to_array($order->lines, false)),
-            'total' => $order->lines->total()->jsonSerialize(),
+            'total' => $order->lines->total()->toArray(),
             'placedAt' => $order->placedAt->format(DATE_RFC3339_EXTENDED),
             'reservationExpiresAt' => $order->reservationExpiresAt->format(DATE_RFC3339_EXTENDED),
         ]);

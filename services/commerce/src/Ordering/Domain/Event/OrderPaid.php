@@ -51,7 +51,7 @@ final readonly class OrderPaid extends OrderEvent
                 'name' => $line->productName,
                 'quantity' => $line->quantity->value,
             ], iterator_to_array($this->lines, false)),
-            'total' => $this->lines->total()->jsonSerialize(),
+            'total' => $this->lines->total()->toArray(),
         ];
     }
 }

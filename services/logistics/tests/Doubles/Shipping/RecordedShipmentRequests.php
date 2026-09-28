@@ -40,7 +40,7 @@ final class RecordedShipmentRequests implements ForCreatingShipments, ForCancell
         $this->paid[] = $order;
 
         return new CreatedShipment(
-            new ShipmentReference(ShipmentId::generate(), new TrackingCode(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 0)), $order->orderId),
+            ShipmentReference::of(ShipmentId::generate(), TrackingCode::fromSnowflake(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 0)), $order->orderId),
             CarrierCode::of('tucano-express'),
         );
     }

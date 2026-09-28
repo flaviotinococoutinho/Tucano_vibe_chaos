@@ -18,6 +18,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - O verificador da assinatura de webhook (`t=...,v1=...`) mora no pacote de mensageria, e o commerce e a logística usam o mesmo.
 - O commerce e a logística usam o endereço do shared kernel. O checkout recebe logradouro, número em texto e divisões; `orders` e `shipments` trocam `street`, `district`, `city` e `state` por tipo e nome do logradouro e pelas divisões em `jsonb` com CHECK, e o número passa a `VARCHAR(20)`. A migração separa o `street` gravado em tipo e nome. A etiqueta imprime a linha do logradouro e as divisões dentro do município, e o `fulfillment_centers.city` da logística virou `municipality`.
 - Tópicos `commerce.orders.v2` e `logistics.shipments.v2`, como pede a ADR 0010: o `order.paid` leva o endereço novo, e o `shipment.created` leva o destino até o município. Os consumidores leem `.v1` e `.v2` até o `.v1` esvaziar, e o `order.paid` do `.v1` passa pelo `LegacyShippingAddress`.
+- Os value objects dos domínios nascem por construtores nomeados, como mandam as convenções: `Customer::of`, `OrderNumber::fromSnowflake`, `TrackingCode::fromSnowflake`, `ShipmentReference::of`, `Parcel::of`, `StatusTransition::initial` e `between` e `Dimensions::ofMillimetres` no lugar de `new`, e `Money` e `Dimensions` saem por `toArray()`.
 
 ### Fixed
 

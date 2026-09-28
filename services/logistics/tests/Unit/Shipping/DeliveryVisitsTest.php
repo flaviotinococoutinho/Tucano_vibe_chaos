@@ -51,7 +51,7 @@ final class DeliveryVisitsTest extends TestCase
     #[Test]
     public function a_tracking_code_reads_back_as_it_was_written(): void
     {
-        $code = new TrackingCode(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 42));
+        $code = TrackingCode::fromSnowflake(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 42));
 
         self::assertSame((string) $code, (string) TrackingCode::fromString((string) $code));
         $this->expectException(InvalidShipment::class);

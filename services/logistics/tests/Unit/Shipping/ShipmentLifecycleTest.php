@@ -33,7 +33,7 @@ final class ShipmentLifecycleTest extends TestCase
         self::assertSame(ShipmentStatus::Created, $shipment->status);
         self::assertSame(1, $shipment->version);
         self::assertEquals(
-            [new StatusTransition(null, ShipmentStatus::Created, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
+            [StatusTransition::initial(ShipmentStatus::Created, new DateTimeImmutable('2026-09-27T12:00:00Z'))],
             $shipment->releaseTransitions(),
         );
         $events = $shipment->releaseEvents();

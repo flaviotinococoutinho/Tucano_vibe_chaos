@@ -14,6 +14,6 @@ final readonly class SnowflakeOrderNumbers implements ForNumberingOrders
 
     public function next(): OrderNumber
     {
-        return new OrderNumber($this->generator->next());
+        return OrderNumber::fromSnowflake($this->generator->next());
     }
 }

@@ -17,7 +17,12 @@ final readonly class TrackingCode implements Stringable
 {
     private const string PREFIX = 'TX';
 
-    public function __construct(public Snowflake $snowflake) {}
+    private function __construct(public Snowflake $snowflake) {}
+
+    public static function fromSnowflake(Snowflake $snowflake): self
+    {
+        return new self($snowflake);
+    }
 
     /** Reads the code as people and carriers write it, TX plus 13 symbols. */
     public static function fromString(string $code): self

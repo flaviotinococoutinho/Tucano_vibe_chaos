@@ -157,7 +157,7 @@ final class PlaceOrderTest extends TestCase
 
         return new PlaceOrderCommand(
             IdempotencyKey::of($key),
-            new Customer(CustomerId::fromString(self::CUSTOMER), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
+            Customer::of(CustomerId::fromString(self::CUSTOMER), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
             Addresses::bahia(),
             $requested,
         );

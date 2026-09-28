@@ -73,7 +73,7 @@ final class Shipment extends AggregateRoot
         DateTimeImmutable $createdAt,
     ): self {
         $shipment = new self($reference, $carrier, $origin, $recipient, $destination, $parcels, $createdAt, ShipmentStatus::Created, DeliveryAttempts::none(), null, 1);
-        $transition = new StatusTransition(null, ShipmentStatus::Created, $createdAt);
+        $transition = StatusTransition::initial(ShipmentStatus::Created, $createdAt);
         $shipment->transitions[] = $transition;
         $shipment->recordThat(new ShipmentCreated($reference, $transition, $carrier, $origin, $destination, $parcels));
 
@@ -205,7 +205,7 @@ final class Shipment extends AggregateRoot
         }
         self::guards()->check(new TransitionRequest($target, $this->attempts, $evidence));
 
-        $transition = new StatusTransition($this->status, $target, $at, $evidence->reason(), $evidence->location());
+        $transition = StatusTransition::between($this->status, $target, $at, $evidence->reason(), $evidence->location());
         $this->transitions[] = $transition;
         $this->status = $target;
         $this->version++;

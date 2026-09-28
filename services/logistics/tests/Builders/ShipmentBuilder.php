@@ -59,7 +59,7 @@ final class ShipmentBuilder
 
     public static function parcel(int $grams, int $lengthMm, int $widthMm, int $heightMm): Parcel
     {
-        return new Parcel(Weight::ofGrams($grams), Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm));
+        return Parcel::of(Weight::ofGrams($grams), Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm));
     }
 
     public static function destination(): Address
@@ -95,9 +95,9 @@ final class ShipmentBuilder
     public function create(): Shipment
     {
         return Shipment::create(
-            new ShipmentReference(
+            ShipmentReference::of(
                 ShipmentId::generate(),
-                new TrackingCode(Snowflake::compose($this->createdAt->getTimestamp() * 1000, new NodeId(1, 12), self::$sequence++ % (Snowflake::MAX_SEQUENCE + 1))),
+                TrackingCode::fromSnowflake(Snowflake::compose($this->createdAt->getTimestamp() * 1000, new NodeId(1, 12), self::$sequence++ % (Snowflake::MAX_SEQUENCE + 1))),
                 $this->orderId,
             ),
             CarrierCode::of('tucano-express'),

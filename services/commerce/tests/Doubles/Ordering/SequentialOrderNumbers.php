@@ -17,6 +17,6 @@ final class SequentialOrderNumbers implements ForNumberingOrders
 
     public function next(): OrderNumber
     {
-        return new OrderNumber(Snowflake::compose(self::NOON_2026_09_27, new NodeId(1, 1), $this->sequence++));
+        return OrderNumber::fromSnowflake(Snowflake::compose(self::NOON_2026_09_27, new NodeId(1, 1), $this->sequence++));
     }
 }
