@@ -21,6 +21,7 @@ final class SwooleBridge
             path: (string) ($server['request_uri'] ?? '/'),
             query: (string) ($server['query_string'] ?? ''),
             headers: array_map(strval(...), $request->header ?? []),
+            body: (string) $request->rawContent(),
         );
     }
 

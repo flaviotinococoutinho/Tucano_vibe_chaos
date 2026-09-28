@@ -15,8 +15,19 @@ final readonly class Request
         public string $path,
         public string $query = '',
         array $headers = [],
+        /** The raw body, byte for byte: a signature is computed over exactly these bytes. */
+        public string $body = '',
     ) {
         $this->headers = array_change_key_case($headers);
+    }
+
+    /** One parameter of the query string, when it is there once and as text. */
+    public function queryParameter(string $name): ?string
+    {
+        parse_str($this->query, $parameters);
+        $value = $parameters[$name] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     /** Header names are case-insensitive. */

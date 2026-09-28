@@ -7,6 +7,10 @@ namespace Tests\Feature;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Swoole\Coroutine\Http\Client;
+use Swoole\WebSocket\CloseFrame;
+use Swoole\WebSocket\Frame;
+use Tests\Support\InCoroutine;
 
 /**
  * Starts bin/server.php the way the container does and talks to it over TCP,
@@ -16,6 +20,8 @@ final class ServerTest extends TestCase
 {
     private const string HOST = '127.0.0.1';
     private const int PORT = 9501;
+    /** The default of COURIERS_SECRET, the secret the simulated devices sign with. */
+    private const string COURIERS_SECRET = 'whsec_local_couriers';
     private const int SIGKILL = 9;
     private const int SIGTERM = 15;
 
@@ -68,7 +74,7 @@ final class ServerTest extends TestCase
     }
 
     #[Test]
-    public function websocket_upgrades_are_refused_until_a_channel_exists(): void
+    public function websocket_upgrades_to_any_other_path_are_refused(): void
     {
         $response = self::exchange([
             'GET /ws/shipments/TX02PQRFBTW5G03 HTTP/1.1',
@@ -81,6 +87,79 @@ final class ServerTest extends TestCase
 
         self::assertStringStartsWith('HTTP/1.1 404', $response);
         self::assertStringContainsString('"correlationId":"ws-test#1"', $response);
+    }
+
+    #[Test]
+    public function a_report_without_the_couriers_signature_is_refused(): void
+    {
+        $response = self::exchange(['POST /v1/positions HTTP/1.1', 'Content-Type: application/json', 'Content-Length: 2', 'Courier-Signature: t=1,v1=' . str_repeat('0', 64)], '{}');
+
+        self::assertStringStartsWith('HTTP/1.1 401', $response);
+        self::assertStringContainsString('The Courier-Signature is stale.', $response);
+    }
+
+    #[Test]
+    #[Group('integration')]
+    public function a_follower_gets_the_last_news_then_every_new_one_until_the_delivery_ends(): void
+    {
+        $code = self::freshTrackingCode();
+        self::assertSame(202, self::report(self::position($code, 3120)));
+
+        $frames = InCoroutine::run(static function () use ($code): array {
+            $client = self::follower();
+            self::assertTrue($client->upgrade('/v1/live?trackingCode=' . $code), 'the handshake of a valid code switches protocols');
+            $frames = [self::receive($client)];
+            self::report(self::position($code, 2400));
+            $frames[] = self::receive($client);
+            self::report(['type' => 'ended', 'trackingCode' => $code, 'outcome' => 'delivered', 'at' => '2026-09-28T21:56:33.101Z']);
+            $frames[] = self::receive($client);
+            $close = $client->recv(3);
+            $frames[] = $close instanceof CloseFrame ? $close->code : 'no close frame';
+
+            return $frames;
+        });
+
+        self::assertStringContainsString('"remainingMeters":3120', (string) $frames[0], 'the last news comes first');
+        self::assertStringContainsString('"remainingMeters":2400', (string) $frames[1]);
+        self::assertStringContainsString('"type":"ended"', (string) $frames[2]);
+        self::assertSame(1000, $frames[3]);
+    }
+
+    #[Test]
+    #[Group('integration')]
+    public function a_handshake_without_a_tracking_code_gets_a_problem(): void
+    {
+        $response = self::exchange([
+            'GET /v1/live?trackingCode=nope HTTP/1.1',
+            'Upgrade: websocket',
+            'Connection: Upgrade',
+            'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+            'Sec-WebSocket-Version: 13',
+        ]);
+
+        self::assertStringStartsWith('HTTP/1.1 422', $response);
+        self::assertStringContainsString('"trackingCode"', $response);
+    }
+
+    #[Test]
+    #[Group('integration')]
+    public function on_sigterm_followers_are_told_to_come_back_and_the_server_still_stops_cleanly(): void
+    {
+        $code = self::freshTrackingCode();
+        $server = $this->server;
+        self::assertIsResource($server);
+
+        $closeCode = InCoroutine::run(static function () use ($code, $server): int|string {
+            $client = self::follower();
+            self::assertTrue($client->upgrade('/v1/live?trackingCode=' . $code));
+            proc_terminate($server, self::SIGTERM);
+            $frame = $client->recv(5);
+
+            return $frame instanceof CloseFrame ? $frame->code : 'no close frame';
+        });
+
+        self::assertSame(1001, $closeCode, 'going away: the client connects again elsewhere');
+        self::assertSame(0, $this->waitForExit());
     }
 
     #[Test]
@@ -145,6 +224,13 @@ final class ServerTest extends TestCase
     {
         self::assertIsResource($this->server);
         proc_terminate($this->server, self::SIGTERM);
+
+        return $this->waitForExit();
+    }
+
+    private function waitForExit(): int
+    {
+        self::assertIsResource($this->server);
         $deadline = microtime(true) + 10;
         while (microtime(true) < $deadline) {
             $status = proc_get_status($this->server);
@@ -203,12 +289,12 @@ final class ServerTest extends TestCase
      *
      * @param list<string> $requestLines request line first, then headers
      */
-    private static function exchange(array $requestLines): string
+    private static function exchange(array $requestLines, string $body = ''): string
     {
         $socket = stream_socket_client(sprintf('tcp://%s:%d', self::HOST, self::PORT), $errorCode, $errorMessage, 5);
         self::assertIsResource($socket, (string) $errorMessage);
         stream_set_timeout($socket, 5);
-        fwrite($socket, implode("\r\n", [$requestLines[0], 'Host: tracking', ...array_slice($requestLines, 1), '', '']));
+        fwrite($socket, implode("\r\n", [$requestLines[0], 'Host: tracking', ...array_slice($requestLines, 1), '', '']) . $body);
 
         $response = '';
         while (!self::isComplete($response)) {
@@ -221,6 +307,55 @@ final class ServerTest extends TestCase
         fclose($socket);
 
         return $response;
+    }
+
+    /**
+     * Reports a delivery news the way a courier's device does, signed with the shared secret.
+     *
+     * @param array<string, int|float|string> $news
+     */
+    private static function report(array $news): int
+    {
+        $body = json_encode($news, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $now = time();
+        $signature = sprintf('t=%d,v1=%s', $now, hash_hmac('sha256', $now . '.' . $body, self::COURIERS_SECRET));
+        $response = self::exchange(['POST /v1/positions HTTP/1.1', 'Content-Type: application/json', 'Content-Length: ' . strlen($body), 'Courier-Signature: ' . $signature], $body);
+
+        return preg_match('#^HTTP/\S+ (\d{3})#', $response, $match) === 1 ? (int) $match[1] : 0;
+    }
+
+    /** @return array<string, int|float|string> */
+    private static function position(string $code, int $remainingMeters): array
+    {
+        return ['type' => 'position', 'trackingCode' => $code, 'latitude' => -19.9112, 'longitude' => -44.0321, 'at' => '2026-09-28T21:56:13.634Z', 'remainingMeters' => $remainingMeters];
+    }
+
+    /** A code no earlier run left news for in Redis. */
+    private static function freshTrackingCode(): string
+    {
+        $alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+        $code = 'TX';
+        for ($i = 0; $i < 13; $i++) {
+            $code .= $alphabet[random_int(0, 31)];
+        }
+
+        return $code;
+    }
+
+    /** A client that hands the close frame over, with its code, the way a browser's close event does. */
+    private static function follower(): Client
+    {
+        $client = new Client(self::HOST, self::PORT);
+        $client->set(['open_websocket_close_frame' => true]);
+
+        return $client;
+    }
+
+    private static function receive(Client $client): string
+    {
+        $frame = $client->recv(3);
+
+        return $frame instanceof Frame ? $frame->data : 'nothing received';
     }
 
     private static function isComplete(string $response): bool

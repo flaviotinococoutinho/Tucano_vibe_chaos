@@ -27,6 +27,18 @@ final class ConfigTest extends TestCase
         self::assertSame(FlagsDriver::Flagd, $config->flagsDriver);
         self::assertSame(['toxiproxy', 18013], [$config->flagdHost, $config->flagdPort]);
         self::assertSame([2, 300, 200], [$config->flagsCacheSeconds, $config->flagdTimeoutMs, $config->flagdConnectTimeoutMs]);
+        self::assertSame(['whsec_local_couriers', 900], [$config->couriersSecret, $config->liveNewsTtlSeconds]);
+    }
+
+    #[Test]
+    public function the_live_delivery_takes_its_secret_and_its_memory_from_the_environment(): void
+    {
+        $config = Config::fromEnvironment(['COURIERS_SECRET' => 'whsec_rotated', 'LIVE_NEWS_TTL_SECONDS' => '300']);
+
+        self::assertSame(['whsec_rotated', 300], [$config->couriersSecret, $config->liveNewsTtlSeconds]);
+        $this->expectException(InvalidArgumentException::class);
+
+        Config::fromEnvironment(['LIVE_NEWS_TTL_SECONDS' => '0']);
     }
 
     #[Test]

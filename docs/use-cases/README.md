@@ -54,7 +54,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso e dimensões dos produtos | Shipping |
 | [UC-SHP-12](UC-SHP-12-reconcile-journeys.md) | subfunção | Relógio | conciliar a jornada com a transportadora | Shipping |
 | [UC-SHP-13](UC-SHP-13-watch-stalled-journeys.md) | subfunção | Relógio | vigiar as jornadas paradas | Shipping |
-| UC-TRK-01 | usuário | Entregador | transmitir a posição | Tracking |
+| [UC-TRK-01](UC-TRK-01-report-position.md) | subfunção | Aparelho do entregador | informar a posição | Tracking |
 | UC-TRK-02 | subfunção | Logistics | encontrar o entregador disponível mais próximo | Tracking |
 | [UC-TRK-03](UC-TRK-03-follow-delivery-live.md) | usuário | Cliente | acompanhar a entrega ao vivo | Tracking |
 | UC-TRK-04 | usuário | Operador logístico | ver a frota no mapa | Tracking |
