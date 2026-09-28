@@ -25,5 +25,7 @@ final readonly class OrderSnapshot
         public DateTimeImmutable $placedAt,
         public DateTimeImmutable $reservationExpiresAt,
         public int $version,
+        /** Known once the order ships; orders shipped before it was kept have none. */
+        public ?TrackingCode $trackingCode,
     ) {}
 }

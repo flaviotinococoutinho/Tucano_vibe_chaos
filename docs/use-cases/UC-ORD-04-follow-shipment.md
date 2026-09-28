@@ -9,7 +9,7 @@
 
 ## Partes interessadas e interesses
 
-- **Cliente**: ver no pedido o que aconteceu com a encomenda, e ter o dinheiro de volta quando ela volta para o CD.
+- **Cliente**: ver no pedido o que aconteceu com a encomenda, ir do pedido ao rastreio dela, e ter o dinheiro de volta quando ela volta para o CD.
 - **Tucano**: o pedido e a remessa contam a mesma história, sem o commerce ler o banco da logística.
 - **Atendimento**: um pedido devolvido nunca fica com o pagamento.
 
@@ -24,19 +24,20 @@
 
 ## Garantias de sucesso
 
-- A coleta leva o pedido para `shipped`, a entrega para `delivered` e a devolução para `returned`, cada passo com o histórico e o evento em `commerce.orders.v2`.
+- A coleta leva o pedido para `shipped` e deixa nele o código de rastreio da remessa; a entrega leva para `delivered` e a devolução para `returned`. Cada passo fica no histórico e vira evento em `commerce.orders.v2`.
 - Na devolução, o pagamento capturado do pedido fica `refund_requested`, e a conciliação manda o estorno ao PSP (UC-PAY-04).
 
 ## Cenário principal de sucesso
 
 1. O consumer group `commerce.shipment-sync` lê o evento da remessa em `logistics.shipments.v2`.
 2. O sistema marca o evento na inbox e trava o pedido.
-3. O sistema move o pedido: `shipment.picked_up` para `shipped`, `shipment.delivered` para `delivered`, `shipment.returned` para `returned`.
+3. O sistema move o pedido: `shipment.picked_up` para `shipped`, guardando o código de rastreio, `shipment.delivered` para `delivered` e `shipment.returned` para `returned`.
 4. O sistema grava o pedido e o evento dele na outbox, na mesma transação da marca na inbox.
 
 ## Extensões
 
 - 1a. Os outros passos da jornada (hub, saída para entrega, visita que falhou, volta ao remetente) não mudam o pedido: o consumidor ignora esses eventos.
+- 1b. Evento que não se deixa ler (o id do pedido não é um UUID, ou o código de rastreio foge do formato `TX` e 13 símbolos): vai direto para `dlq.commerce.shipment-sync`, porque tentar de novo não conserta.
 - 2a. Evento repetido: a inbox descarta, e nada muda.
 - 3a. Devolução: na mesma transação, o Payments marca o pagamento capturado do pedido como `refund_requested`. Sem pagamento capturado (nunca capturado, ou já estornando), um warning registra o caso.
 - 3b. O pedido não aceita o passo (pedido desconhecido, ou que seguiu outro caminho): o evento vai para `dlq.commerce.shipment-sync`, com um warning para uma pessoa olhar.
@@ -45,8 +46,9 @@
 ## Variações de tecnologia
 
 - Os eventos de uma remessa usam o id dela como chave no Kafka e caem na mesma partição, então chegam na ordem em que a logística publicou.
+- O pedido guarda o código de rastreio do jeito que a logística publica (`TX` e 13 símbolos do Base32 de Crockford, `CHAR(15)`) e não abre o Snowflake que vai dentro dele: o que o código conta é assunto da logística. Só a coleta ensina o código ao pedido; a máquina de estados garante que entrega e devolução vêm depois dela.
 - O pedido de estorno passa do Ordering para o Payments pelo port de entrada do Payments, por um adapter do lado do Ordering (`PaymentsRefunds`), como a liquidação do pagamento faz no sentido contrário.
 
 ## No código
 
-- Port `ForFollowingShipments`, caso de uso `FollowShipment`, pacote `Commerce\Ordering`. O consumidor é o `ShipmentEventHandler`, rodando no `commerce:sync-shipments`. O estorno passa pelo port `ForRefundingOrders` (adapter `PaymentsRefunds`) até o `ForRequestingRefunds` do Payments (caso de uso `RequestOrderRefund`).
+- Port `ForFollowingShipments`, caso de uso `FollowShipment`, pacote `Commerce\Ordering`. O código de rastreio é o value object `TrackingCode`, que chega no `ShipmentNews`. O consumidor é o `ShipmentEventHandler`, rodando no `commerce:sync-shipments`. O estorno passa pelo port `ForRefundingOrders` (adapter `PaymentsRefunds`) até o `ForRequestingRefunds` do Payments (caso de uso `RequestOrderRefund`).

@@ -32,6 +32,8 @@ final readonly class OrderDetails
             ],
             'shippingAddress' => $order->address->toArray(),
             'fulfillmentCenter' => (string) $order->fulfillmentCenter,
+            // Null until the carrier picks the order up; from then on, the way to the tracking page.
+            'trackingCode' => $order->trackingCode === null ? null : (string) $order->trackingCode,
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
                 'name' => $line->productName,

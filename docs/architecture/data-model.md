@@ -83,6 +83,7 @@ erDiagram
     uuid customer_id
     varchar(254) customer_email
     varchar(24) status "máquina de estados"
+    char(15) tracking_code "da remessa, desde a coleta"
     char(4) fulfillment_center FK
     varchar(30) ship_thoroughfare_type "Rua, Avenida, Rodovia"
     varchar(20) ship_number "texto: KM 500, S/N"
