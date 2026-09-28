@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "title": "O PSP perde todos os webhooks, e todo pagamento ainda chega a um desfecho",
+  "description": "O PayFake cobra, mas nenhum webhook sai (webhooks.dropRate = 1). Sem o empurrão do webhook, só o puxão da conciliação traz o desfecho: ela pergunta ao PSP pelos pagamentos quietos há mais de 60 s. A hipótese não é de rapidez, é de certeza: com webhook o desfecho chega em segundos, sem ele em pouco mais de um minuto, mas chega. Laboratório: docs/labs/payment-reconciliation.md.",
+  "tags": [
+    "tucano",
+    "payments",
+    "reconciliation",
+    "eventual-consistency"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    },
+    "partners": {
+      "type": "env",
+      "key": "PARTNERS_SIM_URL",
+      "default": "http://partners-sim:4000"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Todo pagamento chega a um desfecho em até 100 s, com ou sem webhook",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-payment-reaches-an-outcome",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "payment_reaches_an_outcome",
+          "arguments": {
+            "within_seconds": 100
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "drop-every-psp-webhook",
+      "provider": {
+        "type": "http",
+        "method": "PUT",
+        "url": "${partners}/_chaos/payfake",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "webhooks": {
+            "dropRate": 1
+          }
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "calm-the-psp",
+      "provider": {
+        "type": "http",
+        "method": "DELETE",
+        "url": "${partners}/_chaos/payfake",
+        "timeout": 10
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

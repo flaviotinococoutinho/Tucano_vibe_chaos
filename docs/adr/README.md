@@ -28,6 +28,7 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0022](0022-vendors-live-in-adapters.md) | Fornecedor mora só nos adapters | aceito |
 | [0023](0023-server-driven-ui-with-siren.md) | Telas dirigidas pelo servidor, com hipermídia (Siren) | aceito |
 | [0024](0024-sensitive-data-behind-a-proxy.md) | Dado sensível passa por um proxy | aceito |
+| [0025](0025-chaos-experiments-as-code.md) | Experimentos de caos como código, com o Chaos Toolkit | aceito |
 
 ## Modelo
 

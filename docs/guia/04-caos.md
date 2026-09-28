@@ -23,6 +23,17 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 | Flags `chaos.*` | comportamento dentro do serviço: atrasar o gateway de pagamento, pausar o relay da outbox ou o projetor dos pedidos, falhar parte das etiquetas | `make flag key=... variant=...`, pelo flagd, sem reiniciar nada; o `ProductionGuard` as desliga em produção |
 | API `/_chaos` do partners-sim | o mundo lá fora: o PSP recusa, demora ou perde cobrança; a transportadora perde webhook ou demora entre passos | um `PUT` com a taxa de cada falha |
 
+## Os experimentos que rodam sozinhos
+
+Os laboratórios contam o que aconteceu; os experimentos repetem. Quatro deles viraram arquivos do Chaos Toolkit em [`chaos/`](../../chaos/README.md): cada um declara o estado estável antes de quebrar qualquer coisa, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final, até quando a hipótese cai ([ADR 0025](../adr/0025-chaos-experiments-as-code.md)).
+
+```bash
+make experiments                 # cada experimento e o estado estável que ele defende
+make experiment e=psp-slow       # roda um, com o diário em chaos/results/
+```
+
+As sondas compram na loja pela mesma porta que a web, seguindo os links e as ações das telas do BFF, então o experimento mede o que o cliente sentiria, e não o que um serviço acha de si mesmo.
+
 ## Os laboratórios
 
 | Laboratório | O que eu quebrei | O que descobri, e o que mudou no código |
@@ -36,13 +47,11 @@ A diferença para a engenharia do caos de produção é o tamanho do estrago pos
 
 ## O caos mais recente: a porta da web
 
-O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a tela do pedido responde 503 com `Retry-After` e uma frase em português, enquanto o catálogo continua abrindo. Com seis segundos de latência no catálogo, o BFF desiste em cinco e diz a mesma coisa. Cada queda deixa uma linha `warn` com o correlation id, o serviço, a chamada e o tempo gasto.
+O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a tela do pedido responde 503 em 0,02 s, com `Retry-After` e uma frase em português, enquanto o catálogo continua abrindo. Com sete segundos de latência no catálogo, o BFF desiste em cinco e diz a mesma coisa. Cada queda deixa uma linha `warn` com o correlation id, o serviço, a chamada e o tempo gasto.
 
 ```bash
-curl -s -X POST localhost:8474/proxies/bff-commerce -d '{"enabled": false}'   # corta
-curl -si localhost:8000/bff/v1/orders/<id> | grep -i retry-after                 # 503, tente em 5 s
-curl -s localhost:8000/bff/v1/products -o /dev/null -w '%{http_code}\n'          # 200: o catálogo segue
-curl -s -X POST localhost:8474/proxies/bff-commerce -d '{"enabled": true}'    # religa
+make experiment e=commerce-cut-from-the-web
+make experiment e=catalog-slow-for-the-web
 ```
 
 ## O que eu levo de todos eles

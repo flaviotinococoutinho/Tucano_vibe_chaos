@@ -799,6 +799,18 @@ services:
 
   # ---------------------------------------------------------- tools (profile)
 
+  # The chaos experiments as code (chaos/experiments), by the Chaos Toolkit: make experiment e=<name>.
+  chaos:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: infra/chaos/Dockerfile
+    image: chaos-playground/chaos
+    volumes:
+      - ./chaos:/chaos:ro
+      - ./chaos/results:/results
+    networks: [edge]
+
   kafka-ui:
     <<: *service
     image: ghcr.io/kafbat/kafka-ui:v1.5.0

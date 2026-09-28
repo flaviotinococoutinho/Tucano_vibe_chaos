@@ -26,7 +26,7 @@ area_of() {
     services/*/config/*|services/*/src/config.ts|services/tracking/src/Platform/Config.php)
                                     echo "compose $(echo "$1" | cut -d/ -f2)" ;;
     services/*)                     echo "$1" | cut -d/ -f2 ;;
-    scripts/*)                      echo "compose" ;;
+    scripts/*|chaos/*)              echo "compose" ;;
     docs/operations/configuration.md) echo "compose docs" ;;
     infra/flags/*)                  echo "compose feature-flags" ;;
     infra/ansible/*)                echo "ansible" ;;
