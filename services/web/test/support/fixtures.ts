@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SirenScreen } from '../../src/siren/index.ts';
 
@@ -45,19 +45,19 @@ export const fixtures = {
   product: loadScreen('product'),
   checkout: loadScreen('checkout'),
   orderAwaitingPayment: loadScreen('order-awaiting-payment'),
+  orderCancelled: loadScreen('order-cancelled'),
+  orderPaid: loadScreen('order-paid'),
   orderPendingPayment: loadScreen('order-pending-payment'),
   orderShipped: loadScreen('order-shipped'),
   tracking: loadScreen('tracking'),
   validationProblem: loadProblem('validation'),
 };
 
-export const allScreenFixtures: readonly SirenScreen[] = [
-  fixtures.home,
-  fixtures.catalog,
-  fixtures.product,
-  fixtures.checkout,
-  fixtures.orderAwaitingPayment,
-  fixtures.orderPendingPayment,
-  fixtures.orderShipped,
-  fixtures.tracking,
-];
+/**
+ * Every screen in the examples folder, listed from disk: an example the BFF adds is
+ * rendered by the tests the day it lands, without anyone editing a list.
+ */
+export const allScreenFixtures: readonly SirenScreen[] = readdirSync(EXAMPLES_DIR)
+  .filter((file) => file.endsWith('.json'))
+  .sort()
+  .map((file) => loadScreen(file.replace(/\.json$/, '')));
