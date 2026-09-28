@@ -126,6 +126,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v2`; roda com `SNOWFLAKE_WORKER_ID=12` |
 | `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v2` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
+| `logistics-journey-reconciler` | `php artisan logistics:reconcile-journeys` | compara com o histórico da transportadora cada remessa que passa 60 s sem notícia e aplica os passos que faltam ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)) |
 | `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
 
 ## A etiqueta
@@ -168,7 +169,8 @@ Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierF
 - Os cinco casos de uso dividem o `ShipmentProgress`: numa transação só, a marca na inbox, a remessa travada pelo código de rastreio, o passo pelos guards, o histórico, a visita e o evento na outbox. Um passo recusado desfaz tudo, inclusive a marca na inbox.
 - A transportadora manda os eventos de uma remessa um de cada vez. Um evento que chega antes da vez dele (porque o anterior se perdeu ou atrasou) recebe `409`, e a transportadora reenvia depois.
 - Quem recebeu a encomenda fica em `delivery_attempts`; os eventos publicados não levam o nome nem o documento.
-- Um evento que a transportadora dá como perdido ainda trava a jornada naquele passo. A conciliação com a transportadora é o próximo passo desta parte.
+- Um webhook perdido trava a jornada até o `logistics-journey-reconciler` passar: depois de 60 s sem notícia, ele lê o histórico da transportadora e aplica, em ordem, os passos que faltam, pelos mesmos casos de uso do webhook ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)). O webhook e o histórico chegam no mesmo JSON, e o `CarrierFakeEvents` traduz os dois para `CarrierEvent`.
+- Um hub scan que chega depois da saída para entrega é notícia velha: a máquina pode pular hubs, então ele vira `obsolete`, fica marcado na inbox e não move nada. O [laboratório dos webhooks perdidos](../../docs/labs/lost-carrier-events.md) conta como achei esse caso.
 
 ## Eventos publicados
 
