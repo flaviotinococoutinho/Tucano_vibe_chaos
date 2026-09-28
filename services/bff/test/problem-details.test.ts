@@ -10,6 +10,14 @@ class InsufficientStock extends DomainError {
   readonly category = 'conflict';
 }
 
+class ProviderOut extends DomainError {
+  readonly category = 'unavailable';
+}
+
+class InvalidAddress extends DomainError {
+  readonly category = 'invalid_input';
+}
+
 describe('problem details', () => {
   it('answers unknown routes with a 404 problem', async () => {
     const response = await buildApp({ config }).inject({
@@ -68,6 +76,42 @@ describe('problem details', () => {
       detail: 'Only 2 units of BOOK-DDD-001 left.',
       instance: '/test/conflict',
       correlationId: 'req-1#2',
+    });
+  });
+
+  it('keeps the detail of a domain 503 and says when to try again', async () => {
+    const app = buildApp({ config });
+    app.get('/test/unavailable', async () => {
+      throw new ProviderOut('The payment provider is out; try again in 17 s.', {
+        retryAfterSeconds: 17,
+      });
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/test/unavailable' });
+
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.headers['retry-after'], '17');
+    assert.partialDeepStrictEqual(response.json(), {
+      title: 'Service Unavailable',
+      detail: 'The payment provider is out; try again in 17 s.',
+    });
+  });
+
+  it('lists the messages a domain error keeps per field', async () => {
+    const app = buildApp({ config });
+    app.post('/test/address', async () => {
+      throw new InvalidAddress('Some fields need attention.', {
+        fieldErrors: { postalCode: ['A postal code has 8 digits.'] },
+      });
+    });
+
+    const response = await app.inject({ method: 'POST', url: '/test/address', payload: {} });
+
+    assert.equal(response.statusCode, 422);
+    assert.equal(response.headers['retry-after'], undefined);
+    assert.partialDeepStrictEqual(response.json(), {
+      detail: 'Some fields need attention.',
+      errors: { postalCode: ['A postal code has 8 digits.'] },
     });
   });
 

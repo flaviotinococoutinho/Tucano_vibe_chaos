@@ -1,6 +1,6 @@
 {
   "name": "@tucano/bff",
-  "description": "Backend for frontend of the Tucano web app: aggregation and live updates over WebSocket.",
+  "description": "Backend for frontend of the Tucano web app: screens in Siren hypermedia over the catalog, commerce and logistics.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/server.ts",
     "dev": "node --watch src/server.ts",
-    "test": "node --test",
+    "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",

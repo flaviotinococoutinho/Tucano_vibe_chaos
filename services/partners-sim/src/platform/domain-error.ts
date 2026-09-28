@@ -9,6 +9,14 @@ export type ErrorCategory =
   | 'forbidden'
   | 'unavailable';
 
+/** What an error can add for the caller, besides its message. */
+export type DomainErrorDetails = {
+  /** Seconds until trying again makes sense; HTTP sends it as Retry-After. */
+  readonly retryAfterSeconds?: number;
+  /** Messages per field, for a request a person fixes in a form; HTTP sends them as `errors`. */
+  readonly fieldErrors?: Readonly<Record<string, readonly string[]>>;
+};
+
 /**
  * Base for errors raised by the domain. Subclasses are named after the problem
  * (InsufficientStock, TransitionNotAllowed) and say which category they are,
@@ -16,9 +24,13 @@ export type ErrorCategory =
  */
 export abstract class DomainError extends Error {
   abstract readonly category: ErrorCategory;
+  readonly retryAfterSeconds: number | undefined;
+  readonly fieldErrors: Readonly<Record<string, readonly string[]>> | undefined;
 
-  constructor(message: string) {
+  constructor(message: string, details: DomainErrorDetails = {}) {
     super(message);
     this.name = new.target.name;
+    this.retryAfterSeconds = details.retryAfterSeconds;
+    this.fieldErrors = details.fieldErrors;
   }
 }

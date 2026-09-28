@@ -735,6 +735,15 @@ services:
       APP_ENV: ${APP_ENV:-local}
       PORT: "3000"
       LOG_LEVEL: info
+      # Each service through its own proxy, so a lab can slow or cut one screen at a time.
+      CATALOG_URL: http://toxiproxy:18081
+      COMMERCE_URL: http://toxiproxy:18082
+      LOGISTICS_URL: http://toxiproxy:18083
+      # Above the 2 s Commerce gives the PSP, so the BFF never gives up on a payment Commerce still waits for.
+      UPSTREAM_TIMEOUT_MS: "5000"
+    depends_on:
+      toxiproxy:
+        condition: service_started
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:3000/health/ready"]

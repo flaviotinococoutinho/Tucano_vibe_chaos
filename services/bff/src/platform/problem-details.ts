@@ -45,12 +45,17 @@ export function sendProblem(
   reply: FastifyReply,
 ): FastifyReply {
   const status = statusOf(error);
-  // Domain errors are answers the caller can act on, not incidents.
-  if (status >= 500 && !(error instanceof DomainError)) {
+  // Domain errors are answers the caller can act on, not incidents; even a 503 says what to do.
+  const incident = status >= 500 && !(error instanceof DomainError);
+  if (incident) {
     request.log.error({ req: request, err: error }, messageOf(error));
   }
-  const problem = problemOf(status, status >= 500 ? HIDDEN_DETAIL : messageOf(error), request);
-  const body = isValidationFailure(error) ? { ...problem, errors: fieldErrors(error) } : problem;
+  const problem = problemOf(status, incident ? HIDDEN_DETAIL : messageOf(error), request);
+  const errors = isValidationFailure(error) ? fieldErrors(error) : fieldErrorsOf(error);
+  const body = errors === undefined ? problem : { ...problem, errors };
+  if (error instanceof DomainError && error.retryAfterSeconds !== undefined) {
+    reply.header('retry-after', String(error.retryAfterSeconds));
+  }
 
   return reply.code(status).type(PROBLEM_JSON).send(body);
 }
@@ -98,6 +103,11 @@ function messageOf(error: unknown): string {
 
 function isValidationFailure(error: unknown): error is ValidationFailure {
   return error instanceof Error && 'validation' in error && Array.isArray(error.validation);
+}
+
+/** The messages a domain error keeps per field, when it keeps any. */
+function fieldErrorsOf(error: unknown): Readonly<Record<string, readonly string[]>> | undefined {
+  return error instanceof DomainError ? error.fieldErrors : undefined;
 }
 
 /** `{ "sku": ["must be string"] }`, the same shape Laravel gives the PHP services. */

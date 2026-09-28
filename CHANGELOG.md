@@ -8,9 +8,15 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 - O pedido guarda o código de rastreio da remessa (`orders.tracking_code`, `CHAR(15)`), aprendido na coleta (UC-ORD-04), e a consulta do pedido devolve `trackingCode`, `null` até a coleta (UC-ORD-05). É o que deixa a web ir do pedido direto ao rastreio. Dois `CHECK`s guardam a regra no banco: o formato, e só pedido que saiu tem código.
 - O pedido cancelado guarda o motivo (`orders.cancellation_reason`), e a consulta devolve `cancellationReason`. A migration copia o motivo do histórico para os pedidos que já estavam cancelados, e o banco cobra a regra nos dois sentidos: todo cancelado tem motivo, e só cancelado tem.
+- O BFF monta as telas da web em Siren (ADR 0023): início, catálogo, produto, checkout, pedido e rastreio, com as palavras em português e os fluxos em links e ações. O pedido se atualiza sozinho enquanto o pagamento confirma e enquanto a encomenda anda, e termina contando o que aconteceu (cartão recusado, prazo vencido, devolução). Cada formulário que muda algo leva a sua `Idempotency-Key`, e o checkout dá ao navegador um cliente convidado no cookie `tucano_guest`.
+- O BFF fala com cada serviço pelo seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`) e com prazo (`UPSTREAM_TIMEOUT_MS`). Serviço fora do ar ou lento vira 503 com `Retry-After` só nas telas que dependem dele. Variáveis novas: `CATALOG_URL`, `COMMERCE_URL`, `LOGISTICS_URL` e `UPSTREAM_TIMEOUT_MS`.
+- Os exemplos do contrato do BFF ganharam o pedido recém-pago e o cancelado por cartão recusado, e os testes do BFF montam cada exemplo com a mesma função que responde a web.
 
 ### Changed
 
+- A plataforma Node (a cópia do bff e do partners-sim) deixa um `DomainError` levar `retryAfterSeconds`, que vira o header `Retry-After`, e mensagens por campo, que viram `errors`. Um 503 de domínio passa a mostrar o `detail`, como os serviços PHP já faziam; só o erro inesperado esconde o detalhe.
+- O contrato do BFF: `orderNumber` é o texto decimal do Snowflake do commerce, o rastreio ganhou `carrierLabel` e fica vivo enquanto a encomenda anda, o produto fora de linha vem sem `buy` e com aviso, o campo do código de rastreio aceita o que as pessoas digitam, e os problemas criados pelo BFF falam português no `detail`.
+- No context map, o BFF deixou de ser Conformist: ele lê cada serviço por uma camada anticorrupção (`src/upstream/`).
 - Fornecedor mora só nos adapters (ADR 0022): o Deptrac ganhou a camada `Vendor` e tirou da aplicação a licença de usar feature flags. Os eventos de domínio pegam o id do `EventId` do shared kernel, e o `ChooseCarrier` pergunta o `DispatchMode` (enum rico) a um port, em vez de ler a flag.
 - Pacotes só se encontram pelas fachadas: o teste `PackagesMeetThroughTheirFacadesTest` cobra que o núcleo de um pacote não conheça outro, e o Ordering declara que reserva estoque pelo nome `reserves-stock`, em vez de importar o middleware do Inventory.
 

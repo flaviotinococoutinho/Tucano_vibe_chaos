@@ -3,10 +3,10 @@
     "screen",
     "order"
   ],
-  "title": "Pedido PD02PX9D4HQ2R01",
+  "title": "Pedido 97856663872212992",
   "properties": {
     "orderId": "0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20",
-    "orderNumber": "PD02PX9D4HQ2R01",
+    "orderNumber": "97856663872212992",
     "status": "pending_payment",
     "statusLabel": "Aguardando pagamento",
     "tone": "waiting",
