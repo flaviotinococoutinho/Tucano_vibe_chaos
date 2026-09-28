@@ -84,6 +84,12 @@ describe('shopping', () => {
         if (email === 'stock@example.com') {
           return reply.code(409).type('application/problem+json').send({ status: 409 });
         }
+        if (email === 'discontinued@example.com') {
+          return reply.code(409).type('application/problem+json').send({
+            type: 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#product-unavailable',
+            status: 409,
+          });
+        }
         if (email === 'refused@example.com') {
           return reply
             .code(422)
@@ -242,6 +248,17 @@ describe('shopping', () => {
 
     assert.equal(response.statusCode, 409);
     assert.match(response.json().detail, /estoque/);
+  });
+
+  it('tells a product out of line from a stock that ran out, by the type of the problem', async () => {
+    const response = await bffOver(services).inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: { ...orderForm, email: 'discontinued@example.com' },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().detail, 'Esse produto saiu de linha e não está mais à venda.');
   });
 
   it('puts what Commerce refused next to the field of the form', async () => {

@@ -13,15 +13,19 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Domain\ErrorCategory;
+use Tucano\SharedKernel\Domain\ProblemType;
 
 /** Every error leaves the service as RFC 9457 application/problem+json. */
 final readonly class ProblemDetails
 {
+    /** Where each named problem is explained; the type of a problem is this page plus its name. */
+    private const string PROBLEMS = 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md';
+
     public static function from(Throwable $error, Request $request): JsonResponse
     {
         $status = self::statusOf($error);
         $problem = [
-            'type' => 'about:blank',
+            'type' => self::typeOf($error),
             'title' => Response::$statusTexts[$status] ?? 'Error',
             'status' => $status,
             'detail' => self::detailOf($error, $status),
@@ -36,6 +40,18 @@ final readonly class ProblemDetails
         $headers = $error instanceof HttpExceptionInterface ? $error->getHeaders() : [];
 
         return new JsonResponse($problem, $status, [...$headers, 'Content-Type' => 'application/problem+json']);
+    }
+
+    /**
+     * RFC 9457: a domain error that declares a ProblemType gets the URI of the page that
+     * explains it, so a client can tell apart two problems with the same status. Every
+     * other error is about:blank, which means the status says it all.
+     */
+    private static function typeOf(Throwable $error): string
+    {
+        $name = $error instanceof DomainError ? ProblemType::of($error) : null;
+
+        return $name === null ? 'about:blank' : self::PROBLEMS . '#' . $name;
     }
 
     private static function statusOf(Throwable $error): int

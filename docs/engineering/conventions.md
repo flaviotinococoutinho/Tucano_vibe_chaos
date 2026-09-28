@@ -82,14 +82,16 @@ Aplico as nove regras de Jeff Bay com pragmatismo, principalmente nos pacotes de
 ## APIs HTTP
 
 - Rotas versionadas (`/v1/...`) e JSON em `camelCase`.
-- Erros no formato RFC 9457 (`application/problem+json`) em todos os serviços, PHP ou Node.
-- `X-Correlation-Id` é propagado em toda chamada (HTTP, Kafka, SQS) e aparece em todos os logs.
-- `POST` que cria recurso exige `Idempotency-Key`.
+- Erros no formato RFC 9457 (`application/problem+json`) em todos os serviços, PHP ou Node. O `type` é `about:blank` quando o status basta; quando dois problemas dividem um status e pedem respostas diferentes do cliente, o erro de domínio declara um nome com `#[ProblemType('...')]`, e o `type` vira a URI da seção que o explica em [`contracts/http/problems.md`](../../contracts/http/problems.md). Cliente decide pelo `type`, nunca lendo o `detail`.
+- Só o erro inesperado esconde o `detail`. Um 503 deliberado, ou um erro de domínio de indisponibilidade, diz o que fazer e leva `Retry-After`.
+- `X-Correlation-Id` é propagado em toda chamada (HTTP, Kafka, SQS) e aparece em todos os logs. O RFC 6648 desaconselha o prefixo `X-` em nomes novos, e mantive este de propósito: é o nome que gateways, APMs e o plugin do Kong já conhecem. O substituto padrão é o `traceparent` do W3C Trace Context, que entra junto com o OpenTelemetry. Header novo não leva `X-`.
+- Comportamento opcional que o cliente pede usa o `Prefer` do RFC 7240, e a resposta confirma o que seguiu com `Preference-Applied` (a estratégia de reserva do laboratório de overselling é assim).
+- `POST` que cria recurso exige `Idempotency-Key` (draft-ietf-httpapi-idempotency-key-header). A mesma chave com outro corpo é 422 (`idempotency-key-reused`), e uma resposta repetida leva `Idempotent-Replayed: true`, o nome que o mercado já usa, porque o draft não define um.
 - Health checks em `/health/live` (o processo está de pé) e `/health/ready` (as dependências respondem).
 
 ## Mensageria
 
-- Envelope CloudEvents 1.0 em JSON (modo estruturado), com as extensões `correlationid` e `causationid`.
+- Envelope CloudEvents 1.0 em JSON no modo estruturado do binding de Kafka: o evento inteiro é o valor da mensagem, com `content-type: application/cloudevents+json`, e o `subject` é a chave. Os headers `ce_type` e `correlation_id` são só atalhos para filtrar e rastrear sem abrir o valor; a verdade é o envelope. As extensões são `correlationid` e `causationid`.
 - Tópicos no formato `<contexto>.<agregado-no-plural>.v<n>` (`logistics.shipments.v1`), com a chave igual ao id do agregado para garantir ordem por agregado.
 - Entrega at-least-once: todo consumidor é idempotente (tabela de inbox) e poison messages vão para a DLQ.
 - Quem publica evento de domínio usa Transactional Outbox. A única exceção é proposital e está documentada em ADR.

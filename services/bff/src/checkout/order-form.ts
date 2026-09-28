@@ -6,10 +6,11 @@ import {
   InvalidForm,
   idempotencyKeyField,
 } from '../hypermedia/index.ts';
-import { DomainError } from '../platform/domain-error.ts';
+import type { DomainError } from '../platform/domain-error.ts';
 import { SKU } from '../storefront/index.ts';
 import { MAX_UNITS_PER_ITEM, type NewOrder, type Refusal } from '../upstream/index.ts';
 import { STATES, THOROUGHFARE_TYPES, type ThoroughfareType, UFS, type Uf } from './address.ts';
+import { FormAlreadyUsed, OrderNotPlaced, ProductOutOfLine } from './errors.ts';
 
 /** The limits of Commerce (PlaceOrderRequest), so the browser stops a value before the service does. */
 const MAX = {
@@ -228,22 +229,21 @@ const FORM_FIELDS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^items\.0\.quantity$/, 'quantity'],
 ];
 
-export class OrderNotPlaced extends DomainError {
-  readonly category = 'conflict';
-
-  constructor() {
-    super(
-      'Não deu para reservar esse produto agora: pode ser que o estoque tenha acabado. Tente outra quantidade ou outro produto.',
-    );
-  }
-}
-
 /**
- * Commerce said no. A 409 is about the stock or the product; a 422 is about the data,
- * and its field names come back as the names of the form, so each message lands next
- * to the field a person has to fix.
+ * Commerce said no. The type of the problem (contracts/http/problems.md) tells apart what
+ * a status alone cannot: a product out of line and a stock that ran out are both 409. A
+ * 422 without a name is about the data, and its field names come back as the names of
+ * the form, so each message lands next to the field a person has to fix.
  */
 export function refusalError(refusal: Refusal): DomainError {
+  switch (refusal.problem) {
+    case 'product-unavailable':
+      return new ProductOutOfLine('Esse produto');
+    case 'idempotency-key-reused':
+      return new FormAlreadyUsed();
+    case 'stock-not-reserved':
+      return new OrderNotPlaced();
+  }
   if (refusal.status === 409) {
     return new OrderNotPlaced();
   }
