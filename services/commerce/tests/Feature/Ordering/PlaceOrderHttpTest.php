@@ -45,9 +45,17 @@ final class PlaceOrderHttpTest extends TestCase
             ->assertJsonPath('status', 'pending_payment')
             ->assertJsonPath('fulfillmentCenter', 'BHZ1')
             ->assertJsonPath('total', ['amount' => 37980, 'currency' => 'BRL'])
-            ->assertJsonPath('lines.0.unitPrice', ['amount' => 18990, 'currency' => 'BRL']);
+            ->assertJsonPath('lines.0.unitPrice', ['amount' => 18990, 'currency' => 'BRL'])
+            // The answer is public (no login), so it shows who bought only as a mask.
+            ->assertJsonPath('customer.name', 'A*** S***')
+            ->assertJsonPath('customer.email', 'a***@example.com');
 
         $orderId = (string) $response->json('orderId');
+        // The row keeps the real values: the proxy guards the way out, not the storage.
+        self::assertEquals(
+            (object) ['customer_name' => 'Ana Souza', 'customer_email' => 'ana@example.com'],
+            DB::table('orders')->where('id', $orderId)->first(['customer_name', 'customer_email']),
+        );
         $response->assertHeader('Location', 'orders/' . $orderId);
         self::assertSame(2, (int) DB::table('stock_items')->where(['sku' => 'BOOK-DDD-001', 'fulfillment_center' => 'BHZ1'])->value('reserved'));
 

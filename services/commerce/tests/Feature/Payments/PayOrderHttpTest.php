@@ -93,11 +93,13 @@ final class PayOrderHttpTest extends TestCase
     }
 
     #[Test]
-    public function a_card_token_outside_the_format_is_refused(): void
+    public function a_card_number_sent_as_a_token_is_refused_without_being_repeated(): void
     {
-        $this->postJson('/v1/orders/' . $this->orderId . '/payments', ['cardToken' => '4111 1111 1111 1111'], ['Idempotency-Key' => 'key-1'])
-            ->assertUnprocessable()
-            ->assertJsonPath('detail', '"4111 1111 1111 1111" is not a card token.');
+        $response = $this->postJson('/v1/orders/' . $this->orderId . '/payments', ['cardToken' => '4111 1111 1111 1111'], ['Idempotency-Key' => 'key-1']);
+
+        $response->assertUnprocessable()->assertJsonPath('detail', 'The card token is not in the format of the payment provider.');
+        // PCI DSS: a card number that reaches Tucano by mistake must not travel back, nor into a log.
+        self::assertStringNotContainsString('4111', (string) $response->getContent());
     }
 
     /** @return TestResponse<\Illuminate\Http\JsonResponse> */

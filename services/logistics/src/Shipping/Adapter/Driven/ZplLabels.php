@@ -33,7 +33,8 @@ final readonly class ZplLabels implements ForPrintingLabels
             self::text(40, 40, 50, (string) $shipment->carrier),
             self::text(40, 110, 30, sprintf('De: CD %s', $shipment->origin)),
             '^FO40,170^GB732,3,3^FS',
-            self::text(40, 200, 40, $shipment->recipient->name),
+            // The one place the name is printed on purpose: the label takes it to the door.
+            self::text(40, 200, 40, $shipment->recipient->name->reveal()),
             ...self::addressBlock($shipment->destination),
             '^FO40,470^GB732,3,3^FS',
             sprintf('^FO80,520^BY3^BCN,200,Y,N,N^FD%s^FS', $shipment->reference->trackingCode),

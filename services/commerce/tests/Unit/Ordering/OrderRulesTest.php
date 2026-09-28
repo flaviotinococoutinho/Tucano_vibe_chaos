@@ -61,9 +61,19 @@ final class OrderRulesTest extends TestCase
     #[Test]
     public function values_are_normalized(): void
     {
-        self::assertSame('ana@example.com', (string) EmailAddress::of('  Ana@Example.com '));
+        self::assertSame('ana@example.com', EmailAddress::of('  Ana@Example.com ')->reveal());
         self::assertSame('BOOK-DDD-001', (string) Sku::of('book-ddd-001'));
-        self::assertSame('Ana Souza', (string) PersonName::of('  Ana   Souza '));
+        self::assertSame('Ana Souza', PersonName::of('  Ana   Souza ')->reveal());
+    }
+
+    #[Test]
+    public function a_customer_printed_by_accident_shows_only_a_mask(): void
+    {
+        $name = PersonName::of('Ana Souza');
+        $email = EmailAddress::of('ana@example.com');
+
+        self::assertSame('A*** S*** <a***@example.com>', sprintf('%s <%s>', $name, $email));
+        self::assertStringNotContainsString('Souza', print_r($name, true));
     }
 
     /** @return iterable<string, array{Closure(): mixed}> */
