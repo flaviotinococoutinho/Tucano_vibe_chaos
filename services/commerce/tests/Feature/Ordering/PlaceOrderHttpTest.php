@@ -100,6 +100,7 @@ final class PlaceOrderHttpTest extends TestCase
 
         $this->place('key-1', ['BOOK-DDD-001' => 2])
             ->assertUnprocessable()
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#idempotency-key-reused')
             ->assertJsonPath('detail', 'Idempotency key key-1 was already used for a different request.');
     }
 
@@ -115,7 +116,11 @@ final class PlaceOrderHttpTest extends TestCase
     public function products_the_catalog_does_not_sell_are_refused(): void
     {
         $this->place('key-1', ['BOOK-NONE-001' => 1])->assertConflict()->assertJsonPath('detail', 'BOOK-NONE-001 is not in the catalog.');
-        $this->place('key-2', ['ELEC-MP3-001' => 1])->assertConflict()->assertJsonPath('detail', 'ELEC-MP3-001 is no longer sold.');
+        $this->place('key-2', ['ELEC-MP3-001' => 1])
+            ->assertConflict()
+            // RFC 9457: the type tells this conflict apart from a stock that ran out.
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#product-unavailable')
+            ->assertJsonPath('detail', 'ELEC-MP3-001 is no longer sold.');
     }
 
     #[Test]
@@ -125,6 +130,7 @@ final class PlaceOrderHttpTest extends TestCase
 
         $this->place('key-2', ['BOOK-DDD-001' => 1, 'ELEC-MON-027' => 3])
             ->assertConflict()
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#stock-not-reserved')
             ->assertJsonPath('detail', 'Not enough stock: BHZ1 is short of ELEC-MON-027; GRU1 is short of ELEC-MON-027.');
 
         self::assertSame(1, DB::table('orders')->count());

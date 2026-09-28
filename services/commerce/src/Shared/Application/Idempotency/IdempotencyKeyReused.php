@@ -6,7 +6,9 @@ namespace Commerce\Shared\Application\Idempotency;
 
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Domain\ErrorCategory;
+use Tucano\SharedKernel\Domain\ProblemType;
 
+#[ProblemType('idempotency-key-reused')]
 final class IdempotencyKeyReused extends DomainError
 {
     public static function for(IdempotencyKey $key): self

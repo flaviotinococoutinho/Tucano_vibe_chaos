@@ -6,7 +6,9 @@ namespace Commerce\Payments\Domain;
 
 use Tucano\SharedKernel\Domain\DomainError;
 use Tucano\SharedKernel\Domain\ErrorCategory;
+use Tucano\SharedKernel\Domain\ProblemType;
 
+#[ProblemType('order-not-payable')]
 final class OrderNotPayable extends DomainError
 {
     public static function because(string $orderId, string $reason): self

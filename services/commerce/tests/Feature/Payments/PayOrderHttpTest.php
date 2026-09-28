@@ -88,7 +88,10 @@ final class PayOrderHttpTest extends TestCase
     {
         DB::table('orders')->where('id', $this->orderId)->update(['status' => 'cancelled', 'cancellation_reason' => 'customer_request']);
 
-        $this->pay('key-1')->assertConflict()->assertJsonPath('detail', sprintf('Order %s cannot be paid: it is cancelled.', $this->orderId));
+        $this->pay('key-1')
+            ->assertConflict()
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#order-not-payable')
+            ->assertJsonPath('detail', sprintf('Order %s cannot be paid: it is cancelled.', $this->orderId));
         $this->postJson('/v1/orders/' . Str::uuid7() . '/payments', ['cardToken' => 'tok_visa'], ['Idempotency-Key' => 'key-2'])->assertNotFound();
     }
 
