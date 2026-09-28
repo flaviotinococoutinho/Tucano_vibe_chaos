@@ -38,7 +38,8 @@ x-catalog: &catalog
     FLAGD_HOST: toxiproxy
     FLAGD_PORT: "18013"
     KAFKA_BROKERS: toxiproxy:19092
-    KAFKA_MESSAGE_TIMEOUT_MS: "5000"
+    # A write waits this long for Kafka at most, after MySQL has already committed it.
+    KAFKA_PRODUCER_MESSAGE_TIMEOUT_MS: "5000"
   depends_on:
     mysql:
       condition: service_healthy

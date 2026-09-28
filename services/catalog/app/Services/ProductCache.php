@@ -19,14 +19,6 @@ use RedisException;
  */
 final readonly class ProductCache
 {
-    private const int TTL_SECONDS = 300;
-    private const float TTL_SPREAD = 0.1;
-    // Short, so a product activated right after a 404 does not stay hidden for long.
-    private const int MISSING_TTL_SECONDS = 30;
-    // Longer than a rebuild takes. If the holder dies, the lock expires on its own.
-    private const int LOCK_SECONDS = 5;
-    private const int WAIT_STEP_MILLISECONDS = 50;
-    private const int WAIT_STEPS = 10;
     private const string MISSING = 'missing';
 
     private JitteredTtl $ttl;
@@ -39,9 +31,10 @@ final readonly class ProductCache
         private Repository $cache,
         private LockProvider $locks,
         private LoggerInterface $logger,
+        private ProductCacheSettings $settings,
         ?Closure $pause = null,
     ) {
-        $this->ttl = new JitteredTtl(self::TTL_SECONDS, self::TTL_SPREAD);
+        $this->ttl = $settings->ttl();
         $this->pause = $pause ?? static function (int $milliseconds): void {
             usleep($milliseconds * 1_000);
         };
@@ -103,7 +96,7 @@ final readonly class ProductCache
      */
     private function rebuild(string $sku, Closure $load): ?Product
     {
-        $lock = $this->locks->lock(self::lockKey($sku), self::LOCK_SECONDS);
+        $lock = $this->locks->lock(self::lockKey($sku), $this->settings->rebuildLockSeconds);
         if (!$lock->get()) {
             $entry = $this->awaitRebuild($sku);
 
@@ -128,8 +121,8 @@ final readonly class ProductCache
 
     private function awaitRebuild(string $sku): mixed
     {
-        for ($step = 0; $step < self::WAIT_STEPS; $step++) {
-            ($this->pause)(self::WAIT_STEP_MILLISECONDS);
+        for ($step = 0; $step < $this->settings->rebuildWaitSteps; $step++) {
+            ($this->pause)($this->settings->rebuildWaitStepMs);
             $entry = $this->cache->get(self::key($sku));
             if ($entry !== null) {
                 return $entry;
@@ -142,7 +135,7 @@ final readonly class ProductCache
     private function store(string $sku, ?Product $product): void
     {
         if ($product === null) {
-            $this->cache->put(self::key($sku), self::MISSING, self::MISSING_TTL_SECONDS);
+            $this->cache->put(self::key($sku), self::MISSING, $this->settings->missingTtlSeconds);
 
             return;
         }

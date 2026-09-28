@@ -27,6 +27,7 @@ $app->singleton(ConsoleKernel::class, Kernel::class);
 // all of them here means Redis finds its connections and tests can override any value.
 $app->configure('app');
 $app->configure('cache');
+$app->configure('catalog');
 $app->configure('database');
 $app->configure('logging');
 $app->configure('platform');

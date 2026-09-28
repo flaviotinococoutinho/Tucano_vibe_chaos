@@ -26,8 +26,6 @@ use Tucano\SharedKernel\Time\Clock;
  */
 final readonly class ProductService
 {
-    private const int REPUBLISH_BATCH = 100;
-
     public function __construct(
         private ProductRepository $products,
         private CategoryRepository $categories,
@@ -35,6 +33,7 @@ final readonly class ProductService
         private ProductPublisher $publisher,
         private Clock $clock,
         private LoggerInterface $logger,
+        private int $republishBatchSize,
     ) {}
 
     public function page(?string $category, int $page): ProductPage
@@ -106,7 +105,7 @@ final readonly class ProductService
     public function republish(?string $sku): int
     {
         $published = 0;
-        foreach ($this->products->published($sku, self::REPUBLISH_BATCH) as $batch) {
+        foreach ($this->products->published($sku, $this->republishBatchSize) as $batch) {
             $this->publisher->publish(...$batch);
             $published += count($batch);
         }

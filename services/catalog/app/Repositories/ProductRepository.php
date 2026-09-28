@@ -30,7 +30,7 @@ final readonly class ProductRepository
     private const string COLUMNS = 'BIN_TO_UUID(p.id) AS id, p.sku, p.name, p.status, c.slug AS category, '
         . 'p.price_cents, p.currency, p.weight_grams, p.length_mm, p.width_mm, p.height_mm, p.version, p.updated_at';
 
-    public function __construct(private DatabaseManager $database) {}
+    public function __construct(private DatabaseManager $database, private int $pageSize) {}
 
     public function findBySku(string $sku): ?Product
     {
@@ -46,9 +46,9 @@ final readonly class ProductRepository
             $query->where('c.slug', $category);
         }
         // The id breaks ties between equal names, so a product never shows up on two pages.
-        $rows = $query->clone()->orderBy('p.name')->orderBy('p.id')->forPage($page, ProductPage::SIZE)->get();
+        $rows = $query->clone()->orderBy('p.name')->orderBy('p.id')->forPage($page, $this->pageSize)->get();
 
-        return new ProductPage(self::productsFrom($rows->all()), $page, $query->count());
+        return new ProductPage(self::productsFrom($rows->all()), $page, $this->pageSize, $query->count());
     }
 
     /** @throws DuplicateSku */
