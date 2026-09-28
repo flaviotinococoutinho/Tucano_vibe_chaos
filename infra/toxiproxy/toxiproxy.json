@@ -9,5 +9,6 @@
   { "name": "flagd", "listen": "0.0.0.0:18013", "upstream": "flagd:8013", "enabled": true },
   { "name": "payfake", "listen": "0.0.0.0:14001", "upstream": "partners-sim:4000", "enabled": true },
   { "name": "carriers", "listen": "0.0.0.0:14002", "upstream": "partners-sim:4000", "enabled": true },
-  { "name": "tracking", "listen": "0.0.0.0:19501", "upstream": "tracking:9501", "enabled": true }
+  { "name": "tracking", "listen": "0.0.0.0:19501", "upstream": "tracking:9501", "enabled": true },
+  { "name": "mailpit", "listen": "0.0.0.0:11025", "upstream": "mailpit:1025", "enabled": true }
 ]

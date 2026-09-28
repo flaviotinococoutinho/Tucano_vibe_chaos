@@ -131,6 +131,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
 | `logistics-timeline-projector` | `php artisan logistics:project-timelines` | leva cada evento de `logistics.shipments.v2` para a linha do tempo no MongoDB e para a página de rastreio no DynamoDB ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
 | `logistics-journey-reconciler` | `php artisan logistics:reconcile-journeys` | compara com o histórico da transportadora cada remessa que passa 60 s sem notícia e aplica os passos que faltam ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)) |
+| `logistics-stalled-journeys-watch` | `php artisan logistics:watch-stalled-journeys` | a cada 15 min, lê as remessas com a transportadora e sem passo há mais de uma hora e manda o alerta, no log e por e-mail ([UC-SHP-13](../../docs/use-cases/UC-SHP-13-watch-stalled-journeys.md)) |
 | `logistics-pickup-bookings` | `php artisan logistics:book-pickups` | agenda a coleta na transportadora de cada remessa pronta ([UC-SHP-04](../../docs/use-cases/UC-SHP-04-record-pickup.md)), com o id da remessa como `Idempotency-Key`; com a transportadora fora, a partição espera |
 
 ## A etiqueta
@@ -174,6 +175,7 @@ Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierF
 - A transportadora manda os eventos de uma remessa um de cada vez. Um evento que chega antes da vez dele (porque o anterior se perdeu ou atrasou) recebe `409`, e a transportadora reenvia depois.
 - Quem recebeu a encomenda fica em `delivery_attempts`; os eventos publicados não levam o nome nem o documento.
 - Um webhook perdido trava a jornada até o `logistics-journey-reconciler` passar: depois de 60 s sem notícia, ele lê o histórico da transportadora e aplica, em ordem, os passos que faltam, pelos mesmos casos de uso do webhook ([UC-SHP-12](../../docs/use-cases/UC-SHP-12-reconcile-journeys.md)). O webhook e o histórico chegam no mesmo JSON, e o `CarrierFakeEvents` traduz os dois para `CarrierEvent`.
+- O que nem a conciliação resolve vira alerta. O `logistics-stalled-journeys-watch` faz uma leitura analítica, só de leitura e com timeout próprio, das remessas com a transportadora e sem passo há mais de uma hora, e manda a lista com o motivo de cada uma, pela última resposta da conciliação ([UC-SHP-13](../../docs/use-cases/UC-SHP-13-watch-stalled-journeys.md)). O e-mail cai no Mailpit (`http://localhost:8025`), e `make stalled` roda uma rodada na hora.
 - Um hub scan que chega depois da saída para entrega é notícia velha: a máquina pode pular hubs, então ele vira `obsolete`, fica marcado na inbox e não move nada. O [laboratório dos webhooks perdidos](../../docs/labs/lost-carrier-events.md) conta como achei esse caso.
 
 ## A página de rastreio

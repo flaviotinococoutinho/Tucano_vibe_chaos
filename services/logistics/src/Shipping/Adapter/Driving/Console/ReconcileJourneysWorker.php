@@ -51,7 +51,7 @@ final class ReconcileJourneysWorker extends Command
     {
         $level = match ($reconciled->result) {
             JourneyResult::Stopped => LogLevel::WARNING,
-            JourneyResult::CarrierUnreachable => LogLevel::NOTICE,
+            JourneyResult::CarrierUnreachable, JourneyResult::UnknownToCarrier => LogLevel::NOTICE,
             JourneyResult::CaughtUp, JourneyResult::UpToDate => LogLevel::INFO,
         };
         $logger->log($level, 'Shipment {trackingCode} against its carrier: {result}, {applied} steps applied{refusal}', [

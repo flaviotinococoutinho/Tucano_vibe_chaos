@@ -29,6 +29,7 @@ flowchart LR
     zookeeper[("zookeeper")]
     floci["floci"]
     flagd["flagd"]
+    mailpit["mailpit"]
   end
 
   host --> kong
@@ -45,6 +46,8 @@ flowchart LR
   toxiproxy --> kafka
   toxiproxy --> floci
   toxiproxy --> flagd
+  toxiproxy -- "SMTP" --> mailpit
+  floci -- "SES" --> mailpit
   toxiproxy -- "PSP e transportadoras" --> partners
   kafka --> zookeeper
 ```
@@ -89,6 +92,7 @@ As aplicações não falam direto com as dependências: toda conexão passa por 
 | `payfake` | `toxiproxy:14001` | `partners-sim:4000` | commerce |
 | `carriers` | `toxiproxy:14002` | `partners-sim:4000` | logistics |
 | `tracking` | `toxiproxy:19501` | `tracking:9501` | logistics (despacho) |
+| `mailpit` | `toxiproxy:11025` | `mailpit:1025` | logistics (alertas por e-mail) |
 
 `payfake` e `carriers` apontam para o mesmo container de propósito: são proxies separados para eu poder degradar o PSP sem mexer nas transportadoras.
 
