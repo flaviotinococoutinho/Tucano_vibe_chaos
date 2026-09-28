@@ -34,6 +34,8 @@ final readonly class OrderDetails
             'fulfillmentCenter' => (string) $order->fulfillmentCenter,
             // Null until the carrier picks the order up; from then on, the way to the tracking page.
             'trackingCode' => $order->trackingCode === null ? null : (string) $order->trackingCode,
+            // Null unless the order was cancelled: payment_declined, reservation_expired or customer_request.
+            'cancellationReason' => $order->cancellationReason?->value,
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
                 'name' => $line->productName,

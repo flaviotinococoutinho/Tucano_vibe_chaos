@@ -27,5 +27,7 @@ final readonly class OrderSnapshot
         public int $version,
         /** Known once the order ships; orders shipped before it was kept have none. */
         public ?TrackingCode $trackingCode,
+        /** Why a cancelled order stopped; every other status has none. */
+        public ?CancellationReason $cancellationReason,
     ) {}
 }

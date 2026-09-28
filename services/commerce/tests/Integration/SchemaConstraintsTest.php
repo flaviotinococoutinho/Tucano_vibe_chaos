@@ -73,6 +73,22 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
     }
 
+    /** @return iterable<string, array{array<string, string|null>}> */
+    public static function misplacedCancellationReasons(): iterable
+    {
+        yield 'a cancelled order that does not say why' => [['status' => 'cancelled', 'cancellation_reason' => null]];
+        yield 'a reason on an order that goes on' => [['status' => 'paid', 'cancellation_reason' => 'customer_request']];
+        yield 'a reason the domain does not know' => [['status' => 'cancelled', 'cancellation_reason' => 'bored']];
+    }
+
+    /** @param array<string, string|null> $row */
+    #[Test]
+    #[DataProvider('misplacedCancellationReasons')]
+    public function only_a_cancelled_order_has_a_reason_and_it_always_has_one(array $row): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
+    }
+
     #[Test]
     public function postal_codes_are_eight_digits(): void
     {
