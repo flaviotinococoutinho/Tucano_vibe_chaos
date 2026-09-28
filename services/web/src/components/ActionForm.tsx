@@ -43,7 +43,11 @@ export function ActionForm({ action }: ActionFormProps): ReactElement {
   };
 
   return (
-    <form className="action-form" onSubmit={handleSubmit}>
+    // noValidate: the browser would stop at the first bad field, in its own words and bubble;
+    // the BFF answers every field at once, in Portuguese, next to each one (the GOV.UK Design
+    // System asks for the same). required, pattern and inputmode stay for the keyboard and
+    // for assistive technology.
+    <form className="action-form" onSubmit={handleSubmit} noValidate>
       {result?.kind === 'validation' ? (
         <ErrorSummary
           detail={result.problem.detail}

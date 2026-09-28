@@ -132,10 +132,11 @@ button {
   top: var(--space-3);
 }
 
+/* Only the sides: the block padding belongs to whoever uses the container (the header, a screen). */
 .container {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 0 var(--space-4);
+  padding-inline: var(--space-4);
 }
 
 /* A gap ring in the surface color, then the real ring in the text color: the outer ring's

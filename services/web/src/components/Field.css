@@ -34,3 +34,7 @@
   font-size: 0.875rem;
   font-weight: 600;
 }
+
+.field__input[type="number"] {
+  max-width: 8rem;
+}

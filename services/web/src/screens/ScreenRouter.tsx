@@ -1,5 +1,6 @@
 import { type ReactElement, type RefObject, useEffect, useRef } from 'react';
 import {
+  Link,
   LiveRegion,
   Notice,
   ProblemView,
@@ -7,7 +8,7 @@ import {
   SkeletonScreen,
 } from '../components/index.ts';
 import { type Problem, useHypermedia } from '../hypermedia/index.ts';
-import { readNotice, type SirenScreen } from '../siren/index.ts';
+import { findLink, readNotice, type SirenLink, type SirenScreen } from '../siren/index.ts';
 import { componentFor } from './registry.ts';
 import './ScreenRouter.css';
 
@@ -24,10 +25,15 @@ export function ScreenRouter(): ReactElement {
   const lastFocusedPath = useRef<string | null>(null);
 
   // No dependency array on purpose: it runs after every render, but only acts once a heading
-  // for a *new* path has actually mounted (a live refresh never changes browserPath).
+  // for a *new* path has actually mounted (a live refresh never changes browserPath). The first
+  // screen keeps the focus where the browser puts it: nobody navigated yet, the page just opened.
   useEffect(() => {
-    if (headingRef.current !== null && browserPath !== lastFocusedPath.current) {
-      lastFocusedPath.current = browserPath;
+    if (headingRef.current === null || browserPath === lastFocusedPath.current) {
+      return;
+    }
+    const firstScreen = lastFocusedPath.current === null;
+    lastFocusedPath.current = browserPath;
+    if (!firstScreen) {
       headingRef.current.focus();
     }
   });
@@ -47,6 +53,15 @@ export function ScreenRouter(): ReactElement {
       </main>
     </>
   );
+}
+
+/**
+ * Where "back" goes, when the screen says: the collection it came from (the catalog, for a
+ * product) before the screen above it (the start). Both are RFC 8288 relations the contract
+ * uses, so every screen that has one gets the same way back without a line of its own.
+ */
+function wayBack(screen: SirenScreen): SirenLink | undefined {
+  return findLink(screen.links, 'collection') ?? findLink(screen.links, 'up');
 }
 
 function problemTitle(problem: Problem): string {
@@ -81,9 +96,15 @@ function ScreenBody({
 }): ReactElement {
   const notice = readNotice(screen.properties);
   const Component = componentFor(screen);
+  const back = wayBack(screen);
 
   return (
     <>
+      {back !== undefined ? (
+        <nav className="screen-router__back" aria-label="Voltar">
+          <Link link={back} />
+        </nav>
+      ) : null}
       <h1 ref={headingRef} tabIndex={-1}>
         {screen.title}
       </h1>

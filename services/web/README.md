@@ -40,6 +40,10 @@ Todo link é uma âncora de verdade (`<a href>`), com o caminho do navegador já
 
 Uma ação GET (`track-by-code`, `buy`) vira consulta na URL da própria ação; o `fetch` segue um 303 sozinho, e o endereço final da resposta é o que entra no histórico. Uma ação POST (`place-order`, `pay`) manda JSON e, num 201 ou 202, o corpo da resposta já é a tela seguinte: o cabeçalho `Location` só diz que endereço mostrar, sem buscar de novo. Um 422 fica na mesma tela: cada mensagem de `errors` aparece ao lado do campo (`aria-invalid`, `aria-describedby`), um resumo lista todos com link para cada campo, e o foco vai para o primeiro campo inválido.
 
+O formulário desliga a validação do navegador (`novalidate`). Ela pararia no primeiro campo errado, num balão e com as palavras do navegador; o BFF responde todos os campos de uma vez, em português, ao lado de cada um. É o que o GOV.UK Design System recomenda pelo mesmo motivo. `required`, `pattern`, `inputmode` e `autocomplete` continuam lá: trazem o teclado certo no celular, o preenchimento automático e o que a tecnologia assistiva anuncia.
+
+Toda tela que traz um link `collection` ou `up` ganha o caminho de volta acima do título ("Voltar ao catálogo", "Início"), desenhado pelo `ScreenRouter` para todas de uma vez. A coleção vem antes do início, porque é o passo anterior de verdade.
+
 ## Tela viva
 
 Uma tela com `"live"` na classe pede para ser buscada de novo pelo link `self`, depois de `properties.refreshAfterSeconds`. O `HypermediaProvider` cuida disso sozinho, para qualquer classe de tela, não só `order`: pausa enquanto a aba está oculta (`document.hidden`), retoma na hora quando ela volta a ficar visível, e anuncia a mudança de `statusLabel` numa região `aria-live="polite"`, sem tirar o foco de onde a pessoa está.
@@ -47,10 +51,14 @@ Uma tela com `"live"` na classe pede para ser buscada de novo pelo link `self`, 
 ## Acessibilidade
 
 - Landmarks (`header`, `main`) e um link de pular para o conteúdo, visível ao ganhar foco.
-- Depois de toda navegação de verdade, o foco vai para o `h1` da tela (o título já é da tela, um só lugar cuida disso, no `ScreenRouter`); uma atualização de tela viva nunca rouba o foco.
+- Depois de toda navegação de verdade, o foco vai para o `h1` da tela (o título já é da tela, um só lugar cuida disso, no `ScreenRouter`); uma atualização de tela viva nunca rouba o foco. A primeira tela deixa o foco onde o navegador põe, porque ninguém navegou ainda. O título recebe o foco sem anel: ele não é algo que se ativa, e o WCAG pede o anel aos controles.
 - O anel de foco é sempre visível e sempre em duas camadas: um anel na cor da superfície, depois um na cor do texto. Assim o contraste do anel nunca depende do que está atrás do elemento focado, nem um botão laranja.
 - `prefers-reduced-motion: reduce` zera a duração de toda animação e transição.
 - A tela anterior fica visível enquanto a próxima carrega (uma barra de progresso no topo); o esqueleto de carregamento só aparece na primeira tela.
+
+## A home
+
+A home usa o banner da identidade, o arquivo original de `docs/assets`, copiado byte a byte para `public/illustrations`. Ele é decorativo (`alt=""`), vem com largura e altura para a página não pular, e o texto fica sobre o terço vazio dele em tela larga. No celular, o banner vai para baixo do texto, recortado em volta do tucano. Como o banner é claro nos dois temas, o herói é um cartão claro também no tema escuro, e o texto por cima dele fica na cor tinta da paleta.
 
 ## Tokens e tema
 
