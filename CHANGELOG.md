@@ -6,6 +6,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Added
 
+- A web da Tucano (`services/web`), em React 19 e TypeScript com Vite: um intérprete das telas Siren do BFF, sem nenhuma URL montada à mão além do prefixo `/bff/v1`. Um registro liga cada classe de tela a um componente, e uma classe nova funciona pelo `GenericScreen` antes de ganhar o seu. Tem tela viva (pausa com a aba escondida), formulários que mostram cada erro do servidor ao lado do campo, o caminho de volta pelos links `collection` e `up`, foco e anúncios para leitor de tela, tema claro e escuro com os tokens da identidade e o banner da marca na home. O nginx serve com CSP, `nosniff` e cache imutável para os arquivos com hash, e o Kong a publica em `/`.
+
 - Dado sensível passa por um proxy (ADR 0024): o `Sensitive` do shared kernel guarda nome, e-mail, documento e token de cartão e se imprime mascarado (`A*** S***`, `a***@example.com`, `***09`, `tok_***`) em log, erro, dump e JSON; o valor sai só pelo `reveal()`, e a `serialize()` o recusa. O `DataCategory` é o enum rico das categorias, que sabem se mascarar e a que regra respondem (LGPD ou PCI DSS). No commerce, `PersonName`, `EmailAddress` e `CardToken` usam o proxy; na logistics, `Recipient` e `ProofOfDelivery`. A fitness function `SensitiveDataLeavesOnPurposeTest` falha quando um `reveal()` aparece fora dos adapters, dos eventos e das exceções com motivo escrito.
 - O pedido guarda o código de rastreio da remessa (`orders.tracking_code`, `CHAR(15)`), aprendido na coleta (UC-ORD-04), e a consulta do pedido devolve `trackingCode`, `null` até a coleta (UC-ORD-05). É o que deixa a web ir do pedido direto ao rastreio. Dois `CHECK`s guardam a regra no banco: o formato, e só pedido que saiu tem código.
 - O pedido cancelado guarda o motivo (`orders.cancellation_reason`), e a consulta devolve `cancellationReason`. A migration copia o motivo do histórico para os pedidos que já estavam cancelados, e o banco cobra a regra nos dois sentidos: todo cancelado tem motivo, e só cancelado tem.
@@ -15,6 +17,7 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Changed
 
+- A tela do pedido mantém o aviso "Pagamento aprovado." enquanto o pedido é preparado, e não só na primeira atualização, e deixa de mostrar a validade da reserva depois que o pedido sai de "Aguardando pagamento".
 - A estratégia de reserva do laboratório vem da preferência `Prefer: reservation-strategy=<nome>` (RFC 7240) no lugar do header `X-Inventory-Strategy` (RFC 6648). A resposta confirma com `Preference-Applied` quando segue a preferência; um nome que não existe deixou de ser 400 e passou a ser uma dica ignorada.
 - Os problemas que os clientes precisam distinguir ganharam tipo (RFC 9457): `stock-not-reserved`, `product-unavailable`, `order-not-payable` e `idempotency-key-reused`, cada um com a sua seção em `contracts/http/problems.md`. O erro de domínio declara o nome com `#[ProblemType]`, do shared kernel. O BFF lê o tipo e diz a coisa certa: produto fora de linha, estoque que acabou ou formulário já usado deixaram de virar a mesma frase.
 - As três cópias do `ProblemDetails` (catalog, commerce e logistics) seguem a mesma regra: só o erro inesperado esconde o `detail`; um 503 deliberado mostra o que fazer. As cópias do commerce e da logistics ficaram idênticas, e o CI compara as duas.
@@ -24,6 +27,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - No context map, o BFF deixou de ser Conformist: ele lê cada serviço por uma camada anticorrupção (`src/upstream/`).
 - Fornecedor mora só nos adapters (ADR 0022): o Deptrac ganhou a camada `Vendor` e tirou da aplicação a licença de usar feature flags. Os eventos de domínio pegam o id do `EventId` do shared kernel, e o `ChooseCarrier` pergunta o `DispatchMode` (enum rico) a um port, em vez de ler a flag.
 - Pacotes só se encontram pelas fachadas: o teste `PackagesMeetThroughTheirFacadesTest` cobra que o núcleo de um pacote não conheça outro, e o Ordering declara que reserva estoque pelo nome `reserves-stock`, em vez de importar o middleware do Inventory.
+
+### Fixed
+
+- O Kong pergunta registro A antes de SRV (`KONG_DNS_ORDER`). O DNS do Docker não conhece SRV e encaminhava a pergunta para a internet, onde `web` é um domínio de topo: a ICANN responde uma colisão de nome com `127.0.53.53`, e toda chamada à web dava 502.
 
 ### Security
 

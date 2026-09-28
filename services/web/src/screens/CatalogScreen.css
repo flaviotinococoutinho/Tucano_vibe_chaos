@@ -1,0 +1,16 @@
+.catalog-screen__total {
+  color: var(--color-text-muted);
+}
+
+.catalog-screen__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.catalog-screen__pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

@@ -392,6 +392,10 @@ services:
       KONG_DNS_VALID_TTL: "5"
       # The same for the new DNS client, off in 3.9 (new_dns_client), in case it is turned on.
       KONG_RESOLVER_VALID_TTL: "5"
+      # A records first. Kong asks SRV before A by default, Docker's DNS knows no SRV and sends
+      # the question to the internet, and there `web` is a top-level domain: the ICANN answers
+      # a name collision with 127.0.53.53, and every call to the web got a 502.
+      KONG_DNS_ORDER: "LAST,A,CNAME"
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -777,6 +781,20 @@ services:
       <<: *healthcheck
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:4000/health/ready"]
     mem_limit: 96m
+    networks: [edge]
+
+  # The React app, built and served as static files; it never talks to anything but the BFF,
+  # through Kong, on its own origin.
+  web:
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+    image: chaos-playground/web
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:80/"]
+    mem_limit: 32m
     networks: [edge]
 
   # ---------------------------------------------------------- tools (profile)

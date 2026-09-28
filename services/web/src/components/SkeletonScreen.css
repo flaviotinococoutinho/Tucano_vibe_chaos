@@ -1,0 +1,31 @@
+.skeleton {
+  padding: var(--space-5) 0;
+}
+
+.skeleton__line {
+  height: 1em;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-elevated);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton__line--title {
+  height: 2em;
+  width: 60%;
+  margin-bottom: var(--space-5);
+}
+
+.skeleton__line--short {
+  width: 40%;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}

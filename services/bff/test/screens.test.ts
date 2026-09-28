@@ -83,6 +83,25 @@ describe('the order screen', () => {
     }
   });
 
+  it('keeps following the payment while the order is prepared, and lets go when it ships', () => {
+    const preparing = orderScreen(
+      { ...pendingOrder, status: 'paid' },
+      { awaitingPayment: true, key: PAY_KEY },
+    );
+    const shipped = orderScreen(
+      { ...pendingOrder, status: 'shipped', trackingCode: 'TX02PX83TXC5G00' },
+      { awaitingPayment: true, key: PAY_KEY },
+    );
+
+    assert.equal(
+      preparing.links?.[0]?.href,
+      `/bff/v1/orders/${pendingOrder.orderId}?awaiting=payment`,
+    );
+    assert.equal(preparing.properties?.reservationExpiresAt, null);
+    assert.equal(shipped.links?.[0]?.href, `/bff/v1/orders/${pendingOrder.orderId}`);
+    assert.equal(shipped.properties?.notice, undefined);
+  });
+
   it('offers the pay form only while the order waits and nobody is paying yet', () => {
     const waiting = orderScreen(pendingOrder, { awaitingPayment: false, key: PAY_KEY });
     const confirming = orderScreen(pendingOrder, { awaitingPayment: true, key: PAY_KEY });

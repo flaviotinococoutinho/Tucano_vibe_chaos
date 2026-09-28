@@ -1,0 +1,33 @@
+/*
+ * The message itself stays in the page's normal text color (always safely above 4.5:1 on
+ * `--color-surface-elevated`, in both themes); only the left border carries the tone color,
+ * which only has to clear the 3:1 non-text minimum, comfortably true for every tone here.
+ */
+.notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--notice-accent, var(--color-border));
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text);
+}
+
+.notice--neutral {
+  --notice-accent: var(--color-text-muted);
+}
+
+.notice--waiting {
+  --notice-accent: var(--palette-sun);
+}
+
+.notice--info {
+  --notice-accent: var(--color-info-text);
+}
+
+.notice--success {
+  --notice-accent: var(--color-success-bg);
+}
+
+.notice--danger {
+  --notice-accent: var(--color-danger-text);
+}

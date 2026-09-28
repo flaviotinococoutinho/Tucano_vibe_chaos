@@ -407,11 +407,28 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check
 
+  web:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.areas), 'web')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
   # Single required check for branch protection: it passes when every job
   # above either succeeded or was skipped because its area didn't change.
   ci-ok:
     if: always()
-    needs: [changes, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim]
+    needs: [changes, compose, ansible, contracts, shared-kernel, feature-flags, messaging, read-models, catalog, commerce, logistics, tracking, bff, partners-sim, web]
     runs-on: ubuntu-latest
     steps:
       - name: Verify job results

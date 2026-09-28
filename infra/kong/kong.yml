@@ -43,3 +43,11 @@ services:
       - name: tracking-api
         paths: [/api/tracking]
         strip_path: true
+
+  # The catch-all: Kong routes by the longest matching path, so this never shadows /bff or /api/*.
+  - name: web
+    url: http://web:80
+    routes:
+      - name: web-app
+        paths: [/]
+        strip_path: false

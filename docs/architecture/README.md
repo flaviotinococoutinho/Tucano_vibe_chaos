@@ -99,7 +99,7 @@ C4Container
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
 | `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
-| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | planejado |
+| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | a loja rodando: um intérprete das telas Siren do BFF, com vitrine, checkout, pedido que se atualiza sozinho e rastreio; o console e os painéis vêm depois |
 | `bff` | Node 24 + Fastify | monta as telas da web em Siren (HATEOAS) sobre catalog, commerce e logistics, para a web só desenhar e seguir links | vitrine, checkout, pedido que se atualiza sozinho e rastreio; cada serviço pelo seu proxy no Toxiproxy, com timeout e 503 com `Retry-After` quando um deles cai |
 | `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |

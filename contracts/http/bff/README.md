@@ -42,7 +42,7 @@ Registered relation types ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288)) m
 | `catalog` | `GET /bff/v1/products?page=` | `page`, `perPage`, `total` | `product-card` entities (`item`); links `next` and `prev` when they exist, `up` |
 | `product` | `GET /bff/v1/products/{sku}` | `sku`, `name`, `category`, `categoryLabel`, `price`, `weightGrams`, `dimensions` | action `buy`; links `collection`, `up` |
 | `checkout` | `GET /bff/v1/checkout?sku=&quantity=` | `sku`, `name`, `quantity`, `unitPrice`, `subtotal` | action `place-order`; link `up` (the product) |
-| `order` | `GET /bff/v1/orders/{id}` | `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `placedAt`, `reservationExpiresAt`, `total`, `trackingCode`, and `notice` and `refreshAfterSeconds` when they apply | `order-line` entities (`item`); action `pay` only while the order waits for payment; link track once it ships; link catalog |
+| `order` | `GET /bff/v1/orders/{id}` | `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `placedAt`, `reservationExpiresAt` (null once the order no longer waits for payment), `total`, `trackingCode`, and `notice` and `refreshAfterSeconds` when they apply | `order-line` entities (`item`); action `pay` only while the order waits for payment; link track once it ships; link catalog |
 | `tracking` | `GET /bff/v1/tracking/{code}` | `trackingCode`, `status`, `statusLabel`, `tone`, `carrier` (the code), `carrierLabel` (the name people read), `destination`, `updatedAt`, and `refreshAfterSeconds` while the parcel moves | `timeline-step` entities (`item`), oldest first; link `up` |
 
 The product screen of a product out of line comes without `buy` and with a `notice`. `orderNumber` is the decimal text of a Snowflake, as Commerce publishes it (`97856663872212992`): the web shows it as it comes and never parses it.
@@ -69,7 +69,7 @@ A screen with `"live"` in its class asks to be fetched again from its `self` lin
 | order `paid` or `shipped` | the parcel is being prepared or is on its way | 5 s |
 | tracking | the journey has not ended (delivered, returned or cancelled) | 5 s |
 
-After `pay`, the order follows the payment. An approved card turns it `paid`, and the first render after that carries the notice "Pagamento aprovado." with a `self` link that no longer awaits. A declined card cancels the order in Commerce, and the screen ends with a `danger` notice that says so. Every cancelled order explains why in its notice (declined card, expired reservation, customer request), and a returned order says the refund was asked for.
+After `pay`, the order follows the payment. An approved card turns it `paid`, and while the order is prepared the screen keeps the notice "Pagamento aprovado." and its `self` keeps `?awaiting=payment`; once the parcel ships, `self` lets go of it and the notice leaves. A declined card cancels the order in Commerce, and the screen ends with a `danger` notice that says so. Every cancelled order explains why in its notice (declined card, expired reservation, customer request), and a returned order says the refund was asked for.
 
 ## Actions and fields
 

@@ -85,10 +85,13 @@ export type OrderView = {
 
 export function orderScreen(order: Order, view: OrderView): Entity {
   const confirming = view.awaitingPayment && order.status === 'pending_payment';
+  // Right after paying, the screen follows the payment until the parcel moves: the approved
+  // notice stays while the order is prepared, and self lets go of it once the order ships.
+  const followingPayment = confirming || (view.awaitingPayment && order.status === 'paid');
   const look = confirming ? CONFIRMING : LOOKS[order.status];
   const notice = noticeOf(order, view.awaitingPayment);
   const self = href(path`/orders/${order.orderId}`, {
-    awaiting: confirming ? 'payment' : undefined,
+    awaiting: followingPayment ? 'payment' : undefined,
   });
 
   return screen('order', {
@@ -100,7 +103,8 @@ export function orderScreen(order: Order, view: OrderView): Entity {
       statusLabel: look.label,
       tone: look.tone,
       placedAt: order.placedAt,
-      reservationExpiresAt: order.reservationExpiresAt,
+      // The deadline matters while the order waits for payment; after that the stock is sold.
+      reservationExpiresAt: order.status === 'pending_payment' ? order.reservationExpiresAt : null,
       total: money(order.total.amount, order.total.currency),
       trackingCode: order.trackingCode,
       ...(notice === undefined ? {} : { notice }),
@@ -125,9 +129,11 @@ function noticeOf(order: Order, awaitingPayment: boolean): Notice | undefined {
         : WHY_CANCELLED[order.cancellationReason];
     case 'returned':
       return NOTICES.returned;
-    default:
-      // Paid and beyond: when the customer was waiting for the payment, it went through.
+    case 'paid':
+      // The customer was waiting for the payment, and it went through.
       return awaitingPayment ? NOTICES.approved : undefined;
+    default:
+      return undefined;
   }
 }
 
