@@ -1,0 +1,284 @@
+{
+  "class": [
+    "screen",
+    "checkout"
+  ],
+  "title": "Finalizar pedido",
+  "properties": {
+    "sku": "BOOK-DDD-001",
+    "name": "Domain-Driven Design",
+    "quantity": 1,
+    "unitPrice": {
+      "amount": 15990,
+      "currency": "BRL",
+      "formatted": "R$ 159,90"
+    },
+    "subtotal": {
+      "amount": 15990,
+      "currency": "BRL",
+      "formatted": "R$ 159,90"
+    }
+  },
+  "actions": [
+    {
+      "name": "place-order",
+      "title": "Fazer pedido",
+      "method": "POST",
+      "href": "/bff/v1/orders",
+      "type": "application/json",
+      "fields": [
+        {
+          "name": "idempotencyKey",
+          "type": "hidden",
+          "value": "0199a2b4-8a10-7c51-b0d2-3e4f5a6b7c8d"
+        },
+        {
+          "name": "sku",
+          "type": "hidden",
+          "value": "BOOK-DDD-001"
+        },
+        {
+          "name": "quantity",
+          "type": "hidden",
+          "value": 1
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "title": "Nome completo",
+          "required": true,
+          "autocomplete": "name",
+          "maxlength": 120
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "title": "E-mail",
+          "required": true,
+          "autocomplete": "email",
+          "inputmode": "email",
+          "maxlength": 254
+        },
+        {
+          "name": "postalCode",
+          "type": "text",
+          "title": "CEP",
+          "required": true,
+          "autocomplete": "postal-code",
+          "inputmode": "numeric",
+          "pattern": "^[0-9]{5}-?[0-9]{3}$",
+          "maxlength": 9,
+          "placeholder": "30160-011"
+        },
+        {
+          "name": "thoroughfareType",
+          "type": "select",
+          "title": "Tipo de logradouro",
+          "required": true,
+          "value": "Rua",
+          "options": [
+            {
+              "value": "Rua",
+              "title": "Rua"
+            },
+            {
+              "value": "Avenida",
+              "title": "Avenida"
+            },
+            {
+              "value": "Travessa",
+              "title": "Travessa"
+            },
+            {
+              "value": "Alameda",
+              "title": "Alameda"
+            },
+            {
+              "value": "Praça",
+              "title": "Praça"
+            },
+            {
+              "value": "Estrada",
+              "title": "Estrada"
+            },
+            {
+              "value": "Rodovia",
+              "title": "Rodovia"
+            }
+          ]
+        },
+        {
+          "name": "thoroughfareName",
+          "type": "text",
+          "title": "Logradouro",
+          "required": true,
+          "autocomplete": "address-line1",
+          "maxlength": 160,
+          "placeholder": "da Bahia"
+        },
+        {
+          "name": "number",
+          "type": "text",
+          "title": "Número",
+          "required": true,
+          "maxlength": 20,
+          "placeholder": "1200 ou KM 500"
+        },
+        {
+          "name": "complement",
+          "type": "text",
+          "title": "Complemento",
+          "autocomplete": "address-line2",
+          "maxlength": 80
+        },
+        {
+          "name": "neighborhood",
+          "type": "text",
+          "title": "Bairro",
+          "autocomplete": "address-level3",
+          "maxlength": 80
+        },
+        {
+          "name": "municipality",
+          "type": "text",
+          "title": "Cidade",
+          "required": true,
+          "autocomplete": "address-level2",
+          "maxlength": 80
+        },
+        {
+          "name": "state",
+          "type": "select",
+          "title": "Estado",
+          "required": true,
+          "autocomplete": "address-level1",
+          "options": [
+            {
+              "value": "AC",
+              "title": "Acre"
+            },
+            {
+              "value": "AL",
+              "title": "Alagoas"
+            },
+            {
+              "value": "AP",
+              "title": "Amapá"
+            },
+            {
+              "value": "AM",
+              "title": "Amazonas"
+            },
+            {
+              "value": "BA",
+              "title": "Bahia"
+            },
+            {
+              "value": "CE",
+              "title": "Ceará"
+            },
+            {
+              "value": "DF",
+              "title": "Distrito Federal"
+            },
+            {
+              "value": "ES",
+              "title": "Espírito Santo"
+            },
+            {
+              "value": "GO",
+              "title": "Goiás"
+            },
+            {
+              "value": "MA",
+              "title": "Maranhão"
+            },
+            {
+              "value": "MT",
+              "title": "Mato Grosso"
+            },
+            {
+              "value": "MS",
+              "title": "Mato Grosso do Sul"
+            },
+            {
+              "value": "MG",
+              "title": "Minas Gerais"
+            },
+            {
+              "value": "PA",
+              "title": "Pará"
+            },
+            {
+              "value": "PB",
+              "title": "Paraíba"
+            },
+            {
+              "value": "PR",
+              "title": "Paraná"
+            },
+            {
+              "value": "PE",
+              "title": "Pernambuco"
+            },
+            {
+              "value": "PI",
+              "title": "Piauí"
+            },
+            {
+              "value": "RJ",
+              "title": "Rio de Janeiro"
+            },
+            {
+              "value": "RN",
+              "title": "Rio Grande do Norte"
+            },
+            {
+              "value": "RS",
+              "title": "Rio Grande do Sul"
+            },
+            {
+              "value": "RO",
+              "title": "Rondônia"
+            },
+            {
+              "value": "RR",
+              "title": "Roraima"
+            },
+            {
+              "value": "SC",
+              "title": "Santa Catarina"
+            },
+            {
+              "value": "SP",
+              "title": "São Paulo"
+            },
+            {
+              "value": "SE",
+              "title": "Sergipe"
+            },
+            {
+              "value": "TO",
+              "title": "Tocantins"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/checkout?sku=BOOK-DDD-001&quantity=1"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1/products/BOOK-DDD-001",
+      "title": "Voltar ao produto"
+    }
+  ]
+}

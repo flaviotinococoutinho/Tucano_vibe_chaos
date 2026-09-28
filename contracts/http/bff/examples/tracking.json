@@ -1,0 +1,131 @@
+{
+  "class": [
+    "screen",
+    "tracking"
+  ],
+  "title": "Entrega TX02PX83TXC5G00",
+  "properties": {
+    "trackingCode": "TX02PX83TXC5G00",
+    "status": "delivered",
+    "statusLabel": "Entregue",
+    "tone": "success",
+    "carrier": "correio-nacional",
+    "destination": {
+      "municipality": "Salvador",
+      "state": "BA"
+    },
+    "updatedAt": "2026-09-28T00:50:19.827Z"
+  },
+  "entities": [
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "created",
+        "label": "Pedido de envio criado",
+        "at": "2026-09-28T00:47:27.467Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "ready_for_pickup",
+        "label": "Etiqueta pronta",
+        "at": "2026-09-28T00:47:29.156Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "picked_up",
+        "label": "Coletado pela transportadora",
+        "at": "2026-09-28T00:47:32.867Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "in_transit",
+        "label": "Em trânsito",
+        "at": "2026-09-28T00:47:36.819Z",
+        "hub": "Hub Contagem (MG)"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "in_transit",
+        "label": "Em trânsito",
+        "at": "2026-09-28T00:48:09.571Z",
+        "hub": "Hub Simões Filho (BA)"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "out_for_delivery",
+        "label": "Saiu para entrega",
+        "at": "2026-09-28T00:49:15.964Z",
+        "attempt": 1
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "delivered",
+        "label": "Entregue",
+        "at": "2026-09-28T00:50:19.827Z",
+        "attempt": 1
+      }
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/tracking/TX02PX83TXC5G00"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1",
+      "title": "Início"
+    }
+  ]
+}
