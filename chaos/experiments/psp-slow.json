@@ -1,0 +1,106 @@
+{
+  "version": "1.0.0",
+  "title": "O PSP fica lento, e o checkout continua respondendo",
+  "description": "Três segundos de latência entre o commerce e o PayFake, com o timeout do commerce em dois. Sem proteção, cada pagamento prenderia um processo do PHP-FPM pelo timeout inteiro. O circuit breaker abre depois de cinco falhas e passa a recusar na hora, com 503 e Retry-After. Laboratório: docs/labs/circuit-breaker.md.",
+  "tags": [
+    "tucano",
+    "payments",
+    "circuit-breaker",
+    "timeout"
+  ],
+  "configuration": {
+    "toxiproxy": {
+      "type": "env",
+      "key": "TOXIPROXY_URL",
+      "default": "http://toxiproxy:8474"
+    },
+    "partners": {
+      "type": "env",
+      "key": "PARTNERS_SIM_URL",
+      "default": "http://partners-sim:4000"
+    }
+  },
+  "steady-state-hypothesis": {
+    "title": "Pagar responde em até 1 s, aceito ou recusado com Retry-After, e o catálogo continua abrindo",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-catalog-opens",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "catalog_opens",
+          "arguments": {
+            "within_seconds": 2
+          }
+        }
+      },
+      {
+        "type": "probe",
+        "name": "paying-answers-quickly",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "paying_answers_quickly",
+          "arguments": {
+            "within_seconds": 1
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "slow-down-the-psp",
+      "provider": {
+        "type": "http",
+        "method": "POST",
+        "url": "${toxiproxy}/proxies/payfake/toxics",
+        "timeout": 10,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "arguments": {
+          "name": "slow-psp",
+          "type": "latency",
+          "stream": "downstream",
+          "attributes": {
+            "latency": 3000
+          }
+        }
+      }
+    },
+    {
+      "type": "action",
+      "name": "pay-while-the-psp-is-slow",
+      "provider": {
+        "type": "python",
+        "module": "tucano_chaos.actions",
+        "func": "pay_while_the_psp_is_slow",
+        "arguments": {
+          "attempts": 5
+        }
+      }
+    }
+  ],
+  "rollbacks": [
+    {
+      "type": "action",
+      "name": "bring-the-psp-back",
+      "provider": {
+        "type": "http",
+        "method": "DELETE",
+        "url": "${toxiproxy}/proxies/payfake/toxics/slow-psp",
+        "timeout": 10
+      }
+    }
+  ],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}

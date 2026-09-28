@@ -93,6 +93,17 @@ flag: ## Serve another variant of a flag, no restart (key=<flag> variant=<varian
 flag-reset: ## Put a flag back as it is in the repository (key=<flag>)
 	@$(flag-runtime) reset $(key)
 
+experiments: ## List the chaos experiments, each with the steady state it defends
+	@for file in chaos/experiments/*.json; do \
+		printf '%-28s %s\n' "$$(basename $$file .json)" "$$(jq -r '."steady-state-hypothesis".title' $$file)"; \
+	done
+
+experiment: ## Run a chaos experiment against the running stack (e=<name>); rollbacks always run
+	@test -n "$(e)" || { echo "Which one? make experiments lists them."; exit 1; }
+	@mkdir -p chaos/results
+	$(COMPOSE) --profile tools run --rm chaos --log-file /results/$(e).log \
+		run --rollback-strategy always --journal-path /results/$(e).json /chaos/experiments/$(e).json
+
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml
 

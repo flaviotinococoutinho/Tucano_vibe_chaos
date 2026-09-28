@@ -4,6 +4,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Experimentos de caos como código (ADR 0025): quatro experimentos do Chaos Toolkit em `chaos/experiments`, cada um com o estado estável conferido antes da falha e de novo com ela ativa, e rollbacks que rodam sempre. O PSP lento abre o circuit breaker e pagar passa a responder `503` em 0,10 s; o commerce cortado derruba só as telas dele; o catálogo lento faz o BFF desistir em 5 s; e, sem nenhum webhook do PSP, a conciliação ainda traz o desfecho em pouco mais de um minuto. As sondas compram pela loja seguindo a hipermídia do BFF, e pagam com o cartão recusado para devolver o estoque. `make experiments` lista, `make experiment e=<nome>` roda, e o CI valida cada experimento.
+
 ## [0.8.0] - 2026-09-28
 
 ### Added

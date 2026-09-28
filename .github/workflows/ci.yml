@@ -48,6 +48,13 @@ jobs:
         run: pipx run check-jsonschema --schemafile https://flagd.dev/schema/v0/flags.json infra/flags/environments/*.flagd.json
       - name: Lint shell scripts
         run: shellcheck scripts/*.sh scripts/ci/*.sh infra/kafka/*.sh infra/floci/*.sh
+      # Validation imports the probes and checks each function's signature; running them needs the whole stack.
+      - name: Chaos experiments are valid Chaos Toolkit experiments
+        run: |
+          docker build -q -t chaos-playground/chaos -f infra/chaos/Dockerfile . > /dev/null
+          for experiment in chaos/experiments/*.json; do
+            docker run --rm -v "$PWD/chaos:/chaos:ro" chaos-playground/chaos validate "/$experiment"
+          done
 
   ansible:
     needs: changes
