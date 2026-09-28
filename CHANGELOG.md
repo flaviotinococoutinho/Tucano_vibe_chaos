@@ -15,6 +15,9 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Changed
 
+- A estratégia de reserva do laboratório vem da preferência `Prefer: reservation-strategy=<nome>` (RFC 7240) no lugar do header `X-Inventory-Strategy` (RFC 6648). A resposta confirma com `Preference-Applied` quando segue a preferência; um nome que não existe deixou de ser 400 e passou a ser uma dica ignorada.
+- Os problemas que os clientes precisam distinguir ganharam tipo (RFC 9457): `stock-not-reserved`, `product-unavailable`, `order-not-payable` e `idempotency-key-reused`, cada um com a sua seção em `contracts/http/problems.md`. O erro de domínio declara o nome com `#[ProblemType]`, do shared kernel. O BFF lê o tipo e diz a coisa certa: produto fora de linha, estoque que acabou ou formulário já usado deixaram de virar a mesma frase.
+- As três cópias do `ProblemDetails` (catalog, commerce e logistics) seguem a mesma regra: só o erro inesperado esconde o `detail`; um 503 deliberado mostra o que fazer. As cópias do commerce e da logistics ficaram idênticas, e o CI compara as duas.
 - A leitura pública do pedido (`GET /v1/orders/{id}` e a resposta de `POST /v1/orders`) mostra o cliente mascarado: sem login, quem tem o id do pedido vê o pedido, não quem comprou.
 - A plataforma Node (a cópia do bff e do partners-sim) deixa um `DomainError` levar `retryAfterSeconds`, que vira o header `Retry-After`, e mensagens por campo, que viram `errors`. Um 503 de domínio passa a mostrar o `detail`, como os serviços PHP já faziam; só o erro inesperado esconde o detalhe.
 - O contrato do BFF: `orderNumber` é o texto decimal do Snowflake do commerce, o rastreio ganhou `carrierLabel` e fica vivo enquanto a encomenda anda, o produto fora de linha vem sem `buy` e com aviso, o campo do código de rastreio aceita o que as pessoas digitam, e os problemas criados pelo BFF falam português no `detail`.
