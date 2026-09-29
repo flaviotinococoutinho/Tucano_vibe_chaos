@@ -4,6 +4,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-28
+
 ### Added
 
 - O portão de estabilidade (ADR 0029): o workflow `stability` sobe a stack num runner limpo e roda todos os experimentos de caos, em todo PR para a `main`, toda segunda-feira e à mão; um desvio reprova, e os diários ficam como artefato da execução.
@@ -224,7 +226,8 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - Blueprint de arquitetura: C4, context map, linguagem ubíqua, eventos, identificadores, máquinas de estados, casos de uso e ADRs 0001 a 0014.
 - Fluxo de release: tags SemVer imutáveis e GitHub Release gerada a partir deste changelog.
 
-[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.9.0...develop
+[Unreleased]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.10.0...develop
+[0.10.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/flaviotinococoutinho/chaos_playground/compare/v0.6.0...v0.7.0
