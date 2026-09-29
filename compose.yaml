@@ -729,6 +729,8 @@ services:
       REDIS_PORT: "16379"
       FLAGD_HOST: toxiproxy
       FLAGD_PORT: "18013"
+      # The courier devices of partners-sim sign their reports with it (UC-TRK-01).
+      COURIERS_SECRET: whsec_local_couriers
     depends_on:
       redis:
         condition: service_healthy
@@ -788,6 +790,12 @@ services:
       CARRIERS_WEBHOOK_SECRET: whsec_local_carriers
       CARRIERS_STEP_MIN_MS: "1000"
       CARRIERS_STEP_MAX_MS: "4000"
+      # The simulated device of each courier of the own fleet: a position a second, twenty
+      # seconds from the fulfillment center to the door (UC-TRK-01).
+      TRACKING_URL: http://kong:8000/api/tracking
+      COURIERS_SECRET: whsec_local_couriers
+      COURIER_POSITION_INTERVAL_MS: "1000"
+      COURIER_RIDE_MS: "20000"
     # The chaos controls of PayFake and CarrierFake, from the host.
     ports:
       - "127.0.0.1:4000:4000"

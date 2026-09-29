@@ -15,11 +15,14 @@ final readonly class ProblemDetails
 
     /** Reason phrases (RFC 9110) of the statuses errors are answered with. */
     private const array TITLES = [
+        400 => 'Bad Request',
+        401 => 'Unauthorized',
         403 => 'Forbidden',
         404 => 'Not Found',
         405 => 'Method Not Allowed',
         409 => 'Conflict',
         422 => 'Unprocessable Content',
+        426 => 'Upgrade Required',
         500 => 'Internal Server Error',
         503 => 'Service Unavailable',
     ];

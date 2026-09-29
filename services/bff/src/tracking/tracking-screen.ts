@@ -3,6 +3,7 @@ import {
   component,
   type Entity,
   href,
+  type Link,
   path,
   rel,
   screen,
@@ -52,7 +53,10 @@ const CARRIERS: Readonly<Record<string, string>> = {
 /** The parcel on the move asks for news this often; Logistics answers from DynamoDB, by key. */
 const REFRESH_WHILE_MOVING_SECONDS = 5;
 
-export function trackingScreen(tracking: Tracking): Entity {
+/** The carrier that is Tucano's own: the only one whose courier reports live positions. */
+const OWN_FLEET = 'tucano-express';
+
+export function trackingScreen(tracking: Tracking, livePath: string): Entity {
   const look = JOURNEY[tracking.status];
 
   return screen('tracking', {
@@ -71,9 +75,29 @@ export function trackingScreen(tracking: Tracking): Entity {
     links: [
       { rel: [rel.self], href: href(path`/tracking/${tracking.trackingCode}`) },
       { rel: [rel.up], href: href(''), title: 'Início' },
+      ...liveLink(tracking, livePath),
     ],
     ...(look.moving ? { refreshAfterSeconds: REFRESH_WHILE_MOVING_SECONDS } : {}),
   });
+}
+
+/**
+ * The courier moves live only for the own fleet, and only while it is out for delivery: a
+ * partner never reports a position, and the journey before or after that step has none to show.
+ */
+function liveLink(tracking: Tracking, livePath: string): Link[] {
+  if (tracking.status !== 'out_for_delivery' || tracking.carrier !== OWN_FLEET) {
+    return [];
+  }
+  const query = new URLSearchParams({ trackingCode: tracking.trackingCode });
+
+  return [
+    {
+      rel: [rel.live],
+      href: `${livePath}?${query}`,
+      title: 'Ver o entregador ao vivo',
+    },
+  ];
 }
 
 function timelineStep(step: TrackingStep): Entity {

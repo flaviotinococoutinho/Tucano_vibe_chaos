@@ -4,9 +4,16 @@ import { type Logistics, traceOf } from '../upstream/index.ts';
 import { canonicalCode, InvalidTrackingCode, TRACKING_CODE, TrackingNotFound } from './code.ts';
 import { trackingScreen } from './tracking-screen.ts';
 
-export type TrackingOptions = { readonly logistics: Logistics };
+export type TrackingOptions = {
+  readonly logistics: Logistics;
+  /** Where the live tracking link points to: a path on the public origin, not a BFF route. */
+  readonly livePath: string;
+};
 
-export const trackingRoutes: FastifyPluginAsync<TrackingOptions> = async (app, { logistics }) => {
+export const trackingRoutes: FastifyPluginAsync<TrackingOptions> = async (
+  app,
+  { logistics, livePath },
+) => {
   // The form of track-by-code lands here. 303 See Other sends the browser to the page
   // itself, so the address bar shows the address of the parcel, not of the form.
   app.get<{ Querystring: { code?: string } }>('/v1/tracking', async (request, reply) => {
@@ -31,6 +38,6 @@ export const trackingRoutes: FastifyPluginAsync<TrackingOptions> = async (app, {
       throw new TrackingNotFound(code);
     }
 
-    return sendScreen(reply, trackingScreen(tracking));
+    return sendScreen(reply, trackingScreen(tracking, livePath));
   });
 };

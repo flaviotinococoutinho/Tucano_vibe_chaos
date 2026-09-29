@@ -1,0 +1,99 @@
+{
+  "class": [
+    "screen",
+    "tracking",
+    "live"
+  ],
+  "title": "Entrega TX02Q6AGJQ45G00",
+  "properties": {
+    "trackingCode": "TX02Q6AGJQ45G00",
+    "status": "out_for_delivery",
+    "statusLabel": "Saiu para entrega",
+    "tone": "info",
+    "carrier": "tucano-express",
+    "carrierLabel": "Tucano Express",
+    "destination": {
+      "municipality": "Contagem",
+      "state": "MG"
+    },
+    "updatedAt": "2026-09-28T21:55:40.000Z",
+    "refreshAfterSeconds": 5
+  },
+  "entities": [
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "created",
+        "label": "Pedido de envio criado",
+        "at": "2026-09-28T21:40:12.000Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "ready_for_pickup",
+        "label": "Etiqueta pronta",
+        "at": "2026-09-28T21:41:03.000Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "picked_up",
+        "label": "Coletado pela transportadora",
+        "at": "2026-09-28T21:42:51.000Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "status": "out_for_delivery",
+        "label": "Saiu para entrega",
+        "at": "2026-09-28T21:55:40.000Z",
+        "attempt": 1
+      }
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/tracking/TX02Q6AGJQ45G00"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1",
+      "title": "Início"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-live"
+      ],
+      "href": "/api/tracking/v1/live?trackingCode=TX02Q6AGJQ45G00",
+      "title": "Ver o entregador ao vivo"
+    }
+  ]
+}

@@ -133,7 +133,8 @@ export class Webhooks<TData = unknown> {
   }
 }
 
-function reasonOf(error: unknown, attemptTimeoutMs: number): string {
+/** Shared with the courier device's own single-try report: the same fetch, the same quirks. */
+export function reasonOf(error: unknown, attemptTimeoutMs: number): string {
   if (!(error instanceof Error)) {
     return String(error);
   }

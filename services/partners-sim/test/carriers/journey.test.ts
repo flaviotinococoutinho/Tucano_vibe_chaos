@@ -157,7 +157,9 @@ describe('event order', () => {
     ]);
     // The retry's backoff (1 s) sits between the first two step delays (500 ms each): the
     // out_for_delivery step never started its own wait until the picked_up webhook settled.
-    assert.deepEqual(clock.sleeps, [500, 1_000, 500, 500]);
+    // The courier's own ride sits between out_for_delivery and delivered: one tick, at the
+    // test default COURIER_RIDE_MS (1000 ms), before the delivered step's own step delay.
+    assert.deepEqual(clock.sleeps, [500, 1_000, 500, 1_000, 500]);
   });
 
   it('moves to the next step right away when a webhook is dropped: a drop counts as done', async (t) => {

@@ -1,7 +1,19 @@
 import type { ReactElement } from 'react';
-import { Badge, InstantText, TimelineStep } from '../components/index.ts';
-import { entitiesOf, readInstant, readString, readTone, type SirenScreen } from '../siren/index.ts';
+import { Badge, InstantText, LiveDelivery, TimelineStep } from '../components/index.ts';
+import {
+  entitiesOf,
+  findLink,
+  readInstant,
+  readString,
+  readTone,
+  type SirenScreen,
+} from '../siren/index.ts';
 import './TrackingScreen.css';
+
+// The live position of the courier: a WebSocket, offered only while a parcel of the own
+// fleet is out for delivery (contracts/http/bff/README.md#rel-live).
+const REL_LIVE =
+  'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-live';
 
 type Destination = { readonly municipality: string; readonly state: string };
 
@@ -24,6 +36,7 @@ export function TrackingScreen({ screen }: { readonly screen: SirenScreen }): Re
   const destination = readDestination(screen.properties?.destination);
   const updatedAt = readInstant(screen.properties, 'updatedAt');
   const steps = entitiesOf(screen, 'item');
+  const liveLink = findLink(screen.links, REL_LIVE);
 
   return (
     <div className="tracking-screen">
@@ -56,6 +69,7 @@ export function TrackingScreen({ screen }: { readonly screen: SirenScreen }): Re
           </div>
         ) : null}
       </dl>
+      {liveLink !== undefined ? <LiveDelivery href={liveLink.href} /> : null}
       {steps.length > 0 ? (
         <ol className="tracking-screen__timeline">
           {steps.map((entity, index) => (

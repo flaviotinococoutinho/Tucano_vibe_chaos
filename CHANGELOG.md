@@ -6,9 +6,15 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ### Added
 
+- A entrega ao vivo (UC-TRK-01 e UC-TRK-03, ADR 0028). Enquanto uma encomenda da frota própria está a caminho da porta, o aparelho simulado do entregador, no partners-sim, informa a posição a cada segundo ao tracking (`POST /v1/positions`, assinado com `Courier-Signature`), e o tracking a empurra por WebSocket (`/v1/live?trackingCode=`) para quem acompanha aquele código, com fan-out entre workers e instâncias pelo Redis pub/sub. A tela de rastreio do BFF oferece o link `rel-live` só nessa hora, e a web mostra o entregador num mapa desenhado em SVG, com a distância até a porta, o aviso de sem sinal depois de 30 s e o desfecho da visita; sem o WebSocket, ela avisa e segue pelo polling de sempre. O protocolo está em `contracts/tracking`. Variáveis novas: `COURIERS_SECRET` e `LIVE_NEWS_TTL_SECONDS` no tracking, `TRACKING_URL`, `COURIERS_SECRET`, `COURIER_POSITION_INTERVAL_MS` e `COURIER_RIDE_MS` no partners-sim, e `TRACKING_LIVE_PATH` no BFF.
 - Experimento `kafka-out-and-back`: corta o Kafka por 30 s, compra e paga uma caneca no meio da queda e exige que, com o Kafka de volta, a encomenda chegue a entregue na página pública em até 90 s. Mediu 8,6 s até a remessa nascer e 18,8 s até entregue, e mostrou a inbox descartando o `order.paid` que a volta entregou duas vezes.
 - Experimento `tracking-without-the-timeline`: corta o MongoDB, compra uma caneca durante a queda e exige que a página pública chegue a entregue, com todos os passos da jornada, em até 90 s. Na primeira execução, a jornada inteira da encomenda foi para a DLQ, e a página ficou sem nenhum passo.
 - Experimento `tracking-without-its-copy`: corta o DynamoDB (o Floci inteiro) e exige que a página de rastreio responda em até 1 s, com a entrega ou com `503` e `Retry-After`. Na primeira execução, ela pendurava até o BFF desistir, em 5,05 s.
+
+### Changed
+
+- A jornada da frota própria ficou uns 20 s mais longa: o trajeto do centro de distribuição até a porta agora tem duração (`COURIER_RIDE_MS`), e é nele que o entregador aparece ao vivo. Os experimentos que seguem uma encomenda até a porta continuam dentro dos 90 s.
+- A documentação deixou de dizer que o tracking já servia WebSocket e que a logistics o chamava: o C4, a tabela da arquitetura, a topologia, os consumer groups e o guia contam o que existe.
 
 ### Fixed
 

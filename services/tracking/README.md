@@ -1,8 +1,8 @@
 # tracking
 
-Serviço de frota em tempo real da Tucano, em PHP 8.4 com Swoole 6.2. Ele vai receber a posição GPS dos entregadores por WebSocket, guardar no Redis GEO, achar o entregador disponível mais próximo para a logística e empurrar a posição ao vivo para o cliente que acompanha a entrega.
+Serviço de frota em tempo real da Tucano, em PHP 8.4 com Swoole 6.2. Enquanto uma encomenda da frota própria está a caminho da porta, ele recebe a posição do aparelho do entregador e a empurra, por WebSocket, para quem acompanha aquele código de rastreio ([UC-TRK-01](../../docs/use-cases/UC-TRK-01-report-position.md) e [UC-TRK-03](../../docs/use-cases/UC-TRK-03-follow-delivery-live.md)). O protocolo está em [`contracts/tracking`](../../contracts/tracking/README.md), e as escolhas, no [ADR 0028](../../docs/adr/0028-live-delivery-by-tracking-code.md).
 
-Por enquanto é o esqueleto: um servidor de longa duração com health checks, erros no formato do commerce, logs JSON, correlation id e configuração por ambiente. As funcionalidades entram em cima dele.
+Ainda falta achar o entregador disponível mais próximo para a logística (UC-TRK-02), que é onde o Redis GEO do ADR 0013 vai entrar.
 
 ## Por que Swoole
 
@@ -14,7 +14,7 @@ No FPM, cada request começa do zero: nada do request anterior sobra na memória
 
 **O estado vive entre requests.** Uma propriedade estática ou um singleton com dado de request vaza para o próximo cliente, ou pior, para o request que está rodando em paralelo no mesmo worker. Por isso dado de request fica no contexto da corrotina que atende o request (`Swoole\Coroutine::getContext()`), que o Swoole destrói quando a corrotina termina. É o que a `RequestContext` faz com o correlation id. Estado de processo (config, cache de flags, o próprio kernel) pode ficar em memória, desde que não carregue nada de um request.
 
-**Corrotinas no lugar de bloqueio.** Com `SWOOLE_HOOK_ALL`, phpredis, curl (o Guzzle do flagd), `sleep` e arquivos cedem a vez para outra corrotina em vez de travar o worker. A contrapartida: uma conexão não pode ser usada por duas corrotinas ao mesmo tempo. Cada probe do Redis abre a própria conexão, e o tráfego de GEO vai usar um pool (`Swoole\Database\RedisPool`). Cada worker também monta o próprio grafo de objetos em `workerStart`, depois do fork, para nenhum socket ser dividido entre processos.
+**Corrotinas no lugar de bloqueio.** Com `SWOOLE_HOOK_ALL`, phpredis, curl (o Guzzle do flagd), `sleep` e arquivos cedem a vez para outra corrotina em vez de travar o worker. A contrapartida: uma conexão não pode ser usada por duas corrotinas ao mesmo tempo. Cada probe do Redis e cada notícia de entrega abrem a própria conexão; um pool (`Swoole\Database\RedisPool`) é o próximo passo quando a frota crescer, e o ADR 0028 conta por que ainda não. Cada worker também monta o próprio grafo de objetos em `workerStart`, depois do fork, para nenhum socket ser dividido entre processos.
 
 **Código novo exige reload.** O worker carrega as classes uma vez e fica com elas. Mudou o código, reinicie o container. Com o código montado por volume, `SIGUSR1` (`docker kill -s USR1 tracking`) recicla só os workers, que carregam de novo as classes usadas depois do fork. O que o `bin/server.php` usa antes do fork (config e logger) só muda com restart.
 
@@ -24,12 +24,14 @@ No FPM, cada request começa do zero: nada do request anterior sobra na memória
 |---|---|---|
 | `GET /health/live` | `/api/tracking/health/live` | o processo está de pé |
 | `GET /health/ready` | `/api/tracking/health/ready` | o Redis responde, com a latência |
+| `POST /v1/positions` | `/api/tracking/v1/positions` | o aparelho do entregador informa uma posição ou o fim da visita, assinado com `Courier-Signature`: `202`, `401` sem assinatura válida, `422` fora do contrato |
+| `GET /v1/live?trackingCode=` | `/api/tracking/v1/live?trackingCode=` | o WebSocket de quem acompanha um código: a última notícia logo depois do handshake, depois cada nova; `426` sem pedido de upgrade, `422` com um código inválido |
 
 Todo erro sai como `application/problem+json` (RFC 9457), com os mesmos campos do commerce: `type`, `title`, `status`, `detail`, `instance`, `correlationId` e, em falha de validação, `errors` por campo. Erros de domínio viram status pela categoria (`NotFound` 404, `Conflict` 409, `InvalidInput` 422, `Forbidden` 403, `Unavailable` 503). Erro 5xx nunca mostra a mensagem interna: ela fica no log, junto com o correlation id. O 405 traz o header `Allow`.
 
 Toda rota GET também responde HEAD, como no commerce. O kernel tira o corpo da resposta e mantém o `Content-Length`, porque o Swoole mandaria o corpo mesmo num HEAD.
 
-O mesmo servidor fala WebSocket na porta 9501. Enquanto o protocolo da frota não existe, todo pedido de upgrade passa pelo mesmo roteador do HTTP e recebe o 404 em problem+json.
+O mesmo servidor fala WebSocket na porta 9501. O pedido de upgrade passa pelo mesmo roteador do HTTP, então uma recusa é o mesmo problem+json com o correlation id; só a rota ao vivo responde `101`. Depois do handshake, a conexão entra nos seguidores do worker (`LiveFollowers`), cada worker assina o canal `deliveries` do Redis numa corrotina própria, e cada notícia publicada lá chega aos seguidores daquele código em qualquer worker de qualquer instância. O fim da visita fecha a conexão com `1000`; no desligamento, o worker fecha as suas com `1001` e cancela a espera do canal, para sair dentro do `max_wait_time`.
 
 ## Logs e correlation id
 
@@ -56,9 +58,8 @@ Tudo vem de variáveis de ambiente. Os defaults servem para a stack do compose, 
 | `src/Platform/Health` | liveness, readiness e o check do Redis |
 | `src/Platform/Logging` | formatter JSON e o processor do correlation id |
 | `src/Platform/CompositionRoot.php` | monta o grafo de um worker, incluindo `Flagd::connect` com `InMemoryFlagCache` |
-| `tests/Feature/ServerTest.php` | sobe o `bin/server.php` de verdade e conversa com ele por TCP |
-
-O código de negócio vai entrar em pacotes por subdomínio ao lado de `Platform` (o `Tracking\Watch` do UC-TRK-03, por exemplo), cada um com o hexágono das [convenções](../../docs/engineering/conventions.md).
+| `src/Delivery` | a entrega ao vivo, no hexágono das [convenções](../../docs/engineering/conventions.md): o domínio (`CourierPosition`, `DeliveryEnded`), os casos de uso `ReportDelivery` e `FollowDelivery`, os controllers, os seguidores de cada worker e o Redis |
+| `tests/Feature/ServerTest.php` | sobe o `bin/server.php` de verdade e conversa com ele por TCP e por WebSocket |
 
 ## Rodando os checks
 

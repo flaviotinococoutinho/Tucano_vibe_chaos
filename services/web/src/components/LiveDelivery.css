@@ -1,0 +1,61 @@
+.live-delivery {
+  margin: 0 0 var(--space-6);
+}
+
+.live-delivery__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.0625rem;
+}
+
+.live-delivery__status {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+/* A small map is enough to see the courier move; at the full width of a desktop it would push
+ * the timeline off the screen. On a phone it takes the whole width. */
+.live-delivery__map {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  height: auto;
+  aspect-ratio: 300 / 200;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.live-delivery__trail {
+  fill: none;
+  stroke: var(--palette-teal);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.live-delivery__dot {
+  fill: var(--palette-beak);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+/* A soft ring that grows and fades around the dot. Neutralized under prefers-reduced-motion
+ * by the global rule in src/styles/global.css, which every animation in the app already obeys. */
+.live-delivery__dot-pulse {
+  fill: var(--palette-beak);
+  opacity: 0.35;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: live-delivery-pulse 2s ease-out infinite;
+}
+
+@keyframes live-delivery-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}

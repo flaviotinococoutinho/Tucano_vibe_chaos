@@ -44,4 +44,18 @@ final class CompositionRootTest extends TestCase
         self::assertSame(200, $response->status);
         self::assertSame('{"status":"up"}', $response->body);
     }
+
+    #[Test]
+    public function the_live_delivery_routes_are_wired(): void
+    {
+        $kernel = CompositionRoot::boot(Config::fromEnvironment(['FLAGS_DRIVER' => 'memory']), new NullLogger())->kernel;
+
+        [$report, $follow] = InCoroutine::run(static fn(): array => [
+            $kernel->handle(new Request('POST', '/v1/positions', body: '{}')),
+            $kernel->handle(new Request('GET', '/v1/live', 'trackingCode=TX02Q6AGJQ45G00')),
+        ]);
+
+        self::assertSame(401, $report->status, 'an unsigned report never reaches Redis');
+        self::assertSame(426, $follow->status, 'the live route speaks WebSocket only');
+    }
 }

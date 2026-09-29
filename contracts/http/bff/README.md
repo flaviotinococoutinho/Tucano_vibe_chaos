@@ -33,6 +33,7 @@ Registered relation types ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288)) m
 |---|---|
 | <a id="rel-catalog"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog` | the catalog of products |
 | <a id="rel-track"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-track` | the tracking page of the shipment of an order |
+| <a id="rel-live"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-live` | the live position of the courier carrying the parcel: a WebSocket on the same origin, to open with `ws:` or `wss:` as the page is served, speaking the [live delivery](../../tracking/README.md) protocol. Offered only while a parcel of the own fleet is out for delivery |
 
 ## Screens
 
@@ -43,7 +44,7 @@ Registered relation types ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288)) m
 | `product` | `GET /bff/v1/products/{sku}` | `sku`, `name`, `category`, `categoryLabel`, `price`, `weightGrams`, `dimensions` | action `buy`; links `collection`, `up` |
 | `checkout` | `GET /bff/v1/checkout?sku=&quantity=` | `sku`, `name`, `quantity`, `unitPrice`, `subtotal` | action `place-order`; link `up` (the product) |
 | `order` | `GET /bff/v1/orders/{id}` | `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `placedAt`, `reservationExpiresAt` (null once the order no longer waits for payment), `total`, `trackingCode`, and `notice` and `refreshAfterSeconds` when they apply | `order-line` entities (`item`); action `pay` only while the order waits for payment; link track once it ships; link catalog |
-| `tracking` | `GET /bff/v1/tracking/{code}` | `trackingCode`, `status`, `statusLabel`, `tone`, `carrier` (the code), `carrierLabel` (the name people read), `destination`, `updatedAt`, and `refreshAfterSeconds` while the parcel moves | `timeline-step` entities (`item`), oldest first; link `up` |
+| `tracking` | `GET /bff/v1/tracking/{code}` | `trackingCode`, `status`, `statusLabel`, `tone`, `carrier` (the code), `carrierLabel` (the name people read), `destination`, `updatedAt`, and `refreshAfterSeconds` while the parcel moves | `timeline-step` entities (`item`), oldest first; link `up`; link live while a parcel of the own fleet is out for delivery |
 
 The product screen of a product out of line comes without `buy` and with a `notice`. `orderNumber` is the decimal text of a Snowflake, as Commerce publishes it (`97856663872212992`): the web shows it as it comes and never parses it.
 

@@ -61,6 +61,24 @@ export const deliveredParcel: Tracking = {
   ],
 };
 
+/**
+ * The own fleet (tucano-express) skips the hubs a partner goes through (partners-sim
+ * README): straight from picked_up to out_for_delivery, and its courier reports live.
+ */
+export const outForDeliveryOwnFleet: Tracking = {
+  trackingCode: 'TX02Q6AGJQ45G00',
+  status: 'out_for_delivery',
+  carrier: 'tucano-express',
+  destination: { municipality: 'Contagem', state: 'MG' },
+  updatedAt: '2026-09-28T21:55:40.000Z',
+  steps: [
+    step('created', '2026-09-28T21:40:12.000Z'),
+    step('ready_for_pickup', '2026-09-28T21:41:03.000Z'),
+    step('picked_up', '2026-09-28T21:42:51.000Z'),
+    { ...step('out_for_delivery', '2026-09-28T21:55:40.000Z'), attempt: 1 },
+  ],
+};
+
 function step(status: Tracking['status'], at: string): Tracking['steps'][number] {
   return { status, at, hub: null, attempt: null, reason: null };
 }

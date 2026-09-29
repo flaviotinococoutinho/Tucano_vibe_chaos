@@ -93,7 +93,7 @@ As aplicações não falam direto com as dependências: toda conexão passa por 
 | `flagd` | `toxiproxy:18013` | `flagd:8013` | avaliação de flags |
 | `payfake` | `toxiproxy:14001` | `partners-sim:4000` | commerce |
 | `carriers` | `toxiproxy:14002` | `partners-sim:4000` | logistics |
-| `tracking` | `toxiproxy:19501` | `tracking:9501` | logistics (despacho) |
+| `tracking` | `toxiproxy:19501` | `tracking:9501` | reservado para o despacho da logistics (UC-TRK-02), que ainda não existe; hoje o tracking só é chamado pelo Kong |
 | `mailpit` | `toxiproxy:11025` | `mailpit:1025` | logistics (alertas por e-mail) |
 
 `payfake` e `carriers` apontam para o mesmo container de propósito: são proxies separados para eu poder degradar o PSP sem mexer nas transportadoras.

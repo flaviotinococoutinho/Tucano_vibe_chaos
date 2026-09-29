@@ -28,6 +28,12 @@ describe('config', () => {
         stepDelayMs: { min: 1000, max: 4000 },
         retention: { ttlMs: 86_400_000, maxEntries: 20_000 },
       },
+      couriers: {
+        url: 'http://kong:8000/api/tracking',
+        secret: 'whsec_local_couriers',
+        positionIntervalMs: 1000,
+        rideMs: 20000,
+      },
     });
   });
 
@@ -46,6 +52,10 @@ describe('config', () => {
       CARRIERS_WEBHOOK_SECRET: 'whsec_carriers_rotated',
       CARRIERS_STEP_MIN_MS: '10',
       CARRIERS_STEP_MAX_MS: '60',
+      TRACKING_URL: 'https://tracking.example/positions',
+      COURIERS_SECRET: 'whsec_couriers_rotated',
+      COURIER_POSITION_INTERVAL_MS: '500',
+      COURIER_RIDE_MS: '15000',
       WEBHOOKS_RETRY_DELAYS_MS: '100, 200',
       WEBHOOKS_ATTEMPT_TIMEOUT_MS: '1500',
       PAYFAKE_RETENTION_HOURS: '1',
@@ -73,6 +83,12 @@ describe('config', () => {
         stepDelayMs: { min: 10, max: 60 },
         retention: { ttlMs: 7_200_000, maxEntries: 800 },
       },
+      couriers: {
+        url: 'https://tracking.example/positions',
+        secret: 'whsec_couriers_rotated',
+        positionIntervalMs: 500,
+        rideMs: 15000,
+      },
     });
   });
 
@@ -84,6 +100,8 @@ describe('config', () => {
       PAYFAKE_WEBHOOK_URL: '',
       CARRIERS_WEBHOOK_SECRET: '',
       CARRIERS_WEBHOOK_URL: '',
+      COURIERS_SECRET: '',
+      TRACKING_URL: '',
     };
 
     assert.deepEqual(loadConfig(empty), loadConfig({}));
@@ -171,6 +189,33 @@ describe('config', () => {
       message:
         'Invalid configuration: CARRIERS_STEP_MAX_MS must be at least ' +
         'CARRIERS_STEP_MIN_MS (5000), got "1000".',
+    });
+  });
+
+  it('refuses courier device settings it cannot run with', () => {
+    const invalid = {
+      TRACKING_URL: 'kong:8000/api/tracking',
+      COURIER_POSITION_INTERVAL_MS: 'soon',
+      COURIER_RIDE_MS: '900000',
+    };
+
+    assert.throws(() => loadConfig(invalid), {
+      name: 'InvalidConfig',
+      message:
+        'Invalid configuration: ' +
+        'COURIER_POSITION_INTERVAL_MS must be an integer from 0 to 600000, got "soon"; ' +
+        'COURIER_RIDE_MS must be an integer from 0 to 600000, got "900000"; ' +
+        'TRACKING_URL must be an http or https URL, got "kong:8000/api/tracking".',
+    });
+  });
+
+  it('refuses a ride shorter than its own position interval', () => {
+    const inverted = { COURIER_POSITION_INTERVAL_MS: '5000', COURIER_RIDE_MS: '1000' };
+
+    assert.throws(() => loadConfig(inverted), {
+      message:
+        'Invalid configuration: COURIER_RIDE_MS must be at least ' +
+        'COURIER_POSITION_INTERVAL_MS (5000), got "1000".',
     });
   });
 });

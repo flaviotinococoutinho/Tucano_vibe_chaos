@@ -41,4 +41,6 @@
 
 ## No código
 
-- Pacote `Tracking\Watch` (servidor WebSocket do Swoole), com Redis GEO e pub/sub.
+- Pacote `Tracking\Delivery`: caso de uso `FollowDelivery`, port `ForFollowingDeliveries`, e o handshake no `FollowLiveController` (`GET /v1/live?trackingCode=`). Os seguidores de cada worker ficam no `LiveFollowers`, e o `DeliveriesSubscription` escuta o canal `deliveries` do Redis para empurrar cada notícia aos seguidores daquele worker. O protocolo está em [`contracts/tracking`](../../contracts/tracking/README.md), e a posição vem do [UC-TRK-01](UC-TRK-01-report-position.md).
+- A remessa não tem um entregador designado no sistema (o UC-TRK-02 ainda não existe): o aparelho informa a posição pelo código de rastreio da encomenda que leva, e é por esse código que o cliente acompanha.
+- O passo 2a não acontece na prática: o BFF só oferece o link ao vivo depois que a encomenda saiu para entrega, e a desatualização do passo 4a é decidida pela web, que compara o `at` da posição com o relógio.
