@@ -21,11 +21,24 @@ export type Config = {
   /** The whole exchange with a service, body included, before the BFF answers 503. */
   readonly upstreamTimeoutMs: number;
   /**
+   * The exchange with a service that only adds to a screen, like the delivery news on the
+   * order: past it, the screen goes out without them instead of waiting the whole upstream timeout.
+   */
+  readonly enrichmentTimeoutMs: number;
+  /**
    * Where the web opens the live tracking WebSocket, on the public origin Kong serves
    * (never the BFF's own address): a path the tracking screen links to, not a route it answers.
    */
   readonly trackingLivePath: string;
+  /** The key of the HMAC-SHA256 that signs the session cookie. */
+  readonly sessionSecret: string;
 };
+
+/** Only a local stack signs sessions with a key everybody can read in the repository. */
+const LOCAL_SESSION_SECRET = 'tucano-local-session-secret-never-for-production';
+
+/** 32 characters at least: the key of an HMAC-SHA256 should not be shorter than its output. */
+const MIN_SESSION_SECRET_LENGTH = 32;
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -98,11 +111,29 @@ export function loadConfig(env: Env): Config {
     return fallback;
   };
 
+  // A secret never goes into a message: the problems end up in a log line.
+  const secret = (name: string, environment: Environment, localFallback: string): string => {
+    const value = env[name]?.trim() ?? '';
+    if (value === '') {
+      if (environment === 'local') {
+        return localFallback;
+      }
+      problems.push(`${name} is required when APP_ENV is ${environment}`);
+      return '';
+    }
+    if (value.length < MIN_SESSION_SECRET_LENGTH) {
+      problems.push(`${name} must have at least ${MIN_SESSION_SECRET_LENGTH} characters`);
+    }
+    return value;
+  };
+
+  const environment = environmentOf(text('APP_ENV', 'production'));
+
   // The defaults go through Toxiproxy, like every connection of the stack, so the chaos
   // reaches the door of the web too.
   const config: Config = {
     serviceName: text('APP_NAME', 'bff'),
-    environment: environmentOf(text('APP_ENV', 'production')),
+    environment,
     host: text('HOST', '0.0.0.0'),
     port: port('PORT', 3000),
     logLevel: choice('LOG_LEVEL', logLevels, 'info'),
@@ -112,7 +143,9 @@ export function loadConfig(env: Env): Config {
       logistics: url('LOGISTICS_URL', 'http://toxiproxy:18083'),
     },
     upstreamTimeoutMs: integer('UPSTREAM_TIMEOUT_MS', 5000, 1, 60_000),
+    enrichmentTimeoutMs: integer('ENRICHMENT_TIMEOUT_MS', 1500, 1, 60_000),
     trackingLivePath: originPath('TRACKING_LIVE_PATH', '/api/tracking/v1/live'),
+    sessionSecret: secret('SESSION_SECRET', environment, LOCAL_SESSION_SECRET),
   };
   if (problems.length > 0) {
     throw new InvalidConfig(config.serviceName, problems);

@@ -13,11 +13,14 @@ describe('server', () => {
       timeout: 10_000,
     });
 
+    // Production is the default, and it never runs without a key of its own for the sessions.
     assert.equal(result.status, 1);
     assert.partialDeepStrictEqual(JSON.parse(result.stderr), {
       level: 'fatal',
       service: 'bff',
-      message: 'Invalid configuration: PORT must be an integer from 1 to 65535, got "http".',
+      message:
+        'Invalid configuration: PORT must be an integer from 1 to 65535, got "http"; ' +
+        'SESSION_SECRET is required when APP_ENV is production.',
     });
   });
 });

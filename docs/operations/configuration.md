@@ -198,9 +198,11 @@ Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos 
 |---|---|---|
 | `CATALOG_URL`, `COMMERCE_URL` e `LOGISTICS_URL` | `http://toxiproxy:18081`, `http://toxiproxy:18082` e `http://toxiproxy:18083` | onde o BFF encontra cada serviço, cada um pelo seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`), para um laboratório cortar uma tela de cada vez |
 | `UPSTREAM_TIMEOUT_MS` | `5000` | a troca inteira com um serviço, corpo incluído; passou disso, a tela responde 503 com `Retry-After`. Fica acima dos 2 s que o commerce dá ao PSP, para o BFF não desistir de um pagamento que o commerce ainda espera |
-| `TRACKING_LIVE_PATH` | `/api/tracking/v1/live` | o caminho, na origem pública servida pelo Kong, do WebSocket que a tela de rastreio oferece enquanto a frota própria está a caminho da porta; não é uma rota do BFF |
+| `ENRICHMENT_TIMEOUT_MS` | `1500` | a troca com um serviço que só acrescenta a uma tela, como as notícias da entrega no pedido; passou disso (ou do `UPSTREAM_TIMEOUT_MS`, o que vier antes), o pedido sai com o que o commerce sabe e um aviso, em vez de esperar o prazo inteiro |
+| `TRACKING_LIVE_PATH` | `/api/tracking/v1/live` | o caminho, na origem pública servida pelo Kong, do WebSocket que a tela de rastreio e a do pedido oferecem enquanto a frota própria está a caminho da porta; não é uma rota do BFF |
+| `SESSION_SECRET` | um fixo só com `APP_ENV=local`; fora dele, obrigatório | a chave do HMAC-SHA256 que assina o cookie `tucano_session`, com os perfis do navegador ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)); pelo menos 32 caracteres. Trocar a chave desfaz todas as sessões. O compose passa um segredo de laboratório, para a stack subir também em `staging` e `production`; um de verdade vem de um cofre de segredos |
 
-Um endereço que não é URL http ou https, ou um timeout fora de 1 a 60000, impede a subida, com a lista do que está errado.
+Um endereço que não é URL http ou https, um timeout fora de 1 a 60000, ou um `SESSION_SECRET` curto ou ausente fora do ambiente local, impede a subida, com a lista do que está errado. A mensagem nunca repete o segredo.
 
 ## Só nos testes
 

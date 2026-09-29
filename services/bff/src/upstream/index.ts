@@ -8,6 +8,8 @@ export {
 export {
   type CancellationReason,
   type Commerce,
+  type CustomerOrder,
+  type CustomerOrderPage,
   commerceAt,
   type Division,
   MAX_UNITS_PER_ITEM,
@@ -15,6 +17,8 @@ export {
   type Order,
   type OrderLine,
   type OrderStatus,
+  type OrderSummary,
+  type OrderTransition,
   type PaymentRequest,
   type Placement,
   type Refusal,

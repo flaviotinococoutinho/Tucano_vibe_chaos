@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildApp } from '../src/app.ts';
-import { loadConfig } from '../src/config.ts';
 import { DomainError } from '../src/platform/domain-error.ts';
+import { testConfig } from './support/config.ts';
 
-const config = loadConfig({ LOG_LEVEL: 'silent' });
+const config = testConfig();
 
 class InsufficientStock extends DomainError {
   readonly category = 'conflict';

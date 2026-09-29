@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { sendScreen } from '../hypermedia/index.ts';
+import { PAGE_QUERY, sendScreen } from '../hypermedia/index.ts';
 import { DomainError } from '../platform/domain-error.ts';
 import { type Catalog, traceOf } from '../upstream/index.ts';
 import { catalogScreen, homeScreen, productScreen } from './screens.ts';
@@ -16,11 +16,6 @@ export class ProductNotFound extends DomainError {
     super(`Não encontrei o produto ${sku}.`);
   }
 }
-
-const PAGE_QUERY = {
-  type: 'object',
-  properties: { page: { type: 'integer', minimum: 1, maximum: 10_000 } },
-} as const;
 
 export const storefrontRoutes: FastifyPluginAsync<StorefrontOptions> = async (app, { catalog }) => {
   // The entry point: the one address the web knows by heart.

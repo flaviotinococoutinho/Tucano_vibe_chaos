@@ -16,6 +16,10 @@ export const rel = {
   catalog: `${RELATIONS}#rel-catalog`,
   track: `${RELATIONS}#rel-track`,
   live: `${RELATIONS}#rel-live`,
+  navigation: `${RELATIONS}#rel-navigation`,
+  orders: `${RELATIONS}#rel-orders`,
+  profiles: `${RELATIONS}#rel-profiles`,
+  history: `${RELATIONS}#rel-history`,
 } as const;
 
 /** Where the web finds the BFF: Kong routes `/bff` here and strips it, so the BFF itself serves `/v1`. */

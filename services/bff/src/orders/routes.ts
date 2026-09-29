@@ -1,28 +1,40 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import {
   FormReader,
   href,
   InvalidForm,
   type KeyMaker,
+  PAGE_QUERY,
   path,
   sendScreen,
 } from '../hypermedia/index.ts';
 import { DomainError } from '../platform/domain-error.ts';
+import { activeProfile, type Sessions } from '../session/index.ts';
 import {
   type Commerce,
+  type CustomerOrderPage,
   inSeconds,
+  type Logistics,
   type Order,
   type PaymentRequest,
   type Refusal,
   ServiceUnavailable,
   type Trace,
   traceOf,
+  UpstreamContractBroken,
 } from '../upstream/index.ts';
-import { orderScreen, TEST_CARDS } from './order-screen.ts';
+import { type OrderStory, orderScreen, TEST_CARDS } from './order-screen.ts';
+import { noOrders, ORDERS_PER_PAGE, ordersScreen } from './orders-screen.ts';
+import type { Delivery } from './story.ts';
 
 export type OrdersOptions = {
   readonly commerce: Commerce;
+  /** Logistics with the short deadline of an enrichment: its news adds to the order, never holds it. */
+  readonly deliveryNews: Logistics;
+  readonly sessions: Sessions;
   readonly newId: KeyMaker;
+  /** Where the live link of the order points to: a path on the public origin, not a BFF route. */
+  readonly livePath: string;
 };
 
 /** Order ids and idempotency keys are UUIDs; anything else is an order that does not exist. */
@@ -30,11 +42,17 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CARD_MESSAGE = 'Escolha um dos cartões de teste.';
 
+/**
+ * The same answer for an order that does not exist and for an order of another profile, so
+ * the answer never tells one from the other; the second sentence helps whoever switched.
+ */
 export class OrderNotFound extends DomainError {
   readonly category = 'not_found';
 
   constructor() {
-    super('Não encontrei esse pedido.');
+    super(
+      'Não encontrei esse pedido. Se ele foi feito com outro perfil, troque de perfil e abra de novo.',
+    );
   }
 }
 
@@ -57,14 +75,41 @@ export class PaymentAlreadySent extends DomainError {
   }
 }
 
-export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, { commerce, newId }) => {
+export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, options) => {
+  const { commerce, sessions, newId } = options;
+
+  /** The id of the profile shopping now, or a not found: without a session, no order is anybody's. */
+  const shopperOf = (request: FastifyRequest): string => {
+    const session = sessions.of(request);
+    if (session === null) {
+      throw new OrderNotFound();
+    }
+    return activeProfile(session).id;
+  };
+
+  // Only a session that exists is asked about: a plain read never starts one.
+  app.get<{ Querystring: { page?: number } }>(
+    '/v1/orders',
+    { schema: { querystring: PAGE_QUERY } },
+    async (request, reply) => {
+      const page = request.query.page ?? 1;
+      const session = sessions.of(request);
+      const orders =
+        session === null
+          ? noOrders(page)
+          : await listOf(commerce, activeProfile(session).id, page, traceOf(request));
+
+      return sendScreen(reply, ordersScreen(orders));
+    },
+  );
+
   app.get<{ Params: { orderId: string }; Querystring: { awaiting?: string } }>(
     '/v1/orders/:orderId',
     async (request, reply) => {
-      const order = await orderOf(commerce, request.params.orderId, traceOf(request));
+      const story = await storyOf(options, shopperOf(request), request.params.orderId, request);
       const awaitingPayment = request.query.awaiting === 'payment';
 
-      return sendScreen(reply, orderScreen(order, { awaitingPayment, key: newId() }));
+      return sendScreen(reply, orderScreen(story, { awaitingPayment, key: newId() }));
     },
   );
 
@@ -90,7 +135,12 @@ export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, { com
       );
       form.done();
 
+      // Commerce takes a payment for any order id, so the BFF asks first whose order it is.
       const trace = traceOf(request);
+      const shopper = shopperOf(request);
+      if ((await commerce.customerOrder(shopper, orderId, trace)) === null) {
+        throw new OrderNotFound();
+      }
       const payment = await asPayment(commerce.pay(orderId, key, cardToken, trace));
       if (payment.outcome === 'unknown_order') {
         throw new OrderNotFound();
@@ -99,10 +149,10 @@ export const ordersRoutes: FastifyPluginAsync<OrdersOptions> = async (app, { com
         throw refusalOf(payment);
       }
 
-      const order = await orderOf(commerce, orderId, trace);
+      const story = await storyOf(options, shopper, orderId, request);
       reply.header('location', href(path`/orders/${orderId}`, { awaiting: 'payment' }));
 
-      return sendScreen(reply, orderScreen(order, { awaitingPayment: true, key: newId() }), 202);
+      return sendScreen(reply, orderScreen(story, { awaitingPayment: true, key: newId() }), 202);
     },
   );
 };
@@ -117,12 +167,76 @@ function refusalOf(refusal: Refusal): DomainError {
     : new InvalidForm({ cardToken: [CARD_MESSAGE] });
 }
 
-async function orderOf(commerce: Commerce, orderId: string, trace: Trace): Promise<Order> {
-  const order = UUID.test(orderId) ? await commerce.order(orderId, trace) : null;
-  if (order === null) {
+/** The order of the shopper, with its history and the news of its parcel. */
+async function storyOf(
+  { commerce, deliveryNews, livePath }: OrdersOptions,
+  shopper: string,
+  orderId: string,
+  request: FastifyRequest,
+): Promise<OrderStory> {
+  const trace = traceOf(request);
+  const found = UUID.test(orderId) ? await commerce.customerOrder(shopper, orderId, trace) : null;
+  if (found === null) {
     throw new OrderNotFound();
   }
-  return order;
+
+  return {
+    order: found.order,
+    history: found.history,
+    delivery: await deliveryOf(found.order, deliveryNews, livePath, trace),
+  };
+}
+
+/**
+ * The news of the parcel is an enrichment: logistics gets a deadline of its own, and without
+ * an answer the order still opens, with what Commerce knows and a notice. A broken contract
+ * leaves the news out too, with an error line for a person to read: an order must not become
+ * unreachable because what only decorates it broke.
+ */
+async function deliveryOf(
+  order: Order,
+  logistics: Logistics,
+  livePath: string,
+  trace: Trace,
+): Promise<Delivery> {
+  if (order.trackingCode === null) {
+    return { news: 'none' };
+  }
+  try {
+    const tracking = await logistics.tracking(order.trackingCode, trace);
+    return tracking === null ? { news: 'none' } : { news: 'known', tracking, livePath };
+  } catch (error) {
+    // A timeout or an outage already left its warn line, with the call and the time it took.
+    if (error instanceof ServiceUnavailable) {
+      return { news: 'unavailable' };
+    }
+    if (error instanceof UpstreamContractBroken) {
+      trace.log.error({ err: error }, 'left the delivery news out of the order');
+      return { news: 'unavailable' };
+    }
+    throw error;
+  }
+}
+
+/** Only the list reads the read model; with it out, the list answers 503 and the orders still open. */
+async function listOf(
+  commerce: Commerce,
+  customerId: string,
+  page: number,
+  trace: Trace,
+): Promise<CustomerOrderPage> {
+  try {
+    return await commerce.customerOrders(customerId, page, ORDERS_PER_PAGE, trace);
+  } catch (error) {
+    if (!(error instanceof ServiceUnavailable)) {
+      throw error;
+    }
+    const seconds = error.retryAfterSeconds ?? 5;
+    throw new ServiceUnavailable(
+      `A lista de pedidos está fora do ar agora. Tente de novo ${inSeconds(seconds)}.`,
+      seconds,
+    );
+  }
 }
 
 /**

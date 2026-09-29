@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { buildApp } from '../src/app.ts';
-import { loadConfig } from '../src/config.ts';
 import type { HealthCheck } from '../src/platform/readiness.ts';
+import { testConfig } from './support/config.ts';
 
-const config = loadConfig({ LOG_LEVEL: 'silent' });
+const config = testConfig();
 
 const up = (name: string): HealthCheck => ({ name, check: async () => {} });
 

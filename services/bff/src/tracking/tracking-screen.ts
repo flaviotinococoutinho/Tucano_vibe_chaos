@@ -33,21 +33,29 @@ const JOURNEY: Readonly<Record<ShipmentStatus, Look>> = {
   cancelled: { label: 'Envio cancelado', tone: 'neutral', moving: false },
 };
 
+/** Why a visit did not deliver, as the detail of its step. */
 const WHY_NOT_DELIVERED: Readonly<Record<DeliveryFailure, string>> = {
-  recipient_absent: 'ninguém em casa',
-  address_not_found: 'endereço não encontrado',
-  recipient_refused: 'o destinatário recusou',
+  recipient_absent: 'Ninguém estava em casa.',
+  address_not_found: 'O endereço não foi encontrado.',
+  recipient_refused: 'O destinatário recusou a entrega.',
+};
+
+type Carrier = {
+  /** The name people read. */
+  readonly name: string;
+  /** How a sentence says the parcel travels with it, article included. */
+  readonly withIt: string;
 };
 
 /**
  * The names people read for the carriers. Logistics keeps them too (CarrierSeeder);
  * a carrier the BFF does not know yet shows its code until it gets a name here.
  */
-const CARRIERS: Readonly<Record<string, string>> = {
-  'tucano-express': 'Tucano Express',
-  ligeirinho: 'Ligeirinho Transportes',
-  'correio-nacional': 'Correio Nacional',
-  'carga-pesada': 'Carga Pesada Fretes',
+const CARRIERS: Readonly<Record<string, Carrier>> = {
+  'tucano-express': { name: 'Tucano Express', withIt: 'com a Tucano Express' },
+  ligeirinho: { name: 'Ligeirinho Transportes', withIt: 'com a Ligeirinho Transportes' },
+  'correio-nacional': { name: 'Correio Nacional', withIt: 'com o Correio Nacional' },
+  'carga-pesada': { name: 'Carga Pesada Fretes', withIt: 'com a Carga Pesada Fretes' },
 };
 
 /** The parcel on the move asks for news this often; Logistics answers from DynamoDB, by key. */
@@ -67,15 +75,15 @@ export function trackingScreen(tracking: Tracking, livePath: string): Entity {
       statusLabel: look.label,
       tone: look.tone,
       carrier: tracking.carrier,
-      carrierLabel: CARRIERS[tracking.carrier] ?? tracking.carrier,
+      carrierLabel: carrierOf(tracking.carrier).name,
       destination: tracking.destination,
       updatedAt: tracking.updatedAt,
     },
-    entities: tracking.steps.map(timelineStep),
+    entities: tracking.steps.map((step) => shipmentStep(step, rel.item)),
     links: [
       { rel: [rel.self], href: href(path`/tracking/${tracking.trackingCode}`) },
       { rel: [rel.up], href: href(''), title: 'Início' },
-      ...liveLink(tracking, livePath),
+      ...liveLinks(tracking, livePath),
     ],
     ...(look.moving ? { refreshAfterSeconds: REFRESH_WHILE_MOVING_SECONDS } : {}),
   });
@@ -83,9 +91,10 @@ export function trackingScreen(tracking: Tracking, livePath: string): Entity {
 
 /**
  * The courier moves live only for the own fleet, and only while it is out for delivery: a
- * partner never reports a position, and the journey before or after that step has none to show.
+ * partner never reports a position, and the journey before or after that step has none to
+ * show. The tracking page and the order both offer it under this same rule.
  */
-function liveLink(tracking: Tracking, livePath: string): Link[] {
+export function liveLinks(tracking: Tracking, livePath: string): Link[] {
   if (tracking.status !== 'out_for_delivery' || tracking.carrier !== OWN_FLEET) {
     return [];
   }
@@ -100,19 +109,29 @@ function liveLink(tracking: Tracking, livePath: string): Link[] {
   ];
 }
 
-function timelineStep(step: TrackingStep): Entity {
-  const label = JOURNEY[step.status].label;
-
+/** One step of the journey as a `timeline-step`, under the relation the screen gives it. */
+export function shipmentStep(step: TrackingStep, relation: string): Entity {
   return component('timeline-step', {
-    rel: [rel.item],
+    rel: [relation],
     properties: {
       status: step.status,
-      label: step.reason === null ? label : `${label}: ${WHY_NOT_DELIVERED[step.reason]}`,
+      label: JOURNEY[step.status].label,
       at: step.at,
       ...(step.hub === null ? {} : { hub: step.hub }),
       ...(step.attempt === null ? {} : { attempt: step.attempt }),
+      ...(step.reason === null ? {} : { detail: WHY_NOT_DELIVERED[step.reason] }),
     },
   });
+}
+
+/** How a sentence says the parcel travels with a carrier: "com o Correio Nacional". */
+export function travelsWith(carrier: string): string {
+  return carrierOf(carrier).withIt;
+}
+
+function carrierOf(code: string): Carrier {
+  const known = Object.hasOwn(CARRIERS, code) ? CARRIERS[code] : undefined;
+  return known ?? { name: code, withIt: `com a transportadora ${code}` };
 }
 
 /** The form that takes a typed code to its tracking page, on any screen that offers it. */

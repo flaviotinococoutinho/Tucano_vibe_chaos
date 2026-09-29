@@ -779,6 +779,9 @@ services:
       LOGISTICS_URL: http://toxiproxy:18083
       # Above the 2 s Commerce gives the PSP, so the BFF never gives up on a payment Commerce still waits for.
       UPSTREAM_TIMEOUT_MS: "5000"
+      # A lab secret, so the stack also boots with APP_ENV=staging or production. A real one comes
+      # from a secret store, never from this file (ADR 0030).
+      SESSION_SECRET: local_session_secret_for_the_tucano_bff
     depends_on:
       toxiproxy:
         condition: service_started

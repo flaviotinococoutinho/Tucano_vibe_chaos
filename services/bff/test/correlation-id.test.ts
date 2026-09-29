@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildApp } from '../src/app.ts';
-import { loadConfig } from '../src/config.ts';
+import { testConfig } from './support/config.ts';
 
-const config = loadConfig({ LOG_LEVEL: 'silent' });
+const config = testConfig();
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 

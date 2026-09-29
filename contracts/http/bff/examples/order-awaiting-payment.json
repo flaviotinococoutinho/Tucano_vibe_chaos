@@ -11,6 +11,7 @@
     "status": "pending_payment",
     "statusLabel": "Confirmando o pagamento",
     "tone": "waiting",
+    "headline": "Estamos confirmando o pagamento.",
     "placedAt": "2026-09-28T05:10:11.000Z",
     "reservationExpiresAt": "2026-09-28T05:25:11.000Z",
     "total": {
@@ -19,11 +20,34 @@
       "formatted": "R$ 159,90"
     },
     "trackingCode": null,
-    "refreshAfterSeconds": 2,
+    "progress": [
+      {
+        "label": "Pedido feito",
+        "state": "done",
+        "at": "2026-09-28T05:10:11.000Z"
+      },
+      {
+        "label": "Confirmando o pagamento",
+        "state": "current"
+      },
+      {
+        "label": "Preparando o envio",
+        "state": "upcoming"
+      },
+      {
+        "label": "A caminho",
+        "state": "upcoming"
+      },
+      {
+        "label": "Entregue",
+        "state": "upcoming"
+      }
+    ],
     "notice": {
       "tone": "info",
       "text": "O pagamento foi enviado. A confirmação chega em alguns segundos."
-    }
+    },
+    "refreshAfterSeconds": 2
   },
   "entities": [
     {
@@ -48,6 +72,57 @@
           "formatted": "R$ 159,90"
         }
       }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "pending_payment",
+        "label": "Pedido feito",
+        "at": "2026-09-28T05:10:11.000Z"
+      }
+    },
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": {
+          "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
+          "label": "Ana",
+          "initial": "A"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Ana"
+        }
+      ]
     }
   ],
   "links": [
@@ -56,6 +131,13 @@
         "self"
       ],
       "href": "/bff/v1/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20?awaiting=payment"
+    },
+    {
+      "rel": [
+        "collection"
+      ],
+      "href": "/bff/v1/orders",
+      "title": "Meus pedidos"
     },
     {
       "rel": [

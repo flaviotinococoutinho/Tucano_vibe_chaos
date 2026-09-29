@@ -190,13 +190,14 @@ export function readOrderForm(body: unknown): OrderForm {
 }
 
 /**
- * The order in the words of Commerce. The address goes as pieces (ADR 0020): the
- * thoroughfare as a type and a name, and the territory from the state down. The IBGE
- * code of the city stays null: the form asks for the name, and Commerce accepts that.
+ * The order in the words of Commerce, for the profile shopping now. The address goes as
+ * pieces (ADR 0020): the thoroughfare as a type and a name, and the territory from the
+ * state down. The IBGE code of the city stays null: the form asks for the name, and
+ * Commerce accepts that.
  */
-export function newOrderOf(form: OrderForm, guestId: string): NewOrder {
+export function newOrderOf(form: OrderForm, customerId: string): NewOrder {
   return {
-    customer: { id: guestId, name: form.name, email: form.email },
+    customer: { id: customerId, name: form.name, email: form.email },
     shippingAddress: {
       thoroughfare: { type: form.thoroughfareType, name: form.thoroughfareName },
       number: form.number,
