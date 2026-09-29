@@ -46,8 +46,9 @@ def rush_a_store(store: str = "arara", neighbor: str = "sabia", seconds: float =
     """A store on sale: many shoppers open its catalog at once, for a while, without a pause.
 
     Meanwhile one shopper of a neighbor store keeps opening that store's catalog, four times a
-    second, and the probe after the method reads how fast it answered. Returns how the crowded
-    store answered, by status, for the journal: a 429 there is the store's own limit at work.
+    second, and the probe after the method reads how fast it answered. The crowd behaves like
+    browsers: told 429, a shopper waits what Retry-After says. Returns how the crowded store
+    answered, by status, for the journal: a 429 there is the store's own limit at work.
     """
     crowded = f"/bff/v1/stores/{store}/products"
     calm = f"/bff/v1/stores/{neighbor}/products"
@@ -58,12 +59,19 @@ def rush_a_store(store: str = "arara", neighbor: str = "sabia", seconds: float =
     def shop() -> None:
         shopper = Shopper(timeout_seconds=10)
         while time.monotonic() < deadline:
+            wait = 0.0
             try:
-                status = shopper.open(crowded).status
+                answer = shopper.open(crowded)
+                status = answer.status
+                # A browser told 429 waits before asking again, as Retry-After says.
+                if status == 429:
+                    wait = float(answer.retry_after or 1)
             except requests.RequestException:
                 status = 0
             with lock:
                 answered[status] += 1
+            if wait > 0:
+                time.sleep(min(wait, max(0.0, deadline - time.monotonic())))
 
     def watch() -> None:
         shopper = Shopper(timeout_seconds=10)
