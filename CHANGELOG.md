@@ -4,6 +4,10 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+
+- Um experimento cuja hipótese não valia nem antes da falha passava verde: com `--rollback-strategy always`, o `chaos run` da versão 1.21.1 sai com 0 e escreve `completed` nesse caso, e o `make experiment`, e com ele o portão de estabilidade (ADR 0029), confiavam no código de saída. Agora o veredito vem do diário: a execução tem que chegar ao fim, sem desvio, com a hipótese valendo antes e depois da falha.
+
 ### Added
 
 - Perfis de cliente e "Meus pedidos" (ADR 0030). O navegador guarda até 8 perfis numa sessão que o BFF assina com HMAC (`tucano_session`), e trocar de perfil faz o papel de entrar com outra conta, sem senha. Cada perfil só vê os próprios pedidos: o BFF lê pelas rotas por cliente do commerce (`/v1/customers/{id}/orders` e `/v1/customers/{id}/orders/{orderId}`), um pedido de outro cliente responde o mesmo 404 de um que não existe, e a borda nem chega a essas rotas: o Kong alcança o commerce por uma porta do nginx que só serve as rotas públicas. Telas novas: "Quem está comprando?" (`profiles`) e "Meus pedidos" (`orders`), e toda tela passa a trazer a navegação (`rel-navigation`), com o catálogo, os pedidos e o perfil de quem está comprando.
