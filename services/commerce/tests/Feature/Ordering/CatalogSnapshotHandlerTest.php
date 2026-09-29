@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Ordering;
 
 use Commerce\Ordering\Adapter\Driving\Kafka\CatalogSnapshotHandler;
+use Commerce\Ordering\Application\CatalogSnapshot;
 use Commerce\Ordering\Domain\Product\ProductStatus;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\NullLogger;
+use stdClass;
+use Tests\AssertsContracts;
 use Tests\Doubles\Ordering\RecordedCatalogSync;
 use Tests\TestCase;
 use Tucano\Messaging\Kafka\PermanentFailure;
@@ -16,6 +20,8 @@ use Tucano\Messaging\Kafka\ReceivedMessage;
 
 final class CatalogSnapshotHandlerTest extends TestCase
 {
+    use AssertsContracts;
+
     private const string PRODUCT = '01999a1f-0a1b-7c2d-8e3f-4a5b6c7d8e9f';
 
     private RecordedCatalogSync $catalog;
@@ -39,7 +45,28 @@ final class CatalogSnapshotHandlerTest extends TestCase
         self::assertSame('BOOK-DDD-001', (string) $snapshot->sku);
         self::assertSame(18990, $snapshot->price->cents());
         self::assertSame(ProductStatus::Active, $snapshot->status);
+        self::assertSame('arara', (string) $snapshot->store);
         self::assertSame(3, $snapshot->version);
+    }
+
+    #[Test]
+    public function a_snapshot_from_before_the_stores_has_none(): void
+    {
+        $this->handler->handle(self::message(self::event(['store' => null])));
+        $this->handler->handle(self::message(self::withoutStore(self::event())));
+
+        self::assertSame([null, null], array_map(static fn(CatalogSnapshot $snapshot): ?StoreSlug => $snapshot->store, $this->catalog->snapshots));
+    }
+
+    #[Test]
+    public function the_fixtures_speak_the_published_language_of_the_catalog(): void
+    {
+        foreach ([self::event(), self::withoutStore(self::event())] as $payload) {
+            $event = json_decode($payload, flags: JSON_THROW_ON_ERROR);
+            self::assertInstanceOf(stdClass::class, $event);
+            self::assertMatchesContract('cloudevent.schema.json', $event);
+            self::assertMatchesContract('catalog.product.snapshot.schema.json', $event->data);
+        }
     }
 
     #[Test]
@@ -75,6 +102,17 @@ final class CatalogSnapshotHandlerTest extends TestCase
         yield 'a draft, which the catalog never publishes' => [self::event(['status' => 'draft'])];
         yield 'a version as text' => [self::event(['version' => '3'])];
         yield 'a sku outside the format' => [self::event(['sku' => 'BOOK_DDD_001'])];
+        yield 'a store that is not a slug' => [self::event(['store' => 'Arara Livros'])];
+        yield 'a store that is no text' => [self::event(['store' => 1])];
+    }
+
+    private static function withoutStore(string $event): string
+    {
+        /** @var array{data: array<string, mixed>} $decoded */
+        $decoded = json_decode($event, true, flags: JSON_THROW_ON_ERROR);
+        unset($decoded['data']['store']);
+
+        return json_encode($decoded, JSON_THROW_ON_ERROR);
     }
 
     private static function message(string $payload): ReceivedMessage
@@ -95,6 +133,7 @@ final class CatalogSnapshotHandlerTest extends TestCase
             'datacontenttype' => 'application/json',
             'correlationid' => 'req-9#1',
             'data' => [
+                'store' => 'arara',
                 'productId' => self::PRODUCT,
                 'sku' => 'BOOK-DDD-001',
                 'name' => 'Domain-Driven Design',

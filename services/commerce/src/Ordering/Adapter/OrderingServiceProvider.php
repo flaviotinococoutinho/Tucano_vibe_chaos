@@ -84,9 +84,9 @@ final class OrderingServiceProvider extends ServiceProvider
         $router->middleware('api')->group(static function (Router $router): void {
             $router->post('/v1/orders', PlaceOrderController::class)->middleware([RequireIdempotencyKey::class, 'reserves-stock']);
             $router->get('/v1/orders/{orderId}', ViewOrderController::class);
-            // The customer routes: only the BFF calls them, and Kong closes them at the edge (ADR 0030).
-            $router->get('/v1/customers/{customerId}/orders', ListOrdersController::class);
-            $router->get('/v1/customers/{customerId}/orders/{orderId}', ViewCustomerOrderController::class);
+            // The reads of a customer in a store: only the BFF calls them, and Kong closes them at the edge (ADR 0030, ADR 0031).
+            $router->get('/v1/stores/{store}/customers/{customerId}/orders', ListOrdersController::class);
+            $router->get('/v1/stores/{store}/customers/{customerId}/orders/{orderId}', ViewCustomerOrderController::class);
         });
     }
 }

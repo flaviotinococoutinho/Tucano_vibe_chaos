@@ -16,6 +16,7 @@ use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Builders\OrderBuilder;
+use Tucano\SharedKernel\Domain\DomainEvent;
 
 final class OrderLifecycleTest extends TestCase
 {
@@ -128,6 +129,40 @@ final class OrderLifecycleTest extends TestCase
         $order->markAsDelivered(new DateTimeImmutable('2026-09-27T15:00:00Z'));
 
         self::assertSame('TX02PWW6JFR5G00', (string) $order->toSnapshot()->trackingCode);
+    }
+
+    #[Test]
+    public function every_event_of_the_order_says_its_store(): void
+    {
+        $mug = OrderBuilder::line('HOME-MUG-001', 'Caneca de cerâmica', 1, 4990);
+        $returned = OrderBuilder::anOrder()->in('sabia')->withLines($mug)->place();
+        $returned->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00Z'));
+        $returned->markAsShipped(TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable('2026-09-27T13:00:00Z'));
+        $returned->markAsReturned(new DateTimeImmutable('2026-09-29T09:00:00Z'));
+        $delivered = OrderBuilder::anOrder()->in('sabia')->withLines($mug)->paid();
+        $delivered->markAsShipped(TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable('2026-09-27T13:00:00Z'));
+        $delivered->markAsDelivered(new DateTimeImmutable('2026-09-27T15:00:00Z'));
+        $cancelled = OrderBuilder::anOrder()->in('sabia')->withLines($mug)->place();
+        $cancelled->cancel(CancellationReason::PaymentDeclined, new DateTimeImmutable('2026-09-27T12:06:00Z'));
+
+        $events = [...$returned->releaseEvents(), ...$delivered->releaseEvents(), ...$cancelled->releaseEvents()];
+
+        self::assertSame(
+            ['placed', 'paid', 'shipped', 'returned', 'shipped', 'delivered', 'placed', 'cancelled'],
+            array_map(static fn(DomainEvent $event): string => substr($event->eventType(), strlen('tucano.commerce.order.')), $events),
+        );
+        self::assertSame(array_fill(0, 8, 'sabia'), array_map(static fn(DomainEvent $event): mixed => $event->payload()['store'] ?? null, $events));
+    }
+
+    #[Test]
+    public function an_order_from_before_the_stores_goes_on_without_one(): void
+    {
+        $order = OrderBuilder::anOrder()->placedBeforeTheStores();
+
+        $order->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00Z'));
+
+        self::assertNull($order->toSnapshot()->store);
+        self::assertArrayNotHasKey('store', $order->releaseEvents()[0]->payload(), 'the contracts take no store rather than a null one');
     }
 
     #[Test]

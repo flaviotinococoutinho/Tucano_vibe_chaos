@@ -89,6 +89,41 @@ final class SchemaConstraintsTest extends TestCase
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder($row));
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function storesInAnotherShape(): iterable
+    {
+        yield 'the name of the store' => ['Sabiá Casa e Esporte'];
+        yield 'capitals' => ['Sabia'];
+        yield 'one letter' => ['s'];
+        yield 'a digit first' => ['7sabia'];
+    }
+
+    #[Test]
+    #[DataProvider('storesInAnotherShape')]
+    public function the_store_of_an_order_or_a_product_is_a_slug(string $store): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertOrder(['store' => $store]));
+        $this->assertViolates(self::CHECK_VIOLATION, static fn() => DB::table('product_snapshots')->insert([
+            'product_id' => Uuid::uuid7()->toString(),
+            'sku' => 'HOME-MUG-001',
+            'name' => 'Caneca de cerâmica',
+            'price_cents' => 4990,
+            'currency' => 'BRL',
+            'status' => 'active',
+            'store' => $store,
+            'catalog_version' => 1,
+        ]));
+    }
+
+    #[Test]
+    public function an_order_from_before_the_stores_has_none(): void
+    {
+        $orderId = $this->insertOrder();
+
+        self::assertNull(DB::table('orders')->where('id', $orderId)->value('store'));
+        self::assertSame('sabia', DB::table('orders')->where('id', $this->insertOrder(['store' => 'sabia']))->value('store'));
+    }
+
     #[Test]
     public function postal_codes_are_eight_digits(): void
     {

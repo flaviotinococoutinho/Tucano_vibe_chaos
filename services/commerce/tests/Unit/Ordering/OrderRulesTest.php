@@ -17,6 +17,7 @@ use Commerce\Ordering\Domain\Order\TrackingCode;
 use Commerce\Ordering\Domain\Product\CatalogProduct;
 use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -51,11 +52,32 @@ final class OrderRulesTest extends TestCase
     #[Test]
     public function a_discontinued_product_cannot_be_ordered(): void
     {
-        $product = new CatalogProduct(Sku::of('ELEC-MON-027'), 'Monitor 27 polegadas', Money::of(159990, Currency::brl()), ProductStatus::Discontinued);
+        $product = CatalogProduct::of(Sku::of('ELEC-MON-027'), 'Monitor 27 polegadas', Money::of(159990, Currency::brl()), ProductStatus::Discontinued, StoreSlug::of('bemtevi'));
 
         $this->expectException(ProductUnavailable::class);
 
         OrderLine::of($product, Quantity::of(1));
+    }
+
+    #[Test]
+    public function a_product_belongs_to_its_store_only(): void
+    {
+        $monitor = CatalogProduct::of(Sku::of('ELEC-MON-027'), 'Monitor 27 polegadas', Money::of(159990, Currency::brl()), ProductStatus::Active, StoreSlug::of('bemtevi'));
+        $fromBeforeTheStores = CatalogProduct::of(Sku::of('HOME-LAMP-001'), 'Luminária', Money::of(8990, Currency::brl()), ProductStatus::Active, null);
+
+        self::assertTrue($monitor->belongsTo(StoreSlug::of('bemtevi')));
+        self::assertFalse($monitor->belongsTo(StoreSlug::of('sabia')));
+        self::assertFalse($fromBeforeTheStores->belongsTo(StoreSlug::of('sabia')), 'a product whose store the copy does not know is in no store');
+    }
+
+    #[Test]
+    public function an_order_is_in_the_store_it_was_placed_in_only(): void
+    {
+        $order = OrderBuilder::anOrder()->in('arara')->place();
+
+        self::assertTrue($order->isPlacedIn(StoreSlug::of('arara')));
+        self::assertFalse($order->isPlacedIn(StoreSlug::of('sabia')));
+        self::assertFalse(OrderBuilder::anOrder()->placedBeforeTheStores()->isPlacedIn(StoreSlug::of('arara')), 'an order from before the stores is in none');
     }
 
     #[Test]
@@ -88,6 +110,11 @@ final class OrderRulesTest extends TestCase
         yield 'bad warehouse' => [static fn() => FulfillmentCenterCode::of('gru1')];
         yield 'tracking code with symbols Crockford leaves out' => [static fn() => TrackingCode::of('TX02PWW6JFR5GIL')];
         yield 'tracking code in lowercase' => [static fn() => TrackingCode::of('tx02pww6jfr5g00')];
+        yield 'store with capitals' => [static fn() => StoreSlug::of('Sabia')];
+        yield 'store with an accent' => [static fn() => StoreSlug::of('sabiá')];
+        yield 'store of one letter' => [static fn() => StoreSlug::of('s')];
+        yield 'store that starts with a digit' => [static fn() => StoreSlug::of('7sabia')];
+        yield 'store longer than 31 characters' => [static fn() => StoreSlug::of('s' . str_repeat('a', 31))];
     }
 
     /** @param Closure(): mixed $build */

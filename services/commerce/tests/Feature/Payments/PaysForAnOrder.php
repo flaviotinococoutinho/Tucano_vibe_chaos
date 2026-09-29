@@ -42,9 +42,11 @@ trait PaysForAnOrder
             'price_cents' => 299990,
             'currency' => 'BRL',
             'status' => 'active',
+            'store' => 'bemtevi',
             'catalog_version' => 1,
         ]);
         $this->orderId = (string) $this->postJson('/v1/orders', [
+            'store' => 'bemtevi',
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'LAB-CONSOLE-001', 'quantity' => 2]],

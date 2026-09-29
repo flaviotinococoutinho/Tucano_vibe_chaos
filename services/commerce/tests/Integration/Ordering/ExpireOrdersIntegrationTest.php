@@ -39,6 +39,7 @@ final class ExpireOrdersIntegrationTest extends TestCase
             'price_cents' => 299990,
             'currency' => 'BRL',
             'status' => 'active',
+            'store' => 'bemtevi',
             'catalog_version' => 1,
         ]);
     }
@@ -73,7 +74,10 @@ final class ExpireOrdersIntegrationTest extends TestCase
         $payload = DB::table('outbox_messages')->where('event_type', 'tucano.commerce.order.cancelled')->value('payload');
         $event = json_decode((string) $payload, flags: JSON_THROW_ON_ERROR);
         self::assertInstanceOf(stdClass::class, $event);
-        self::assertSame(['reason' => 'reservation_expired', 'previousStatus' => 'pending_payment'], ['reason' => $event->data->reason, 'previousStatus' => $event->data->previousStatus]);
+        self::assertSame(
+            ['reason' => 'reservation_expired', 'previousStatus' => 'pending_payment', 'store' => 'bemtevi'],
+            ['reason' => $event->data->reason, 'previousStatus' => $event->data->previousStatus, 'store' => $event->data->store],
+        );
 
         $validator = new Validator();
         $validator->resolver()?->registerFile('urn:tucano:cancelled', dirname(__DIR__, 5) . '/contracts/events/commerce.order.cancelled.schema.json');
@@ -93,6 +97,7 @@ final class ExpireOrdersIntegrationTest extends TestCase
     private function placeOrder(int $quantity): string
     {
         return (string) $this->postJson('/v1/orders', [
+            'store' => 'bemtevi',
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'LAB-CONSOLE-001', 'quantity' => $quantity]],

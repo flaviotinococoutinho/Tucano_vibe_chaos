@@ -10,6 +10,7 @@ use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\OrderNumber;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 use Tucano\SharedKernel\Address\Address;
 
@@ -22,13 +23,14 @@ final readonly class OrderPaid extends OrderEvent
     public function __construct(
         OrderId $orderId,
         OrderNumber $orderNumber,
+        ?StoreSlug $store,
         private Customer $customer,
         private Address $address,
         private OrderLines $lines,
         private FulfillmentCenterCode $center,
         DateTimeImmutable $paidAt,
     ) {
-        parent::__construct($orderId, $orderNumber, $paidAt);
+        parent::__construct($orderId, $orderNumber, $store, $paidAt);
     }
 
     protected function fact(): string

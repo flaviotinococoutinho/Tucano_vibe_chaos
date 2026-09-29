@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Commerce\Ordering\Domain\Order;
 
 use Commerce\Ordering\Domain\Customer\Customer;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 use Tucano\SharedKernel\Address\Address;
 
@@ -17,6 +18,8 @@ final readonly class OrderSnapshot
     public function __construct(
         public OrderId $id,
         public OrderNumber $number,
+        /** The store the order was placed in; orders placed before the stores (ADR 0031) have none. */
+        public ?StoreSlug $store,
         public Customer $customer,
         public Address $address,
         public OrderLines $lines,

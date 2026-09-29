@@ -60,6 +60,7 @@ final class ShipmentSyncIntegrationTest extends TestCase
         foreach ($published as $event) {
             self::assertMatchesContract('cloudevent.schema.json', $event);
             self::assertMatchesContract(substr($event->type, strlen('tucano.')) . '.schema.json', $event->data);
+            self::assertSame('arara', $event->data->store, 'every event of the order says its store');
         }
     }
 

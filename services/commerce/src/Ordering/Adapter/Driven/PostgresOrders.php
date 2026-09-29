@@ -24,6 +24,7 @@ use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Order\StatusTransition;
 use Commerce\Ordering\Domain\Order\TrackingCode;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\ConnectionInterface;
@@ -49,6 +50,7 @@ final readonly class PostgresOrders implements ForStoringOrders
         $this->connection->table('orders')->insert([
             'id' => $snapshot->id->toString(),
             'order_number' => $snapshot->number->snowflake->toInt(),
+            'store' => $snapshot->store === null ? null : (string) $snapshot->store,
             'customer_id' => $snapshot->customer->id->toString(),
             'customer_name' => $snapshot->customer->name->reveal(),
             'customer_email' => $snapshot->customer->email->reveal(),
@@ -145,6 +147,7 @@ final readonly class PostgresOrders implements ForStoringOrders
         return Order::fromSnapshot(new OrderSnapshot(
             $id,
             OrderNumber::fromSnowflake(Snowflake::fromInt((int) $row->order_number)),
+            $row->store === null ? null : StoreSlug::of((string) $row->store),
             Customer::of(
                 CustomerId::fromString((string) $row->customer_id),
                 PersonName::of((string) $row->customer_name),

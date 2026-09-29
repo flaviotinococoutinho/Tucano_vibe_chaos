@@ -13,6 +13,7 @@ use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\TrackingCode;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Artisan;
 use MongoDB\BSON\Binary;
@@ -69,6 +70,7 @@ final class OrderViewProjectorTest extends TestCase
         self::assertSame([
             'orderId' => $order->id()->toString(),
             'orderNumber' => (string) $order->toSnapshot()->number,
+            'store' => 'arara',
             'status' => 'pending_payment',
             'cancellationReason' => null,
             'total' => ['amount' => 42970, 'currency' => 'BRL'],
@@ -81,6 +83,35 @@ final class OrderViewProjectorTest extends TestCase
         ], $this->viewOf($order)->toArray());
         self::assertSame(1, $this->versionOf($order));
         self::assertNull($this->documentOf($order)['shipment']);
+        self::assertSame('arara', $this->documentOf($order)['store']);
+    }
+
+    #[Test]
+    public function the_view_keeps_the_store_of_order_placed_as_the_order_moves_on(): void
+    {
+        $order = self::anaOrders()->in('sabia')->withLines(OrderBuilder::line('HOME-MUG-001', 'Caneca de cerâmica', 1, 4990))->place();
+        $this->handle(OrderEvents::next($order));
+        $order->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00Z'));
+        $this->handle(OrderEvents::next($order));
+
+        self::assertSame('sabia', $this->documentOf($order)['store']);
+        self::assertSame(['paid', 'sabia'], [$this->viewOf($order, 'sabia')->status->value, (string) $this->viewOf($order, 'sabia')->store]);
+        self::assertSame([], $this->views->page(StoreSlug::of('arara'), CustomerId::fromString(self::ANA), Page::of(1))->orders, 'the order of sabia is in no other list');
+    }
+
+    #[Test]
+    public function an_order_placed_before_the_stores_opens_a_view_that_no_list_shows(): void
+    {
+        $order = self::anaOrders()->placedAt('2026-09-26T12:00:00Z')->place();
+        $this->handle(OrderEvents::withoutStore(OrderEvents::next($order)));
+        $order->markAsPaid(new DateTimeImmutable('2026-09-26T12:05:00Z'));
+        $this->handle(OrderEvents::withoutStore(OrderEvents::next($order)));
+
+        self::assertNull($this->documentOf($order)['store']);
+        self::assertSame(2, $this->versionOf($order), 'it still follows its order');
+        foreach (['arara', 'sabia', 'bemtevi'] as $store) {
+            self::assertSame(0, $this->views->page(StoreSlug::of($store), CustomerId::fromString(self::ANA), Page::of(1))->total);
+        }
     }
 
     #[Test]
@@ -255,6 +286,8 @@ final class OrderViewProjectorTest extends TestCase
         yield 'an order number that is no number' => [OrderEvents::changed($placed, ['orderNumber' => 'A-17'])];
         yield 'a cancellation from a status that cannot be cancelled' => [OrderEvents::changed($cancelled, ['previousStatus' => 'shipped'])];
         yield 'a cancellation for no known reason' => [OrderEvents::changed($cancelled, ['reason' => 'bored'])];
+        yield 'a store that is not a slug' => [OrderEvents::changed($placed, ['store' => 'Sabiá'])];
+        yield 'a store that is no text' => [OrderEvents::changed($placed, ['store' => 7])];
     }
 
     #[Test]
@@ -290,12 +323,35 @@ final class OrderViewProjectorTest extends TestCase
         $returned = self::returned();
         $cancelled = self::cancelled();
 
-        foreach ([$placed, OrderEvents::withoutNames($placed), $paid, $shipped, $delivered, $returned, $cancelled] as $payload) {
+        $published = [$placed, $paid, $shipped, $delivered, $returned, $cancelled];
+        $fromBefore = [OrderEvents::withoutNames(OrderEvents::withoutStore($placed)), ...array_map(OrderEvents::withoutStore(...), $published)];
+
+        foreach ([...$published, ...$fromBefore] as $payload) {
             $event = json_decode($payload, flags: JSON_THROW_ON_ERROR);
             self::assertInstanceOf(stdClass::class, $event);
             self::assertMatchesContract('cloudevent.schema.json', $event);
             self::assertMatchesContract(substr($event->type, strlen('tucano.')) . '.schema.json', $event->data);
         }
+        foreach ($published as $payload) {
+            self::assertSame('arara', json_decode($payload, true, flags: JSON_THROW_ON_ERROR)['data']['store'], 'every event of commerce says the store of its order');
+        }
+    }
+
+    #[Test]
+    public function a_store_is_a_slug_or_nothing_at_all(): void
+    {
+        /** @var array{data: array<string, mixed>} $placed */
+        $placed = json_decode(OrderEvents::next(self::anaOrders()->place()), true, flags: JSON_THROW_ON_ERROR);
+        $data = $placed['data'];
+
+        foreach (['Sabiá', 's', '7sabia', 's' . str_repeat('a', 31)] as $store) {
+            $data['store'] = $store;
+            self::assertBreaksContract('commerce.order.placed.schema.json', self::asJson($data));
+        }
+        $data['store'] = null;
+        self::assertBreaksContract('commerce.order.placed.schema.json', self::asJson($data));
+        unset($data['store']);
+        self::assertMatchesContract('commerce.order.placed.schema.json', self::asJson($data));
     }
 
     #[Test]
@@ -349,9 +405,9 @@ final class OrderViewProjectorTest extends TestCase
         }
     }
 
-    private function viewOf(Order $order): OrderSummary
+    private function viewOf(Order $order, string $store = 'arara'): OrderSummary
     {
-        foreach ($this->views->page(CustomerId::fromString(self::ANA), Page::of(1, Page::MAX_SIZE))->orders as $view) {
+        foreach ($this->views->page(StoreSlug::of($store), CustomerId::fromString(self::ANA), Page::of(1, Page::MAX_SIZE))->orders as $view) {
             if ($view->orderId->equals($order->id())) {
                 return $view;
             }

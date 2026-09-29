@@ -30,9 +30,14 @@ final class PlaceOrderHttpTest extends TestCase
         parent::setUp();
         $this->seed([FulfillmentCenterSeeder::class, StockSeeder::class]);
         DB::table('product_snapshots')->insert([
-            self::snapshot('BOOK-DDD-001', 'Domain-Driven Design', 18990, 'active'),
-            self::snapshot('ELEC-MON-027', 'Monitor de 27 polegadas', 189990, 'active'),
-            self::snapshot('ELEC-MP3-001', 'Tocador de MP3', 19990, 'discontinued'),
+            self::snapshot('BOOK-DDD-001', 'Domain-Driven Design', 18990, 'active', 'arara'),
+            self::snapshot('BOOK-DDIA-001', 'Designing Data-Intensive Applications', 32990, 'active', 'arara'),
+            self::snapshot('ELEC-KBD-001', 'Teclado mecânico', 44990, 'active', 'bemtevi'),
+            self::snapshot('ELEC-MON-027', 'Monitor de 27 polegadas', 189990, 'active', 'bemtevi'),
+            self::snapshot('ELEC-MP3-001', 'Tocador de MP3', 19990, 'discontinued', 'bemtevi'),
+            self::snapshot('HOME-MUG-001', 'Caneca de cerâmica', 4990, 'active', 'sabia'),
+            // Copied before the stores, and no snapshot has told its store since.
+            self::snapshot('BOOK-REL-001', 'Release It!', 27990, 'active', null),
         ]);
     }
 
@@ -43,6 +48,7 @@ final class PlaceOrderHttpTest extends TestCase
             ->assertCreated()
             ->assertHeaderMissing('Idempotent-Replayed')
             ->assertJsonPath('status', 'pending_payment')
+            ->assertJsonPath('store', 'arara')
             ->assertJsonPath('fulfillmentCenter', 'BHZ1')
             ->assertJsonPath('total', ['amount' => 37980, 'currency' => 'BRL'])
             ->assertJsonPath('lines.0.unitPrice', ['amount' => 18990, 'currency' => 'BRL'])
@@ -83,6 +89,8 @@ final class PlaceOrderHttpTest extends TestCase
         self::assertMatchesContract('commerce.order.placed.schema.json', $event->data);
         // The customer's list shows what was bought, and the event is all the list reads.
         self::assertSame('Domain-Driven Design', $event->data->lines[0]->name);
+        self::assertSame('arara', $event->data->store);
+        self::assertSame('arara', DB::table('orders')->where('id', $orderId)->value('store'));
     }
 
     #[Test]
@@ -112,6 +120,89 @@ final class PlaceOrderHttpTest extends TestCase
     }
 
     #[Test]
+    public function the_same_key_in_another_store_is_refused_as_another_order(): void
+    {
+        $this->place('key-1', ['BOOK-DDD-001' => 1])->assertCreated();
+
+        $this->place('key-1', ['BOOK-DDD-001' => 1], store: 'sabia')
+            ->assertUnprocessable()
+            ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#idempotency-key-reused');
+    }
+
+    /** @return iterable<string, array{string, non-empty-array<string, int>, non-empty-array<string, non-empty-list<non-empty-string>>}> */
+    public static function itemsOfAnotherStore(): iterable
+    {
+        yield 'a product of another store' => ['arara', ['BOOK-DDD-001' => 1, 'HOME-MUG-001' => 1], [
+            'items.1.sku' => ['HOME-MUG-001 is not a product of arara.'],
+        ]];
+        yield 'products of two other stores, each on its own item' => ['sabia', ['BOOK-DDD-001' => 1, 'HOME-MUG-001' => 1, 'ELEC-MON-027' => 2], [
+            'items.0.sku' => ['BOOK-DDD-001 is not a product of sabia.'],
+            'items.2.sku' => ['ELEC-MON-027 is not a product of sabia.'],
+        ]];
+        yield 'a product whose store the copy does not know yet' => ['arara', ['BOOK-DDIA-001' => 1, 'BOOK-REL-001' => 1], [
+            'items.1.sku' => ['BOOK-REL-001 is not a product of arara.'],
+        ]];
+        yield 'a discontinued product of another store' => ['arara', ['ELEC-MP3-001' => 1], [
+            'items.0.sku' => ['ELEC-MP3-001 is not a product of arara.'],
+        ]];
+        yield 'a store nobody opened' => ['lojinha', ['BOOK-DDD-001' => 1], [
+            'items.0.sku' => ['BOOK-DDD-001 is not a product of lojinha.'],
+        ]];
+    }
+
+    /**
+     * @param non-empty-array<string, int> $items
+     * @param non-empty-array<string, non-empty-list<non-empty-string>> $errors
+     */
+    #[Test]
+    #[DataProvider('itemsOfAnotherStore')]
+    public function an_item_that_is_not_a_product_of_the_store_is_refused_on_that_item(string $store, array $items, array $errors): void
+    {
+        $response = $this->place('key-1', $items, store: $store)
+            ->assertUnprocessable()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('type', 'about:blank')
+            ->assertJsonPath('status', 422);
+
+        self::assertSame($errors, $response->json('errors'), 'the errors by field of any other mistake in the request');
+        self::assertStringStartsWith(array_values($errors)[0][0], (string) $response->json('detail'));
+        self::assertSame(0, DB::table('orders')->count());
+        self::assertSame(0, DB::table('outbox_messages')->count());
+        self::assertSame(0, (int) DB::table('stock_items')->sum('reserved'), 'refused before any stock is held');
+    }
+
+    #[Test]
+    public function a_refused_item_leaves_the_key_free_for_the_order_that_fixes_it(): void
+    {
+        $this->place('key-1', ['BOOK-DDD-001' => 1, 'HOME-MUG-001' => 1])->assertUnprocessable();
+
+        $this->place('key-1', ['BOOK-DDD-001' => 1])->assertCreated()->assertHeaderMissing('Idempotent-Replayed');
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function storesThatCannotBe(): iterable
+    {
+        yield 'no store' => [null];
+        yield 'an empty store' => [''];
+        yield 'a store with capitals and an accent' => ['Sabiá'];
+        yield 'a store that is no text' => [7];
+    }
+
+    #[Test]
+    #[DataProvider('storesThatCannotBe')]
+    public function an_order_needs_a_store_it_could_be_placed_in(mixed $store): void
+    {
+        $body = self::body(['BOOK-DDD-001' => 1]);
+        $body['store'] = $store;
+
+        $this->postJson('/v1/orders', array_filter($body, static fn(mixed $value): bool => $value !== null), ['Idempotency-Key' => 'key-1'])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['errors' => ['store']])
+            ->assertJsonMissingPath('errors.items');
+        self::assertSame(0, DB::table('orders')->count());
+    }
+
+    #[Test]
     public function an_order_needs_an_idempotency_key(): void
     {
         $this->postJson('/v1/orders', self::body(['BOOK-DDD-001' => 1]))
@@ -123,7 +214,7 @@ final class PlaceOrderHttpTest extends TestCase
     public function products_the_catalog_does_not_sell_are_refused(): void
     {
         $this->place('key-1', ['BOOK-NONE-001' => 1])->assertConflict()->assertJsonPath('detail', 'BOOK-NONE-001 is not in the catalog.');
-        $this->place('key-2', ['ELEC-MP3-001' => 1])
+        $this->place('key-2', ['ELEC-MP3-001' => 1], store: 'bemtevi')
             ->assertConflict()
             // RFC 9457: the type tells this conflict apart from a stock that ran out.
             ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#product-unavailable')
@@ -133,9 +224,9 @@ final class PlaceOrderHttpTest extends TestCase
     #[Test]
     public function without_stock_the_order_is_refused_and_nothing_stays_held(): void
     {
-        $this->place('key-1', ['BOOK-DDD-001' => 1, 'ELEC-MON-027' => 10])->assertCreated();
+        $this->place('key-1', ['ELEC-KBD-001' => 1, 'ELEC-MON-027' => 10], store: 'bemtevi')->assertCreated();
 
-        $this->place('key-2', ['BOOK-DDD-001' => 1, 'ELEC-MON-027' => 3])
+        $this->place('key-2', ['ELEC-KBD-001' => 1, 'ELEC-MON-027' => 3], store: 'bemtevi')
             ->assertConflict()
             ->assertJsonPath('type', 'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/problems.md#stock-not-reserved')
             ->assertJsonPath('detail', 'Not enough stock: BHZ1 is short of ELEC-MON-027; GRU1 is short of ELEC-MON-027.');
@@ -149,7 +240,7 @@ final class PlaceOrderHttpTest extends TestCase
     {
         $this->postJson('/v1/orders', ['customer' => ['id' => 'not-a-uuid']], ['Idempotency-Key' => 'key-1'])
             ->assertUnprocessable()
-            ->assertJsonStructure(['errors' => ['customer.id', 'customer.name', 'shippingAddress', 'items']]);
+            ->assertJsonStructure(['errors' => ['store', 'customer.id', 'customer.name', 'shippingAddress', 'items']]);
     }
 
     #[Test]
@@ -216,15 +307,15 @@ final class PlaceOrderHttpTest extends TestCase
      *
      * @return TestResponse<\Illuminate\Http\JsonResponse>
      */
-    private function place(string $key, array $items, array $headers = []): TestResponse
+    private function place(string $key, array $items, array $headers = [], string $store = 'arara'): TestResponse
     {
-        return $this->postJson('/v1/orders', self::body($items), ['Idempotency-Key' => $key, ...$headers]);
+        return $this->postJson('/v1/orders', [...self::body($items), 'store' => $store], ['Idempotency-Key' => $key, ...$headers]);
     }
 
     /**
      * @param non-empty-array<string, int> $items SKU => quantity
      *
-     * @return array{customer: array<string, string>, shippingAddress: array<string, mixed>, items: list<array{sku: string, quantity: int}>}
+     * @return array{store: mixed, customer: array<string, string>, shippingAddress: array<string, mixed>, items: list<array{sku: string, quantity: int}>}
      */
     private static function body(array $items): array
     {
@@ -234,6 +325,7 @@ final class PlaceOrderHttpTest extends TestCase
         }
 
         return [
+            'store' => 'arara',
             'customer' => ['id' => self::CUSTOMER, 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => [
                 'thoroughfare' => ['type' => 'Rua', 'name' => 'da Bahia'],
@@ -250,7 +342,7 @@ final class PlaceOrderHttpTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private static function snapshot(string $sku, string $name, int $cents, string $status): array
+    private static function snapshot(string $sku, string $name, int $cents, string $status, ?string $store): array
     {
         return [
             'product_id' => Uuid::uuid7()->toString(),
@@ -259,6 +351,7 @@ final class PlaceOrderHttpTest extends TestCase
             'price_cents' => $cents,
             'currency' => 'BRL',
             'status' => $status,
+            'store' => $store,
             'catalog_version' => 1,
         ];
     }

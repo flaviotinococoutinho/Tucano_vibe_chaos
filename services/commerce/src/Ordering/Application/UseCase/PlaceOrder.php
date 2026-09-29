@@ -13,12 +13,15 @@ use Commerce\Ordering\Application\Port\Driven\ForReservingStock;
 use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
 use Commerce\Ordering\Application\Port\Driving\ForPlacingOrders;
 use Commerce\Ordering\Application\RequestedItem;
+use Commerce\Ordering\Domain\Error\ProductOfAnotherStore;
 use Commerce\Ordering\Domain\Error\ProductUnavailable;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\ReservationWindow;
+use Commerce\Ordering\Domain\Product\CatalogProduct;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Commerce\Shared\Application\Idempotency\Outcome;
 use Commerce\Shared\Application\Port\Driven\ForPublishingEvents;
 use Commerce\Shared\Application\Port\Driven\ForRememberingRequests;
@@ -56,13 +59,13 @@ final readonly class PlaceOrder implements ForPlacingOrders
             return new PlacedOrder(OrderDetails::fromStored($stored), Outcome::Replayed);
         }
 
-        $lines = $this->pricedLines($command->items);
+        $lines = $this->pricedLines($command->store, $command->items);
         $id = OrderId::generate();
         $placedAt = $this->clock->now();
         $expiresAt = $this->reservationWindow->endsAt($placedAt);
         $center = $this->stock->reserve($id, $lines, $command->address, $expiresAt);
 
-        $order = Order::place($id, $this->numbers->next(), $command->customer, $command->address, $lines, $center, $placedAt, $expiresAt);
+        $order = Order::place($id, $this->numbers->next(), $command->store, $command->customer, $command->address, $lines, $center, $placedAt, $expiresAt);
         $this->orders->add($order);
         $this->events->publish(...$order->releaseEvents());
 
@@ -73,18 +76,22 @@ final readonly class PlaceOrder implements ForPlacingOrders
     }
 
     /**
-     * Checks every item against the local catalog copy and freezes today's price in the line.
+     * Checks every item against the local catalog copy and freezes today's price in the line:
+     * a product the copy does not have stops the order at once; then every item has to be a
+     * product of the store, and the refusal names all that are not; then each has to be on sale.
      *
      * @param non-empty-list<RequestedItem> $items
      */
-    private function pricedLines(array $items): OrderLines
+    private function pricedLines(StoreSlug $store, array $items): OrderLines
     {
-        $products = $this->products->bySku(...array_map(static fn(RequestedItem $item) => $item->sku, $items));
+        $found = $this->products->bySku(...array_map(static fn(RequestedItem $item) => $item->sku, $items));
+        $products = array_map(static fn(RequestedItem $item): CatalogProduct => $found[(string) $item->sku] ?? throw ProductUnavailable::unknown($item->sku), $items);
+        $strangers = array_filter($products, static fn(CatalogProduct $product): bool => !$product->belongsTo($store));
+        if ($strangers !== []) {
+            // Keyed by the place of each item in the order, which is how the refusal names them.
+            throw ProductOfAnotherStore::in($store, array_map(static fn(CatalogProduct $product) => $product->sku, $strangers));
+        }
 
-        return OrderLines::of(...array_map(static function (RequestedItem $item) use ($products): OrderLine {
-            $product = $products[(string) $item->sku] ?? throw ProductUnavailable::unknown($item->sku);
-
-            return OrderLine::of($product, $item->quantity);
-        }, $items));
+        return OrderLines::of(...array_map(static fn(CatalogProduct $product, RequestedItem $item): OrderLine => OrderLine::of($product, $item->quantity), $products, $items));
     }
 }

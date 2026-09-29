@@ -6,6 +6,7 @@ namespace Commerce\Ordering\Domain\Event;
 
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderNumber;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 use Tucano\SharedKernel\Domain\DomainEvent;
 use Tucano\SharedKernel\Identity\EventId;
@@ -18,6 +19,7 @@ abstract readonly class OrderEvent implements DomainEvent
     public function __construct(
         private OrderId $orderId,
         private OrderNumber $orderNumber,
+        private ?StoreSlug $store,
         private DateTimeImmutable $occurredAt,
     ) {
         $this->eventId = EventId::generate()->toString();
@@ -48,6 +50,9 @@ abstract readonly class OrderEvent implements DomainEvent
         return [
             'orderId' => $this->orderId->toString(),
             'orderNumber' => (string) $this->orderNumber,
+            // Every fact of an order says its store (ADR 0031). An order placed before the stores
+            // has none, and its events leave the field out, as the contracts expect.
+            ...($this->store === null ? [] : ['store' => (string) $this->store]),
             ...$this->details(),
         ];
     }

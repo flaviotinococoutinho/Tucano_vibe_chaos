@@ -8,6 +8,7 @@ use Commerce\Ordering\Application\CatalogSnapshot;
 use Commerce\Ordering\Application\Port\Driving\ForSyncingCatalog;
 use Commerce\Ordering\Domain\Product\ProductStatus;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -25,6 +26,7 @@ use ValueError;
  * Reads catalog.products.v1. The topic is compacted and carries the full state
  * of every product, so a new consumer group rebuilds the whole copy from offset
  * zero, and this handler only needs the fields checkout uses (tolerant reader).
+ * A snapshot from before the stores has no store, and the copy reads it as none.
  */
 final readonly class CatalogSnapshotHandler implements MessageHandler
 {
@@ -49,6 +51,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
         $this->logger->debug('Catalog snapshot {outcome}', [
             'outcome' => strtolower($outcome->name),
             'sku' => (string) $snapshot->sku,
+            'store' => $snapshot->store === null ? null : (string) $snapshot->store,
             'version' => $snapshot->version,
         ]);
     }
@@ -59,6 +62,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
         try {
             $data = new EventFields($event->data);
             $price = $data->object('price');
+            $store = $data->optionalText('store');
 
             return new CatalogSnapshot(
                 $data->text('productId'),
@@ -66,6 +70,7 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
                 $data->text('name'),
                 Money::of($price->integer('amount'), Currency::fromCode($price->text('currency'))),
                 ProductStatus::from($data->text('status')),
+                $store === null ? null : StoreSlug::of($store),
                 $data->integer('version'),
             );
         } catch (InvalidArgumentException|DomainError|ValueError $invalid) {
