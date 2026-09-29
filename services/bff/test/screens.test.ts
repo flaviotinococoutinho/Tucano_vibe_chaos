@@ -256,7 +256,7 @@ describe('the history of an order', () => {
     // Commerce already knows the order was delivered; the copy of the tracking page is still
     // at the hub. The order's own delivery stays, and the pickup the parcel told replaces the
     // order's shipped.
-    const screen = orderScreen(
+    const screen = orderIn(
       { order: deliveredOrder, history: histories.delivered, delivery: known(parcelInTransit) },
       WAITING,
     );
