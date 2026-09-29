@@ -2,7 +2,7 @@
   <img src="docs/assets/banner.png" alt="O tucano da Tucano pulando o vão de uma pedra que falta num rio, com uma encomenda pendurada no bico" width="100%">
 </p>
 
-# chaos_playground
+# TUCANO (UM ESTUDO DE CASO PARA APLICAR A ENGENHARIA DO CAOS E ENTENDER AS CAUSAS E EFEITOS EM SISTEMAS DISTRIBUÍDOS SEJAM OS REGRAS FUNCIONAIS OU NÃO FUNCIONAIS)
 
 [![ci](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/flaviotinococoutinho/chaos_playground?color=F28C28)](https://github.com/flaviotinococoutinho/chaos_playground/releases)
