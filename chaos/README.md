@@ -45,7 +45,7 @@ As sondas compram na loja do jeito que a web compra: abrem as telas do BFF e seg
 | [`kafka-out-and-back`](experiments/kafka-out-and-back.json) | o Kafka some por 30 s, e uma caneca é comprada e paga no meio da queda | depois que o Kafka volta, a encomenda chega a entregue na página pública em até 90 s, com todos os passos | o `order.paid` esperou na outbox. Com o Kafka de volta, a remessa nasceu em 8,6 s, o pedido ganhou o link de rastreio em 14,7 s e a página chegou a entregue em 18,8 s, contra 8,3 s e 14,5 s sem falha nenhuma. A volta ainda entregou o `order.paid` duas vezes, e a inbox da logistics descartou a repetição |
 | [`lost-psp-webhooks`](experiments/lost-psp-webhooks.json) | o PSP cobra, mas nenhum webhook sai | todo pagamento chega a um desfecho em até 100 s, com ou sem webhook | com webhook, o pedido chegou ao desfecho em 2,1 s; sem nenhum, a conciliação o trouxe em 62,4 s, logo depois do silêncio de 60 s que ela espera antes de perguntar ao PSP |
 
-Cada número vem de uma execução de verdade contra a stack local. Eles mudam de máquina para máquina; a hipótese não.
+Cada número vem de uma execução de verdade contra a stack local. Eles mudam de máquina para máquina; a hipótese não. Os tempos de entrega da tabela foram medidos antes de a frota própria ganhar o trajeto de 20 s até a porta, em que o entregador aparece ao vivo ([ADR 0028](../docs/adr/0028-live-delivery-by-tracking-code.md)). Com ele, a encomenda chega a entregue uns 20 s mais tarde: 33,0 s no `tracking-without-the-timeline` e 37,2 s depois da volta do Kafka no `kafka-out-and-back`, ainda dentro dos 90 s das hipóteses.
 
 ## Escrevendo um experimento novo
 
