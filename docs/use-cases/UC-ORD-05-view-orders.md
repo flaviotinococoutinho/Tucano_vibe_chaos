@@ -21,7 +21,7 @@
 
 - Um cliente só lê os próprios pedidos. O pedido de outro cliente responde o mesmo `404` de um pedido que não existe, palavra por palavra, sem dizer que ele existe.
 - Um id de cliente ou de pedido que nem é um UUIDv7 responde `404` e não diz mais nada.
-- As rotas por cliente não saem na borda: o Kong encerra `/api/commerce/v1/customers` com um `404`, e só o BFF, na rede interna, chega nelas.
+- As rotas por cliente não saem na borda: o Kong alcança o commerce por uma porta do nginx que só serve as rotas públicas e responde `404` para o resto, e só o BFF, na rede interna, chega nelas.
 - Com o MongoDB fora, só a lista cai. O pedido, o checkout e o pagamento seguem.
 
 ## Garantias de sucesso
@@ -61,4 +61,4 @@
 
 - O pedido: port `ForViewingOrders` (`viewOrder` e `viewCustomerOrder`), caso de uso `ViewOrder`, que pergunta ao agregado `Order` se foi aquele cliente que o fez (`isPlacedBy`). Os controllers são o `ViewOrderController` e o `ViewCustomerOrderController`.
 - A lista: port `ForListingOrders`, caso de uso `ListOrders`, que lê o read model pelo port `ForReadingOrderViews` (adapter `MongoOrderViews`). O controller é o `ListOrdersController`, com a validação da página no `ListOrdersRequest`, e a queda do MongoDB é o erro de domínio `OrderListUnavailable`, da categoria `Unavailable`.
-- A borda: a rota `commerce-customers-internal` do `infra/kong/kong.yml`, com o plugin `request-termination`.
+- A borda: o servidor da porta 8182 em `infra/nginx/conf.d/commerce.conf`, com a lista de rotas públicas, e o serviço `commerce` do `infra/kong/kong.yml`, que aponta para ela.
