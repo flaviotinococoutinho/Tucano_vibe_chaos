@@ -1,20 +1,21 @@
 # Como contribuir
 
-O projeto segue **Git Flow** com **Conventional Commits**. O histórico precisa contar a evolução do sistema sem ruído, e nenhuma mudança entra sem passar pelo CI.
+O projeto usa **Git Flow como referência**, com um caminho curto para documentação e manutenção. **Conventional Commits** continuam sendo a convenção dos commits e uma recomendação para títulos de PR. O histórico precisa explicar a evolução do sistema, e nenhuma mudança entra sem passar pelo CI.
 
 ## Branches
 
 | Branch | Para quê | Nasce de | Volta para |
 |---|---|---|---|
-| `main` | o que foi liberado; cada merge vira uma tag `vX.Y.Z` | - | - |
+| `main` | base das versões publicadas e da manutenção | - | - |
 | `develop` | integração do que já está pronto | `main` | `main`, via `release/*` |
 | `feat/<escopo>` | funcionalidade nova | `develop` | `develop` |
 | `fix/<escopo>` | correção de algo que ainda não foi liberado | `develop` | `develop` |
-| `chore/<escopo>` | infraestrutura, build, docs, dependências | `develop` | `develop` |
+| `chore/<escopo>` | manutenção, build, dependências | `develop` ou `main` | branch de origem |
+| `docs/<escopo>` ou `ci/<escopo>` | documentação ou automação de CI | `develop` ou `main` | branch de origem |
 | `release/<x.y.z>` | estabilizar e fechar uma versão | `develop` | `main` e depois `develop` |
 | `hotfix/<escopo>` | correção urgente do que já está na `main` | `main` | `main` e depois `develop` |
 
-Nomes curtos, em inglês e em kebab-case: `feat/shipment-state-machine`, `fix/outbox-retry`, `chore/local-infra`.
+Prefira nomes curtos e claros, como `feat/shipment-state-machine`, `docs/objetivo-do-laboratorio` ou `ci/PR-policy`. Inglês e kebab-case são sugestões. Para `develop`, qualquer nome de branch válido no Git é aceito, inclusive nomes gerados por ferramentas.
 
 ```mermaid
 gitGraph
@@ -56,7 +57,7 @@ Tipos aceitos: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`, `ci`,
 ## Pull requests
 
 - `main` e `develop` são protegidas: tudo entra por PR.
-- O título do PR segue Conventional Commits (o CI valida).
+- O título deve explicar a mudança, em português ou inglês. Conventional Commits são recomendados, mas opcionais: `docs: explica o propósito do laboratório` e `Explica o propósito do laboratório` são aceitos. O CI recusa apenas títulos vazios ou compostos só por espaços; fora da convenção, emite um aviso informativo sem falhar.
 - O check `ci-ok` precisa estar verde para o merge.
 - O merge é feito com merge commit (equivalente ao `--no-ff` do Git Flow) para preservar a história de cada branch.
 - A branch é apagada automaticamente depois do merge.
@@ -65,8 +66,12 @@ O workflow `pr-policy` valida origem e destino:
 
 | Destino | Origens permitidas |
 |---|---|
-| `develop` | `feat/*`, `fix/*`, `chore/*`, `release/*`, `hotfix/*` e `main` (back-merge) |
-| `main` | `release/x.y.z` e `hotfix/*` |
+| `develop` | qualquer branch, incluindo `main` para back-merge |
+| `main` | `release/x.y.z`, `hotfix/*`, `docs/*`, `chore/*` e `ci/*` |
+
+Use o caminho direto para a `main` em mudanças de documentação, manutenção ou CI, partindo da própria `main`. Funcionalidades seguem pela `develop` e depois por uma release. O prefixo identifica a intenção, mas não substitui a revisão do diff. Depois de integrar manutenção na `main`, faça o back-merge para `develop` para manter as branches alinhadas. Não é preciso criar uma tag para cada ajuste de texto; a publicação de uma versão continua seguindo o fluxo de release.
+
+Essa flexibilidade não desativa `ci-ok`, o lint dos workflows nem o workflow `stability`, que continua rodando em todo PR para a `main`.
 
 ### Aprovação
 

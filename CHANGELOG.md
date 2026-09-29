@@ -4,6 +4,11 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Changed
+
+- A política de PR aceita títulos descritivos em português ou inglês, com Conventional Commits opcionais, e nomes livres de branch para `develop`. Branches `docs/*`, `chore/*` e `ci/*` podem enviar manutenção diretamente para `main`, além dos fluxos existentes de release e hotfix; os checks técnicos continuam ativos.
+- O README apresenta a Tucano como piloto de estudo, diferencia teoria do caos de engenharia do caos e orienta a investigação de limites, versões, configurações e interações entre ferramentas, com referências e critérios para interpretar os resultados.
+
 ## [0.10.0] - 2026-09-28
 
 ### Added
