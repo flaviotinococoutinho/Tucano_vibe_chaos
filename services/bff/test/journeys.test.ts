@@ -433,7 +433,7 @@ describe('paying', () => {
     assert.equal(response.statusCode, 404);
     assert.equal(
       response.json().detail,
-      'Não encontrei esse pedido. Se ele foi feito com outro perfil, troque de perfil e abra de novo.',
+      'Não encontrei esse pedido nesta loja. Se ele foi feito em outra loja, ou com outro perfil, abra por lá.',
     );
   });
 
