@@ -4,6 +4,7 @@ export {
   type Product,
   type ProductPage,
   type ProductStatus,
+  type Store,
 } from './catalog.ts';
 export {
   type CancellationReason,

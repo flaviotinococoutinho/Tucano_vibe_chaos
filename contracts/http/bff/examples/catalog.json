@@ -7,7 +7,7 @@
   "properties": {
     "page": 1,
     "perPage": 20,
-    "total": 16
+    "total": 5
   },
   "entities": [
     {
@@ -33,7 +33,7 @@
           "rel": [
             "self"
           ],
-          "href": "/bff/v1/products/BOOK-DDD-001"
+          "href": "/bff/v1/stores/arara/products/BOOK-DDD-001"
         }
       ]
     },
@@ -45,14 +45,14 @@
         "item"
       ],
       "properties": {
-        "sku": "HOME-COFFEE-001",
-        "name": "Cafeteira elétrica",
-        "category": "home",
-        "categoryLabel": "Casa",
+        "sku": "BOOK-REL-001",
+        "name": "Release It!",
+        "category": "books",
+        "categoryLabel": "Livros",
         "price": {
-          "amount": 34990,
+          "amount": 21990,
           "currency": "BRL",
-          "formatted": "R$ 349,90"
+          "formatted": "R$ 219,90"
         }
       },
       "links": [
@@ -60,7 +60,7 @@
           "rel": [
             "self"
           ],
-          "href": "/bff/v1/products/HOME-COFFEE-001"
+          "href": "/bff/v1/stores/arara/products/BOOK-REL-001"
         }
       ]
     },
@@ -72,28 +72,48 @@
         "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
       ],
       "properties": {
+        "store": {
+          "slug": "arara",
+          "name": "Arara Livros",
+          "palette": "arara",
+          "initial": "A"
+        },
         "shopper": null
       },
       "links": [
         {
           "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-stores"
+          ],
+          "href": "/bff/v1",
+          "title": "Todas as lojas"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-store"
+          ],
+          "href": "/bff/v1/stores/arara",
+          "title": "Arara Livros"
+        },
+        {
+          "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
           ],
-          "href": "/bff/v1/products",
+          "href": "/bff/v1/stores/arara/products",
           "title": "Catálogo"
         },
         {
           "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
           ],
-          "href": "/bff/v1/orders",
+          "href": "/bff/v1/stores/arara/orders",
           "title": "Meus pedidos"
         },
         {
           "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
           ],
-          "href": "/bff/v1/profiles",
+          "href": "/bff/v1/profiles?store=arara",
           "title": "Entrar"
         }
       ]
@@ -104,13 +124,13 @@
       "rel": [
         "self"
       ],
-      "href": "/bff/v1/products?page=1"
+      "href": "/bff/v1/stores/arara/products?page=1"
     },
     {
       "rel": [
         "up"
       ],
-      "href": "/bff/v1",
+      "href": "/bff/v1/stores/arara",
       "title": "Início"
     }
   ]

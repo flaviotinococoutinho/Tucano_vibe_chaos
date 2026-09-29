@@ -4,7 +4,7 @@ import type { Session } from '../src/session/index.ts';
 import { bffOver } from './support/bff.ts';
 import { PAY_KEY } from './support/example-screens.ts';
 import { example } from './support/examples.ts';
-import { type FakeServices, fakeServices, ids } from './support/fake-services.ts';
+import { type FakeServices, fakeServices, ids, serveStores } from './support/fake-services.ts';
 import { sessionCookie, sessionCookieSet, sessionSet } from './support/sessions.ts';
 import {
   ana,
@@ -28,26 +28,39 @@ describe('two profiles in one browser', () => {
   let services: FakeServices;
 
   before(async () => {
-    services = await fakeServices(() => {});
+    services = await fakeServices((app) => serveStores(app));
   });
 
   after(() => services.close());
 
-  it('creates a profile and lands on its orders', async () => {
+  it('creates a profile and lands on the orders of the store it came from', async () => {
     const response = await bffOver(services, { newId: ids(ANA_ID) }).inject({
       method: 'POST',
-      url: '/v1/profiles',
+      url: '/v1/profiles?store=arara',
       payload: { name: '  Ana  ' },
     });
 
     assert.equal(response.statusCode, 303);
-    assert.equal(response.headers.location, '/bff/v1/orders');
+    assert.equal(response.headers.location, '/bff/v1/stores/arara/orders');
     assert.equal(response.headers['cache-control'], 'no-store');
     assert.equal(response.body, '');
     assert.deepStrictEqual(sessionSet(response.headers['set-cookie']), {
       active: ANA_ID,
       profiles: [{ id: ANA_ID, name: 'Ana' }],
     });
+  });
+
+  it('lands on the start of the platform when it came from no store, or from one it does not have', async () => {
+    for (const url of ['/v1/profiles', '/v1/profiles?store=nope', '/v1/profiles?store=No%20Way']) {
+      const response = await bffOver(services, { newId: ids(ANA_ID) }).inject({
+        method: 'POST',
+        url,
+        payload: { name: 'Ana' },
+      });
+
+      assert.equal(response.statusCode, 303, url);
+      assert.equal(response.headers.location, '/bff/v1', url);
+    }
   });
 
   it('creates a second profile, which shops from then on, and switches back', async () => {
@@ -65,7 +78,7 @@ describe('two profiles in one browser', () => {
     });
     const back = await bff.inject({
       method: 'POST',
-      url: '/v1/profiles/active',
+      url: '/v1/profiles/active?store=sabia',
       headers: { cookie: String(sessionCookieSet(second.headers['set-cookie'])) },
       payload: { profileId: ANA_ID },
     });
@@ -79,7 +92,7 @@ describe('two profiles in one browser', () => {
       profiles: both,
     });
     assert.equal(back.statusCode, 303);
-    assert.equal(back.headers.location, '/bff/v1/orders');
+    assert.equal(back.headers.location, '/bff/v1/stores/sabia/orders');
     assert.deepStrictEqual(sessionSet(back.headers['set-cookie']), {
       active: ANA_ID,
       profiles: both,
@@ -89,7 +102,7 @@ describe('two profiles in one browser', () => {
   it('lists the profiles of the browser, each but the one shopping with its switch', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: '/v1/profiles',
+      url: '/v1/profiles?store=arara',
       headers: { cookie: sessionCookie(anaShopping) },
     });
 
@@ -164,9 +177,10 @@ describe('the isolation between profiles', () => {
 
   before(async () => {
     services = await fakeServices((app) => {
+      serveStores(app);
       // Commerce answers an order only to its customer, and the same 404 to anybody else.
       app.get<{ Params: { customerId: string; orderId: string } }>(
-        '/v1/customers/:customerId/orders/:orderId',
+        '/v1/stores/arara/customers/:customerId/orders/:orderId',
         async (request, reply) =>
           request.params.customerId === ana.id && request.params.orderId === ORDER
             ? customerOrderJson(pendingOrder, histories.pending)
@@ -184,7 +198,7 @@ describe('the isolation between profiles', () => {
   it('opens the order for the profile that placed it', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: `/v1/orders/${ORDER}`,
+      url: `/v1/stores/arara/orders/${ORDER}`,
       headers: { cookie: sessionCookie(anaShopping) },
     });
 
@@ -194,19 +208,22 @@ describe('the isolation between profiles', () => {
   it('answers 404 to another profile of the same browser, asking Commerce as that profile', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: `/v1/orders/${ORDER}`,
+      url: `/v1/stores/arara/orders/${ORDER}`,
       headers: { cookie: sessionCookie(brunoShopping) },
     });
 
     assert.equal(response.statusCode, 404);
-    assert.equal(services.received.at(-1)?.url, `/v1/customers/${bruno.id}/orders/${ORDER}`);
+    assert.equal(
+      services.received.at(-1)?.url,
+      `/v1/stores/arara/customers/${bruno.id}/orders/${ORDER}`,
+    );
   });
 
   it('never sends the payment of an order of another profile', async () => {
     const paymentsSoFar = payments;
     const response = await bffOver(services).inject({
       method: 'POST',
-      url: `/v1/orders/${ORDER}/payments`,
+      url: `/v1/stores/arara/orders/${ORDER}/payments`,
       headers: { cookie: sessionCookie(brunoShopping) },
       payload: { idempotencyKey: PAY_KEY, cardToken: 'tok_visa' },
     });
@@ -216,12 +233,16 @@ describe('the isolation between profiles', () => {
   });
 
   it('answers 404 to a browser with no session, without asking Commerce', async () => {
-    const received = services.received.length;
+    const commerceCalls = () =>
+      services.received.filter(
+        ({ url }) => url.includes('/customers/') || url.endsWith('/payments'),
+      ).length;
+    const received = commerceCalls();
     for (const request of [
-      { method: 'GET' as const, url: `/v1/orders/${ORDER}` },
+      { method: 'GET' as const, url: `/v1/stores/arara/orders/${ORDER}` },
       {
         method: 'POST' as const,
-        url: `/v1/orders/${ORDER}/payments`,
+        url: `/v1/stores/arara/orders/${ORDER}/payments`,
         payload: { idempotencyKey: PAY_KEY, cardToken: 'tok_visa' },
       },
     ]) {
@@ -229,13 +250,13 @@ describe('the isolation between profiles', () => {
 
       assert.equal(response.statusCode, 404, request.method);
     }
-    assert.equal(services.received.length, received);
+    assert.equal(commerceCalls(), received);
   });
 
   it('keeps each profile to its own orders, with a visitor of the same browser too', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: `/v1/orders/${ORDER}`,
+      url: `/v1/stores/arara/orders/${ORDER}`,
       headers: { cookie: sessionCookie({ ...anaShopping, active: visitor.id }) },
     });
 

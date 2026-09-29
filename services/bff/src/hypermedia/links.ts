@@ -13,6 +13,8 @@ export const rel = {
   item: 'item',
   next: 'next',
   prev: 'prev',
+  stores: `${RELATIONS}#rel-stores`,
+  store: `${RELATIONS}#rel-store`,
   catalog: `${RELATIONS}#rel-catalog`,
   track: `${RELATIONS}#rel-track`,
   live: `${RELATIONS}#rel-live`,
@@ -40,6 +42,14 @@ export function href(path: string, query: Query = {}): string {
   }
 
   return search.size > 0 ? `${BFF_ROOT}${path}?${search}` : `${BFF_ROOT}${path}`;
+}
+
+/**
+ * An address inside a store (ADR 0031): the store itself, or one of its resources, whose own
+ * data goes through `path`: inStore('arara', path`/orders/${id}`) is /bff/v1/stores/arara/orders/{id}.
+ */
+export function inStore(store: string, resource = '', query: Query = {}): string {
+  return href(`${path`/stores/${store}`}${resource}`, query);
 }
 
 /**

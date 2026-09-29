@@ -8,8 +8,9 @@ import {
   readOrderForm,
   refusalError,
 } from '../src/checkout/index.ts';
-import { href, InvalidForm, money, path } from '../src/hypermedia/index.ts';
+import { href, InvalidForm, inStore, money, path } from '../src/hypermedia/index.ts';
 import { canonicalCode } from '../src/tracking/code.ts';
+import { arara } from './support/upstream-data.ts';
 
 const filled = {
   idempotencyKey: '0199a2b4-8a10-7c51-b0d2-3e4f5a6b7c8d',
@@ -62,10 +63,11 @@ describe('the order form', () => {
     assert.equal(readOrderForm({ ...filled, quantity: '3' }).quantity, 3);
   });
 
-  it('sends the address to Commerce in pieces, from the state down', () => {
-    const order = newOrderOf(readOrderForm(filled), '0199a2b4-1111-7222-8333-444455556666');
+  it('sends the order to Commerce with its store, and the address in pieces, from the state down', () => {
+    const order = newOrderOf(readOrderForm(filled), '0199a2b4-1111-7222-8333-444455556666', arara);
 
     assert.deepStrictEqual(order, {
+      store: 'arara',
       customer: {
         id: '0199a2b4-1111-7222-8333-444455556666',
         name: 'Ana Souza',
@@ -87,7 +89,7 @@ describe('the order form', () => {
   });
 
   it('leaves the neighborhood out when nobody filled it', () => {
-    const order = newOrderOf(readOrderForm({ ...filled, neighborhood: '' }), 'guest');
+    const order = newOrderOf(readOrderForm({ ...filled, neighborhood: '' }), 'guest', arara);
 
     assert.deepStrictEqual(
       order.shippingAddress.divisions.map((division) => division.kind),
@@ -100,13 +102,28 @@ describe('the order form', () => {
       outcome: 'refused',
       status: 422,
       problem: null,
-      fields: ['customer.email', 'shippingAddress.divisions.1.name', 'items.0.sku'],
+      fields: ['customer.email', 'shippingAddress.divisions.1.name', 'shippingAddress.country'],
     });
 
     assert.ok(error instanceof InvalidForm);
     assert.deepStrictEqual(error.fieldErrors, {
       email: ['Confira este campo.'],
       municipality: ['Confira este campo.'],
+    });
+  });
+
+  it('says the store does not sell the product when Commerce refuses it, in the summary', () => {
+    const error = refusalError({
+      outcome: 'refused',
+      status: 422,
+      problem: null,
+      fields: ['items.0.sku'],
+    });
+
+    assert.ok(error instanceof InvalidForm);
+    assert.equal(error.message, 'Não consegui fechar o pedido desse produto nesta loja.');
+    assert.deepStrictEqual(error.fieldErrors, {
+      sku: ['Esta loja não vende esse produto agora. Volte ao produto e comece o pedido de novo.'],
     });
   });
 
@@ -158,6 +175,12 @@ describe('the hypermedia vocabulary', () => {
   it('leaves out the query values it was not given', () => {
     assert.equal(href('/orders/1', { awaiting: undefined }), '/bff/v1/orders/1');
     assert.equal(href('/checkout', { sku: 'X', quantity: 2 }), '/bff/v1/checkout?sku=X&quantity=2');
+  });
+
+  it('puts the store in the address of everything in it', () => {
+    assert.equal(inStore('arara'), '/bff/v1/stores/arara');
+    assert.equal(inStore('arara', '/orders', { page: 2 }), '/bff/v1/stores/arara/orders?page=2');
+    assert.equal(inStore('a b', path`/orders/${'1/2'}`), '/bff/v1/stores/a%20b/orders/1%2F2');
   });
 });
 

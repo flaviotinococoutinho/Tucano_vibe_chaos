@@ -3,13 +3,20 @@ import {
   component,
   type Entity,
   href,
+  inStore,
   type Link,
   path,
   rel,
   screen,
   type Tone,
 } from '../hypermedia/index.ts';
-import type { DeliveryFailure, ShipmentStatus, Tracking, TrackingStep } from '../upstream/index.ts';
+import type {
+  DeliveryFailure,
+  ShipmentStatus,
+  Store,
+  Tracking,
+  TrackingStep,
+} from '../upstream/index.ts';
 import { TYPED_TRACKING_CODE } from './code.ts';
 
 type Look = {
@@ -64,7 +71,8 @@ const REFRESH_WHILE_MOVING_SECONDS = 5;
 /** The carrier that is Tucano's own: the only one whose courier reports live positions. */
 const OWN_FLEET = 'tucano-express';
 
-export function trackingScreen(tracking: Tracking, livePath: string): Entity {
+/** The journey of a parcel of the store: every address of the page stays in the store. */
+export function trackingScreen(store: Store, tracking: Tracking, livePath: string): Entity {
   const look = JOURNEY[tracking.status];
 
   return screen('tracking', {
@@ -81,8 +89,11 @@ export function trackingScreen(tracking: Tracking, livePath: string): Entity {
     },
     entities: tracking.steps.map((step) => shipmentStep(step, rel.item)),
     links: [
-      { rel: [rel.self], href: href(path`/tracking/${tracking.trackingCode}`) },
-      { rel: [rel.up], href: href(''), title: 'Início' },
+      {
+        rel: [rel.self],
+        href: inStore(store.slug, path`/tracking/${tracking.trackingCode}`),
+      },
+      { rel: [rel.up], href: inStore(store.slug), title: 'Início' },
       ...liveLinks(tracking, livePath),
     ],
     ...(look.moving ? { refreshAfterSeconds: REFRESH_WHILE_MOVING_SECONDS } : {}),
@@ -134,13 +145,16 @@ function carrierOf(code: string): Carrier {
   return known ?? { name: code, withIt: `com a transportadora ${code}` };
 }
 
-/** The form that takes a typed code to its tracking page, on any screen that offers it. */
-export function trackByCodeAction(): Action {
+/**
+ * The form that takes a typed code to its tracking page. In a store it stays in the store; on
+ * the platform it finds the store the parcel is of, whichever it is.
+ */
+export function trackByCodeAction(store: Store | null): Action {
   return {
     name: 'track-by-code',
     title: 'Acompanhar',
     method: 'GET',
-    href: href('/tracking'),
+    href: store === null ? href('/tracking') : inStore(store.slug, '/tracking'),
     fields: [
       {
         name: 'code',

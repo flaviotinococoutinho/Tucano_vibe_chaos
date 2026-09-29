@@ -6,8 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 
-/** The vocabulary, the anticorruption layer and the session know no screen; screens know them all. */
-const FOUNDATIONS = ['platform', 'hypermedia', 'upstream', 'session'];
+/**
+ * The vocabulary, the anticorruption layer, the session and the stores know no screen;
+ * screens know them all.
+ */
+const FOUNDATIONS = ['platform', 'hypermedia', 'upstream', 'session', 'stores'];
 const FEATURES = ['storefront', 'checkout', 'orders', 'profiles', 'tracking'];
 
 type Import = { readonly from: string; readonly module: string; readonly target: string };

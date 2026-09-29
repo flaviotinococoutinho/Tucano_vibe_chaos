@@ -4,15 +4,15 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { rel } from '../src/hypermedia/index.ts';
 import { bffOver } from './support/bff.ts';
 import { example } from './support/examples.ts';
-import { type FakeServices, fakeServices } from './support/fake-services.ts';
+import { type FakeServices, fakeServices, serveStores } from './support/fake-services.ts';
 import { sessionCookie } from './support/sessions.ts';
 import {
   ana,
   anaShopping,
+  booksDelivered,
   booksExpired,
   customerOrderJson,
   histories,
-  mugsDelivered,
   ownFleetOrder,
   parcelInTransit,
   parcelWithTheCourier,
@@ -34,8 +34,9 @@ describe('my orders', () => {
 
   before(async () => {
     services = await fakeServices((app) => {
+      serveStores(app);
       app.get<{ Params: { customerId: string }; Querystring: { page: string; perPage: string } }>(
-        '/v1/customers/:customerId/orders',
+        '/v1/stores/arara/customers/:customerId/orders',
         async (request, reply) => {
           if (listIsOut) {
             return reply.code(503).header('retry-after', '7').send({ status: 503 });
@@ -44,7 +45,7 @@ describe('my orders', () => {
             page: Number(request.query.page),
             perPage: Number(request.query.perPage),
             total: 12,
-            orders: [summaryJson(mugsDelivered), summaryJson(booksExpired)],
+            orders: [summaryJson(booksDelivered), summaryJson(booksExpired)],
           };
         },
       );
@@ -57,43 +58,52 @@ describe('my orders', () => {
 
   after(() => services.close());
 
-  it('shows an empty list to a browser with no session, asking nobody and starting nothing', async () => {
+  it('shows an empty list to a browser with no session, asking Commerce nothing and starting nothing', async () => {
     const received = services.received.length;
-    const response = await bffOver(services).inject({ method: 'GET', url: '/v1/orders' });
+    const response = await bffOver(services).inject({
+      method: 'GET',
+      url: '/v1/stores/arara/orders',
+    });
 
     assert.equal(response.statusCode, 200);
     assert.deepStrictEqual(response.json(), example('orders-empty.json'));
     assert.equal(response.headers['set-cookie'], undefined);
-    assert.equal(services.received.length, received);
+    assert.deepStrictEqual(
+      services.received.slice(received).map(({ url }) => url),
+      ['/v1/stores/arara'],
+    );
   });
 
-  it('asks Commerce for the orders of the profile shopping, a page at a time', async () => {
+  it('asks Commerce for the orders of the profile shopping in the store, a page at a time', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: '/v1/orders?page=2',
+      url: '/v1/stores/arara/orders?page=2',
       headers: { cookie: ANA },
     });
 
     assert.equal(response.statusCode, 200);
     assert.deepStrictEqual(response.json(), example('orders.json'));
-    assert.equal(services.received.at(-1)?.url, `/v1/customers/${ana.id}/orders?page=2&perPage=10`);
+    assert.equal(
+      services.received.at(-1)?.url,
+      `/v1/stores/arara/customers/${ana.id}/orders?page=2&perPage=10`,
+    );
   });
 
   it('refuses a page that cannot exist', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: '/v1/orders?page=0',
+      url: '/v1/stores/arara/orders?page=0',
       headers: { cookie: ANA },
     });
 
     assert.equal(response.statusCode, 422);
   });
 
-  it('says the list is out, and when to try again, while its store is out', async () => {
+  it('says the list is out, and when to try again, while its database is out', async () => {
     listIsOut = true;
     const response = await bffOver(services).inject({
       method: 'GET',
-      url: '/v1/orders',
+      url: '/v1/stores/arara/orders',
       headers: { cookie: ANA },
     });
 
@@ -112,8 +122,9 @@ describe('the story of an order', () => {
 
   before(async () => {
     services = await fakeServices((app) => {
+      serveStores(app);
       app.get<{ Params: { customerId: string; orderId: string } }>(
-        '/v1/customers/:customerId/orders/:orderId',
+        '/v1/stores/arara/customers/:customerId/orders/:orderId',
         async (request, reply) => {
           const { customerId, orderId } = request.params;
           if (customerId === ana.id && orderId === SHIPPED) {
@@ -125,21 +136,26 @@ describe('the story of an order', () => {
           return reply.code(404).send({ status: 404 });
         },
       );
-      app.get<{ Params: { code: string } }>('/v1/tracking/:code', async (request, reply) => {
-        if (mood === 'out') {
-          return reply.code(503).header('retry-after', '3').send({ status: 503 });
-        }
-        if (mood === 'no-news') {
-          return reply.code(404).send({ status: 404 });
-        }
-        if (mood === 'slow') {
-          await sleep(400);
-        }
-        const parcel = [parcelInTransit, parcelWithTheCourier].find(
-          ({ trackingCode }) => trackingCode === request.params.code,
-        );
-        return parcel === undefined ? reply.code(404).send({ status: 404 }) : trackingJson(parcel);
-      });
+      app.get<{ Params: { code: string } }>(
+        '/v1/stores/arara/tracking/:code',
+        async (request, reply) => {
+          if (mood === 'out') {
+            return reply.code(503).header('retry-after', '3').send({ status: 503 });
+          }
+          if (mood === 'no-news') {
+            return reply.code(404).send({ status: 404 });
+          }
+          if (mood === 'slow') {
+            await sleep(400);
+          }
+          const parcel = [parcelInTransit, parcelWithTheCourier].find(
+            ({ trackingCode }) => trackingCode === request.params.code,
+          );
+          return parcel === undefined
+            ? reply.code(404).send({ status: 404 })
+            : trackingJson(parcel);
+        },
+      );
     });
   });
 
@@ -154,7 +170,7 @@ describe('the story of an order', () => {
       env: { UPSTREAM_TIMEOUT_MS: '2000', ENRICHMENT_TIMEOUT_MS: '100' },
     }).inject({
       method: 'GET',
-      url: `/v1/orders/${orderId}`,
+      url: `/v1/stores/arara/orders/${orderId}`,
       headers: { cookie: ANA },
     });
 

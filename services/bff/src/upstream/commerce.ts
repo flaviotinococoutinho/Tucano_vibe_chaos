@@ -92,8 +92,10 @@ export type Division = {
   readonly name: string;
 };
 
-/** The order Commerce places, in the shape of its API. */
+/** The order Commerce places, in the shape of its API: every item has to be a product of the store. */
 export type NewOrder = {
+  /** The slug of the store the order is of (ADR 0031). */
+  readonly store: string;
   readonly customer: { readonly id: string; readonly name: string; readonly email: string };
   readonly shippingAddress: {
     readonly thoroughfare: { readonly type: string; readonly name: string };
@@ -125,14 +127,26 @@ export type PaymentRequest =
 
 /**
  * The commerce service (Laravel): orders and their payments, in the words the BFF uses.
- * Every read goes through the routes of one customer, so an order of somebody else reads
- * exactly like an order that does not exist.
+ * Every read goes through the routes of one customer in one store, so an order of somebody
+ * else, or of another store, reads exactly like an order that does not exist.
  */
 export type Commerce = {
-  /** The order of that customer, with its history; null when the customer has no such order. */
-  customerOrder(customerId: string, orderId: string, trace: Trace): Promise<CustomerOrder | null>;
-  /** A page of the orders of that customer, newest first, from a read model a few seconds behind. */
+  /**
+   * The order of that customer in that store, with its history; null when the customer has
+   * no such order there.
+   */
+  customerOrder(
+    store: string,
+    customerId: string,
+    orderId: string,
+    trace: Trace,
+  ): Promise<CustomerOrder | null>;
+  /**
+   * A page of the orders of that customer in that store, newest first, from a read model a
+   * few seconds behind.
+   */
   customerOrders(
+    store: string,
     customerId: string,
     page: number,
     perPage: number,
@@ -146,8 +160,8 @@ export type Commerce = {
 
 export function commerceAt(upstream: Upstream): Commerce {
   return {
-    async customerOrder(customerId, orderId, trace) {
-      const path = `${customerPath(customerId)}/orders/${encodeURIComponent(orderId)}`;
+    async customerOrder(store, customerId, orderId, trace) {
+      const path = `${customerPath(store, customerId)}/orders/${encodeURIComponent(orderId)}`;
       const answer = await call(upstream, { method: 'GET', path }, trace);
       if (answer.status === 404) {
         return null;
@@ -167,9 +181,9 @@ export function commerceAt(upstream: Upstream): Commerce {
       };
     },
 
-    async customerOrders(customerId, page, perPage, trace) {
+    async customerOrders(store, customerId, page, perPage, trace) {
       const query = new URLSearchParams({ page: String(page), perPage: String(perPage) });
-      const path = `${customerPath(customerId)}/orders?${query}`;
+      const path = `${customerPath(store, customerId)}/orders?${query}`;
       const answer = await call(upstream, { method: 'GET', path }, trace);
       if (answer.status !== 200) {
         throw answer.unexpected();
@@ -251,9 +265,12 @@ function orderOf(fields: Fields): Order {
   };
 }
 
-/** Only the BFF reaches these routes: Kong closes them at the edge (ADR 0030). */
-function customerPath(customerId: string): string {
-  return `/v1/customers/${encodeURIComponent(customerId)}`;
+/**
+ * A customer of one store. Only the BFF reaches these routes: Kong closes them at the edge
+ * (ADR 0030 and ADR 0031).
+ */
+function customerPath(store: string, customerId: string): string {
+  return `/v1/stores/${encodeURIComponent(store)}/customers/${encodeURIComponent(customerId)}`;
 }
 
 function summaryOf(fields: Fields): OrderSummary {

@@ -1,7 +1,7 @@
 import {
   component,
   type Entity,
-  href,
+  inStore,
   money,
   type Notice,
   pageLinks,
@@ -9,7 +9,7 @@ import {
   rel,
   screen,
 } from '../hypermedia/index.ts';
-import type { CustomerOrderPage, OrderSummary, OrderTransition } from '../upstream/index.ts';
+import type { CustomerOrderPage, OrderSummary, OrderTransition, Store } from '../upstream/index.ts';
 import { lookOf } from './looks.ts';
 import { progressOf } from './story.ts';
 
@@ -22,16 +22,17 @@ const FRESHNESS: Notice = {
   text: 'Um pedido novo pode levar alguns segundos para aparecer aqui.',
 };
 
-export function ordersScreen(page: CustomerOrderPage): Entity {
-  const at = (number: number): string => href('/orders', { page: number });
+/** The orders of the shopper in the store: those of another store never show here. */
+export function ordersScreen(store: Store, page: CustomerOrderPage): Entity {
+  const at = (number: number): string => inStore(store.slug, '/orders', { page: number });
 
   return screen('orders', {
     title: 'Meus pedidos',
     properties: { page: page.page, perPage: page.perPage, total: page.total, notice: FRESHNESS },
-    entities: page.orders.map(orderSummary),
+    entities: page.orders.map((summary) => orderSummary(store, summary)),
     links: [
       ...pageLinks(page, at),
-      { rel: [rel.catalog], href: href('/products'), title: 'Ver o catálogo' },
+      { rel: [rel.catalog], href: inStore(store.slug, '/products'), title: 'Ver o catálogo' },
     ],
   });
 }
@@ -41,7 +42,7 @@ export function noOrders(page: number): CustomerOrderPage {
   return { orders: [], page, perPage: ORDERS_PER_PAGE, total: 0 };
 }
 
-function orderSummary(summary: OrderSummary): Entity {
+function orderSummary(store: Store, summary: OrderSummary): Entity {
   const look = lookOf(summary.status);
 
   return component('order-summary', {
@@ -63,7 +64,7 @@ function orderSummary(summary: OrderSummary): Entity {
         transitions: transitionsOf(summary),
       }),
     },
-    links: [{ rel: [rel.self], href: href(path`/orders/${summary.orderId}`) }],
+    links: [{ rel: [rel.self], href: inStore(store.slug, path`/orders/${summary.orderId}`) }],
   });
 }
 

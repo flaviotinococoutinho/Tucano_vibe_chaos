@@ -2,13 +2,13 @@ import {
   type Action,
   FormReader,
   hidden,
-  href,
   InvalidForm,
   idempotencyKeyField,
+  inStore,
 } from '../hypermedia/index.ts';
 import type { DomainError } from '../platform/domain-error.ts';
 import { SKU } from '../storefront/index.ts';
-import { MAX_UNITS_PER_ITEM, type NewOrder, type Refusal } from '../upstream/index.ts';
+import { MAX_UNITS_PER_ITEM, type NewOrder, type Refusal, type Store } from '../upstream/index.ts';
 import { STATES, THOROUGHFARE_TYPES, type ThoroughfareType, UFS, type Uf } from './address.ts';
 import { FormAlreadyUsed, OrderNotPlaced, ProductOutOfLine } from './errors.ts';
 
@@ -45,13 +45,13 @@ export type OrderForm = {
   readonly state: Uf;
 };
 
-/** The form of the order, in the order a person fills it, with what HTML needs to help. */
-export function placeOrderAction(sku: string, quantity: number, key: string): Action {
+/** The form of the order in the store, in the order a person fills it, with what HTML needs to help. */
+export function placeOrderAction(store: Store, sku: string, quantity: number, key: string): Action {
   return {
     name: 'place-order',
     title: 'Fazer pedido',
     method: 'POST',
-    href: href('/orders'),
+    href: inStore(store.slug, '/orders'),
     type: 'application/json',
     fields: [
       idempotencyKeyField(key),
@@ -190,13 +190,14 @@ export function readOrderForm(body: unknown): OrderForm {
 }
 
 /**
- * The order in the words of Commerce, for the profile shopping now. The address goes as
- * pieces (ADR 0020): the thoroughfare as a type and a name, and the territory from the
- * state down. The IBGE code of the city stays null: the form asks for the name, and
- * Commerce accepts that.
+ * The order in the words of Commerce, of the store, for the profile shopping now. The address
+ * goes as pieces (ADR 0020): the thoroughfare as a type and a name, and the territory from the
+ * state down. The IBGE code of the city stays null: the form asks for the name, and Commerce
+ * accepts that.
  */
-export function newOrderOf(form: OrderForm, customerId: string): NewOrder {
+export function newOrderOf(form: OrderForm, customerId: string, store: Store): NewOrder {
   return {
+    store: store.slug,
     customer: { id: customerId, name: form.name, email: form.email },
     shippingAddress: {
       thoroughfare: { type: form.thoroughfareType, name: form.thoroughfareName },
@@ -228,13 +229,22 @@ const FORM_FIELDS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^shippingAddress\.divisions\.1(\.|$)/, 'municipality'],
   [/^shippingAddress\.divisions\.2(\.|$)/, 'neighborhood'],
   [/^items\.0\.quantity$/, 'quantity'],
+  [/^items\.0\.sku$/, 'sku'],
 ];
+
+/** What a refused field of the form says, when "confira este campo" does not help. */
+const REFUSED: Readonly<Record<string, string>> = {
+  // Hidden: the product came with the form, and only a new form brings another one.
+  sku: 'Esta loja não vende esse produto agora. Volte ao produto e comece o pedido de novo.',
+};
 
 /**
  * Commerce said no. The type of the problem (contracts/http/problems.md) tells apart what
  * a status alone cannot: a product out of line and a stock that ran out are both 409. A
  * 422 without a name is about the data, and its field names come back as the names of
- * the form, so each message lands next to the field a person has to fix.
+ * the form, so each message lands next to the field a person has to fix. A product the
+ * store does not sell (another store's, or one Commerce does not know the store of yet)
+ * comes back on `items.0.sku`, the hidden field of the product.
  */
 export function refusalError(refusal: Refusal): DomainError {
   switch (refusal.problem) {
@@ -252,12 +262,14 @@ export function refusalError(refusal: Refusal): DomainError {
   for (const field of refusal.fields) {
     const formField = FORM_FIELDS.find(([pattern]) => pattern.test(field))?.[1];
     if (formField !== undefined) {
-      fieldErrors[formField] = ['Confira este campo.'];
+      fieldErrors[formField] = [REFUSED[formField] ?? 'Confira este campo.'];
     }
   }
 
   return new InvalidForm(
     fieldErrors,
-    'Não consegui fechar o pedido com esses dados. Confira o e-mail e o endereço.',
+    fieldErrors.sku === undefined
+      ? 'Não consegui fechar o pedido com esses dados. Confira o e-mail e o endereço.'
+      : 'Não consegui fechar o pedido desse produto nesta loja.',
   );
 }

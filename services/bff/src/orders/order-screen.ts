@@ -2,8 +2,8 @@ import {
   type Action,
   component,
   type Entity,
-  href,
   idempotencyKeyField,
+  inStore,
   type Link,
   money,
   type Notice,
@@ -19,6 +19,7 @@ import type {
   OrderLine,
   OrderTransition,
   ShipmentStatus,
+  Store,
   Tracking,
 } from '../upstream/index.ts';
 import { CONFIRMING, lookOf, REFRESH_WHILE_MOVING_SECONDS } from './looks.ts';
@@ -88,7 +89,8 @@ export type OrderView = {
   readonly key: string;
 };
 
-export function orderScreen(story: OrderStory, view: OrderView): Entity {
+/** An order of the store: every address it links to stays in the store. */
+export function orderScreen(store: Store, story: OrderStory, view: OrderView): Entity {
   const { order, history, delivery } = story;
   const confirming = view.awaitingPayment && order.status === 'pending_payment';
   // Right after paying, the screen follows the payment until the parcel moves: the approved
@@ -103,7 +105,7 @@ export function orderScreen(story: OrderStory, view: OrderView): Entity {
   // Without its delivery news, even a finished order asks again, until logistics answers.
   const refreshAfterSeconds =
     look.refreshAfterSeconds ?? (missingNews ? REFRESH_WHILE_MOVING_SECONDS : undefined);
-  const self = href(path`/orders/${order.orderId}`, {
+  const self = inStore(store.slug, path`/orders/${order.orderId}`, {
     awaiting: followingPayment ? 'payment' : undefined,
   });
 
@@ -133,13 +135,14 @@ export function orderScreen(story: OrderStory, view: OrderView): Entity {
     },
     entities: [...order.lines.map(orderLine), ...historyOf(order, history, delivery)],
     // Paying twice is not a thing: the form leaves while the first payment is on its way.
-    actions: order.status === 'pending_payment' && !confirming ? [payAction(order, view.key)] : [],
+    actions:
+      order.status === 'pending_payment' && !confirming ? [payAction(store, order, view.key)] : [],
     links: [
       { rel: [rel.self], href: self },
-      { rel: [rel.collection], href: href('/orders'), title: 'Meus pedidos' },
-      ...trackLink(order),
+      { rel: [rel.collection], href: inStore(store.slug, '/orders'), title: 'Meus pedidos' },
+      ...trackLink(store, order),
       ...(delivery.news === 'known' ? liveLinks(delivery.tracking, delivery.livePath) : []),
-      catalogLink(),
+      { rel: [rel.catalog], href: inStore(store.slug, '/products'), title: 'Continuar comprando' },
     ],
     ...(refreshAfterSeconds === undefined ? {} : { refreshAfterSeconds }),
   });
@@ -202,12 +205,12 @@ function orderLine(line: OrderLine): Entity {
   });
 }
 
-function payAction(order: Order, key: string): Action {
+function payAction(store: Store, order: Order, key: string): Action {
   return {
     name: 'pay',
     title: 'Pagar',
     method: 'POST',
-    href: href(path`/orders/${order.orderId}/payments`),
+    href: inStore(store.slug, path`/orders/${order.orderId}/payments`),
     type: 'application/json',
     fields: [
       idempotencyKeyField(key),
@@ -223,18 +226,14 @@ function payAction(order: Order, key: string): Action {
   };
 }
 
-function trackLink(order: Order): Link[] {
+function trackLink(store: Store, order: Order): Link[] {
   return order.trackingCode === null
     ? []
     : [
         {
           rel: [rel.track],
-          href: href(path`/tracking/${order.trackingCode}`),
+          href: inStore(store.slug, path`/tracking/${order.trackingCode}`),
           title: 'Acompanhar a entrega',
         },
       ];
-}
-
-function catalogLink(): Link {
-  return { rel: [rel.catalog], href: href('/products'), title: 'Continuar comprando' };
 }

@@ -1,5 +1,7 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type { Store } from '../../src/upstream/index.ts';
+import { everyStore } from './upstream-data.ts';
 
 export type Received = {
   readonly method: string;
@@ -48,4 +50,16 @@ export function ids(...values: string[]): () => string {
     }
     return value;
   };
+}
+
+/**
+ * The stores of the catalog, as its routes answer them: the list, sorted by name, and each
+ * store by its slug, with the 404 of a store the catalog does not have.
+ */
+export function serveStores(app: FastifyInstance, stores: readonly Store[] = everyStore): void {
+  app.get('/v1/stores', async () => ({ stores }));
+  app.get<{ Params: { store: string } }>('/v1/stores/:store', async (request, reply) => {
+    const store = stores.find(({ slug }) => slug === request.params.store);
+    return store ?? reply.code(404).type('application/problem+json').send({ status: 404 });
+  });
 }
