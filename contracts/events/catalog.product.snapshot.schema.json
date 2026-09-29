@@ -6,6 +6,11 @@
   "type": "object",
   "required": ["productId", "sku", "name", "status", "category", "price", "weightGrams", "dimensions", "version", "updatedAt"],
   "properties": {
+    "store": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$",
+      "description": "The slug of the store the fact belongs to (ADR 0031). Optional: a fact from before the stores has none."
+    },
     "productId": {
       "type": "string",
       "description": "UUIDv7 of the product, also the CloudEvent subject and the Kafka key.",

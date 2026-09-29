@@ -6,6 +6,11 @@
   "type": "object",
   "required": ["orderId", "orderNumber", "customerId", "fulfillmentCenter", "total", "lines", "reservationExpiresAt"],
   "properties": {
+    "store": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$",
+      "description": "The slug of the store the fact belongs to (ADR 0031). Optional: a fact from before the stores has none."
+    },
     "orderId": { "$ref": "#/$defs/uuidv7" },
     "orderNumber": {
       "type": "string",
