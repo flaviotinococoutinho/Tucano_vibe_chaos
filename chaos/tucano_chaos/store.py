@@ -20,6 +20,10 @@ logger = logging.getLogger("chaostoolkit")
 # Inside the compose network the store is Kong; from the host it is localhost:8000.
 STORE = os.environ.get("TUCANO_STORE", "http://kong:8000")
 
+# The store the probes shop in, the one that sells the mug (ADR 0031). Every store screen of
+# the BFF lives under it; the platform screens (the stores, the profiles) stay above it.
+STORE_PATH = "/bff/v1/stores/sabia"
+
 # The mug has the deepest stock, and the probes pay with a card the PSP declines, so a
 # run gives every unit back: an experiment can run all day without emptying a shelf. Only
 # the tracking probe pays with the card that approves, because a parcel has to ship.
@@ -82,7 +86,7 @@ class Shopper:
 
     def place_order(self) -> Answer:
         """From the checkout of the mug to the order screen, through the forms the BFF sends."""
-        checkout = self.open(f"/bff/v1/checkout?sku={PRODUCT}&quantity=1")
+        checkout = self.open(f"{STORE_PATH}/checkout?sku={PRODUCT}&quantity=1")
         if checkout.status != 200:
             return checkout
         return self.submit(action_named(checkout.screen, "place-order"), GUEST)

@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "title": "Uma loja em promoção não deixa a vizinha lenta",
+  "description": "Quarenta compradores abrem o catálogo da Arara ao mesmo tempo, sem pausa, por 15 s, como numa promoção. Enquanto isso, um comprador da Sabiá abre o catálogo dela quatro vezes por segundo. As lojas dividem o BFF, o catálogo e os bancos (ADR 0031), então a pressa de uma pode esgotar a capacidade de todas. Cada loja tem o seu serviço e o seu limite de requests no Kong, e a hipótese é que a pressa da Arara esgote o limite dela, e não a paciência de quem compra na Sabiá.",
+  "tags": [
+    "tucano",
+    "kong",
+    "tenancy",
+    "bulkhead",
+    "rate-limit"
+  ],
+  "steady-state-hypothesis": {
+    "title": "O catálogo da Sabiá responde com 200, 95 vezes em 100 em até 1 s, enquanto a Arara está lotada",
+    "probes": [
+      {
+        "type": "probe",
+        "name": "the-neighbor-keeps-its-pace",
+        "tolerance": true,
+        "provider": {
+          "type": "python",
+          "module": "tucano_chaos.probes",
+          "func": "the_neighbor_keeps_its_pace",
+          "arguments": {
+            "within_seconds": 1,
+            "store": "sabia"
+          }
+        }
+      }
+    ]
+  },
+  "method": [
+    {
+      "type": "action",
+      "name": "a-rush-on-arara",
+      "provider": {
+        "type": "python",
+        "module": "tucano_chaos.actions",
+        "func": "rush_a_store",
+        "arguments": {
+          "store": "arara",
+          "neighbor": "sabia",
+          "seconds": 15,
+          "shoppers": 40
+        }
+      }
+    }
+  ],
+  "rollbacks": [],
+  "runtime": {
+    "rollbacks": {
+      "strategy": "always"
+    }
+  }
+}
