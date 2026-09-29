@@ -8,6 +8,7 @@ use App\Models\Dimensions;
 use App\Models\NewProduct;
 use App\Models\Product;
 use App\Models\ProductChanges;
+use App\Models\ProductPage;
 use App\Services\ProductService;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +30,7 @@ final readonly class ProductController
     // The same formats the CHECK constraints enforce in MySQL.
     private const string SKU = '/^[A-Z0-9][A-Z0-9-]{2,31}$/';
     private const string SLUG = '/^[a-z0-9]+(-[a-z0-9]+)*$/';
+    private const string STORE = '/^[a-z][a-z0-9-]{1,30}$/';
     private const string CURRENCY = '/^[A-Z]{3}$/';
     // Weight and sizes are INT UNSIGNED columns.
     private const int INT_UNSIGNED_MAX = 4_294_967_295;
@@ -41,14 +43,16 @@ final readonly class ProductController
 
     public function index(Request $request): JsonResponse
     {
-        /** @var array{category?: string, page?: int|string} $query */
-        $query = $this->validate($request->query->all(), [
-            'category' => ['sometimes', 'required', 'string', 'regex:' . self::SLUG],
-            'page' => ['sometimes', 'required', 'integer', 'min:1'],
-        ]);
-        $page = $this->products->page($query['category'] ?? null, (int) ($query['page'] ?? 1));
+        [$category, $page] = $this->listing($request);
 
-        return new JsonResponse($page, Response::HTTP_OK, [], self::JSON_OPTIONS);
+        return self::productPage($this->products->page($category, $page));
+    }
+
+    public function indexInStore(Request $request, string $store): JsonResponse
+    {
+        [$category, $page] = $this->listing($request);
+
+        return self::productPage($this->products->storePage($store, $category, $page));
     }
 
     public function show(string $sku): JsonResponse
@@ -56,12 +60,18 @@ final readonly class ProductController
         return self::product($this->products->show($sku));
     }
 
+    public function showInStore(string $store, string $sku): JsonResponse
+    {
+        return self::product($this->products->showInStore($store, $sku));
+    }
+
     public function store(Request $request): JsonResponse
     {
-        /** @var array{sku: string, name: string, category: string, price: PriceInput, weightGrams: int|string, dimensions: DimensionsInput} $input */
+        /** @var array{sku: string, name: string, store: string, category: string, price: PriceInput, weightGrams: int|string, dimensions: DimensionsInput} $input */
         $input = $this->validate($request->json()->all(), [
             'sku' => ['required', 'string', 'regex:' . self::SKU],
             'name' => ['required', 'string', 'max:160'],
+            'store' => ['required', 'string', 'regex:' . self::STORE],
             'category' => ['required', 'string', 'regex:' . self::SLUG],
             'price' => ['required', 'array:amount,currency'],
             'weightGrams' => ['required', ...self::positiveInteger()],
@@ -71,6 +81,7 @@ final readonly class ProductController
         $product = $this->products->create(new NewProduct(
             $input['sku'],
             $input['name'],
+            $input['store'],
             $input['category'],
             self::price($input['price']),
             (int) $input['weightGrams'],
@@ -83,9 +94,11 @@ final readonly class ProductController
     public function update(Request $request, string $sku): JsonResponse
     {
         $expectedVersion = self::expectedVersion($request);
-        /** @var array{name?: string, category?: string, price?: PriceInput, weightGrams?: int|string, dimensions?: DimensionsInput} $input */
+        /** @var array{name?: string, store?: string, category?: string, price?: PriceInput, weightGrams?: int|string, dimensions?: DimensionsInput} $input */
         $input = $this->validate($request->json()->all(), [
             'name' => ['sometimes', 'required', 'string', 'max:160'],
+            // Never changes: the product's own store is accepted, and ProductService refuses any other.
+            'store' => ['sometimes', 'required', 'string', 'regex:' . self::STORE],
             'category' => ['sometimes', 'required', 'string', 'regex:' . self::SLUG],
             'price' => ['sometimes', 'required', 'array:amount,currency'],
             'weightGrams' => ['sometimes', 'required', ...self::positiveInteger()],
@@ -100,7 +113,7 @@ final readonly class ProductController
             isset($input['dimensions']) ? self::dimensions($input['dimensions']) : null,
         );
 
-        return self::product($this->products->change($sku, $changes, $expectedVersion));
+        return self::product($this->products->change($sku, $changes, $expectedVersion, $input['store'] ?? null));
     }
 
     public function activate(string $sku): JsonResponse
@@ -111,6 +124,22 @@ final readonly class ProductController
     public function discontinue(string $sku): JsonResponse
     {
         return self::product($this->products->discontinue($sku));
+    }
+
+    /**
+     * The query of a product listing, the platform's or a store's.
+     *
+     * @return array{string|null, int} the category to narrow it to and the page
+     */
+    private function listing(Request $request): array
+    {
+        /** @var array{category?: string, page?: int|string} $query */
+        $query = $this->validate($request->query->all(), [
+            'category' => ['sometimes', 'required', 'string', 'regex:' . self::SLUG],
+            'page' => ['sometimes', 'required', 'integer', 'min:1'],
+        ]);
+
+        return [$query['category'] ?? null, (int) ($query['page'] ?? 1)];
     }
 
     /**
@@ -165,6 +194,11 @@ final readonly class ProductController
     private static function dimensions(array $dimensions): Dimensions
     {
         return Dimensions::ofMillimetres((int) $dimensions['lengthMm'], (int) $dimensions['widthMm'], (int) $dimensions['heightMm']);
+    }
+
+    private static function productPage(ProductPage $page): JsonResponse
+    {
+        return new JsonResponse($page, Response::HTTP_OK, [], self::JSON_OPTIONS);
     }
 
     /** @param array<string, string> $headers */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Exceptions\InvalidField;
 use App\Http\Middleware\CorrelationId;
 use Illuminate\Database\DetectsLostConnections;
 use Illuminate\Database\LostConnectionException;
@@ -43,11 +44,27 @@ final readonly class ProblemDetails
             'instance' => $request->getRequestUri(),
             'correlationId' => $request->headers->get(CorrelationId::HEADER),
         ];
-        if ($error instanceof ValidationException) {
-            $problem['errors'] = $error->errors();
+        $errors = self::errorsOf($error);
+        if ($errors !== null) {
+            $problem['errors'] = $errors;
         }
 
         return new JsonResponse($problem, $status, [...self::headersOf($error), 'Content-Type' => 'application/problem+json']);
+    }
+
+    /**
+     * The fields to fix, when the problem is about the input: what the validation found, or
+     * the one field the catalog refused once its format was right.
+     *
+     * @return array<string, list<string>>|null
+     */
+    private static function errorsOf(Throwable $error): ?array
+    {
+        return match (true) {
+            $error instanceof ValidationException => $error->errors(),
+            $error instanceof InvalidField => [$error->field() => [$error->getMessage()]],
+            default => null,
+        };
     }
 
     /**

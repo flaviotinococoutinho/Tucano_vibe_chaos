@@ -6,8 +6,11 @@ namespace App\Services;
 
 use App\Exceptions\ProductNotFound;
 use App\Exceptions\StaleVersion;
+use App\Exceptions\StoreChangeNotAllowed;
+use App\Exceptions\StoreNotFound;
 use App\Exceptions\TransitionNotAllowed;
 use App\Exceptions\UnknownCategory;
+use App\Exceptions\UnknownStore;
 use App\Models\NewProduct;
 use App\Models\Product;
 use App\Models\ProductChanges;
@@ -15,6 +18,7 @@ use App\Models\ProductPage;
 use App\Models\ProductStatus;
 use App\Repositories\CategoryRepository;
 use App\Repositories\ProductRepository;
+use App\Repositories\StoreRepository;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Tucano\Messaging\Kafka\DeliveryFailed;
@@ -23,12 +27,14 @@ use Tucano\SharedKernel\Time\Clock;
 /**
  * The catalog rules: what each state allows, optimistic concurrency on writes,
  * cache-aside on reads and a snapshot on Kafka after every change of a published product.
+ * Every product belongs to one store, and a store sees only its own products.
  */
 final readonly class ProductService
 {
     public function __construct(
         private ProductRepository $products,
         private CategoryRepository $categories,
+        private StoreRepository $stores,
         private ProductCache $cache,
         private ProductPublisher $publisher,
         private Clock $clock,
@@ -36,13 +42,27 @@ final readonly class ProductService
         private int $republishBatchSize,
     ) {}
 
+    /** The active products of every store. */
     public function page(?string $category, int $page): ProductPage
     {
         if ($category !== null) {
             $this->ensureCategoryExists($category);
         }
 
-        return $this->products->activePage($category, $page);
+        return $this->products->activePage(null, $category, $page);
+    }
+
+    /** The active products of one store: the same page, narrowed to what the store sells. */
+    public function storePage(string $store, ?string $category, int $page): ProductPage
+    {
+        if (!$this->stores->exists($store)) {
+            throw StoreNotFound::withSlug($store);
+        }
+        if ($category !== null) {
+            $this->ensureCategoryExists($category);
+        }
+
+        return $this->products->activePage($store, $category, $page);
     }
 
     /** An active or discontinued product: outside the catalog, a draft does not exist. */
@@ -53,8 +73,24 @@ final readonly class ProductService
         return $product ?? throw ProductNotFound::withSku($sku);
     }
 
+    /**
+     * A product the store sells. The cache stays keyed by SKU and its entry carries the store,
+     * so the check costs no query, and the store itself is never read: a foreign key keeps a
+     * product from pointing at a store that does not exist. A product of another store is the
+     * same 404 as a SKU nobody sells, and so is any SKU under an unknown store.
+     */
+    public function showInStore(string $store, string $sku): Product
+    {
+        $product = $this->show($sku);
+
+        return $product->store === $store ? $product : throw ProductNotFound::withSku($sku);
+    }
+
     public function create(NewProduct $input): Product
     {
+        if (!$this->stores->exists($input->store)) {
+            throw UnknownStore::withSlug($input->store);
+        }
         $this->ensureCategoryExists($input->category);
         $product = Product::draft($input, $this->clock->now());
         $this->products->add($product);
@@ -64,12 +100,19 @@ final readonly class ProductService
         return $product;
     }
 
-    /** @param int|null $expectedVersion the version the client says it read (If-Match) */
-    public function change(string $sku, ProductChanges $changes, ?int $expectedVersion): Product
+    /**
+     * @param int|null $expectedVersion the version the client says it read (If-Match)
+     * @param string|null $store the store the body names: the product's own changes nothing,
+     *                           and any other is refused, because a product never moves
+     */
+    public function change(string $sku, ProductChanges $changes, ?int $expectedVersion, ?string $store = null): Product
     {
         $current = $this->find($sku);
         if ($expectedVersion !== null && $expectedVersion !== $current->version) {
             throw StaleVersion::expected($current, $expectedVersion);
+        }
+        if ($store !== null && $store !== $current->store) {
+            throw StoreChangeNotAllowed::of($current, $store);
         }
         if ($changes->category !== null) {
             $this->ensureCategoryExists($changes->category);

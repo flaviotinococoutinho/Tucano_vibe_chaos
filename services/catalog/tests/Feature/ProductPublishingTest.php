@@ -41,6 +41,7 @@ final class ProductPublishingTest extends IntegrationTestCase
             'sku' => 'BOOK-DDD-001',
             'name' => 'Domain-Driven Design',
             'status' => 'active',
+            'store' => 'arara',
             'category' => 'books',
             'price' => ['amount' => 17990, 'currency' => 'BRL'],
             'weightGrams' => 1100,
@@ -69,6 +70,7 @@ final class ProductPublishingTest extends IntegrationTestCase
         $this->json('POST', '/v1/products', [
             'sku' => 'BOOK-REF-001',
             'name' => 'Refactoring',
+            'store' => 'arara',
             'category' => 'books',
             'price' => ['amount' => 15990, 'currency' => 'BRL'],
             'weightGrams' => 900,

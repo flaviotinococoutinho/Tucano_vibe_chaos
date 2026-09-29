@@ -11,6 +11,7 @@ use App\Services\ProductSnapshot;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\ValidationResult;
 use Opis\JsonSchema\Validator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Doubles\Products;
@@ -25,7 +26,7 @@ final class ProductSnapshotContractTest extends TestCase
     private const string SNAPSHOT = 'catalog.product.snapshot.schema.json';
 
     #[Test]
-    public function published_events_match_the_envelope_and_the_snapshot_contracts(): void
+    public function published_events_carry_the_store_and_match_the_envelope_and_the_snapshot_contracts(): void
     {
         $kafka = new InMemoryProducer();
         $logContext = new LogContext();
@@ -39,6 +40,38 @@ final class ProductSnapshotContractTest extends TestCase
             $event = json_decode($message->payload, flags: JSON_THROW_ON_ERROR);
             self::assertMatchesContract(self::ENVELOPE, $event);
             self::assertMatchesContract(self::SNAPSHOT, $event->data);
+            // The contract leaves the store optional for the facts from before the stores; the catalog always sends it.
+            self::assertSame('arara', $event->data->store);
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function storesOutsideTheSlugFormat(): iterable
+    {
+        yield 'the name of the store' => ['Arara Livros'];
+        yield 'an accent' => ['sabiá'];
+        yield 'one letter' => ['a'];
+        yield 'starting with a digit' => ['1arara'];
+    }
+
+    #[Test]
+    #[DataProvider('storesOutsideTheSlugFormat')]
+    public function the_contract_takes_the_store_as_a_slug(string $store): void
+    {
+        $snapshot = ProductSnapshot::of(Products::book());
+        $snapshot['store'] = $store;
+
+        self::assertFalse(self::validate(self::SNAPSHOT, self::decoded($snapshot))->isValid());
+    }
+
+    #[Test]
+    public function every_seeded_store_fits_the_contract(): void
+    {
+        foreach (['arara', 'bemtevi', 'sabia'] as $store) {
+            $snapshot = ProductSnapshot::of(Products::book());
+            $snapshot['store'] = $store;
+
+            self::assertMatchesContract(self::SNAPSHOT, self::decoded($snapshot));
         }
     }
 

@@ -59,6 +59,7 @@ abstract class IntegrationTestCase extends TestCase
             'id' => Uuid::uuid7()->getBytes(),
             'sku' => 'BOOK-TEST-001',
             'name' => 'Test book',
+            'store_id' => $this->storeId('arara'),
             'category_id' => $this->database()->table('categories')->where('slug', 'books')->value('id'),
             'status' => 'active',
             'price_cents' => 1000,
@@ -69,6 +70,37 @@ abstract class IntegrationTestCase extends TestCase
             'height_mm' => 20,
             ...$overrides,
         ]);
+    }
+
+    /** @param array<string, mixed> $overrides columns that differ from a valid store */
+    protected function insertStore(array $overrides = []): void
+    {
+        $this->database()->table('stores')->insert([
+            'id' => Uuid::uuid7()->getBytes(),
+            'slug' => 'urutau',
+            'name' => 'Urutau Ferramentas',
+            'tagline' => 'Ferramentas para a oficina de casa.',
+            'palette' => 'sabia',
+            ...$overrides,
+        ]);
+    }
+
+    /** The binary id of a store, the way products point at it. */
+    protected function storeId(string $slug): string
+    {
+        $id = $this->database()->table('stores')->where('slug', $slug)->value('id');
+        self::assertIsString($id, "Store {$slug} is not in the database.");
+
+        return $id;
+    }
+
+    /** The slug of the store a product is in, straight from MySQL. */
+    protected function storeOf(string $sku): string
+    {
+        return (string) $this->database()->table('products AS p')
+            ->join('stores AS s', 's.id', '=', 'p.store_id')
+            ->where('p.sku', $sku)
+            ->value('s.slug');
     }
 
     protected function productRow(string $sku): stdClass

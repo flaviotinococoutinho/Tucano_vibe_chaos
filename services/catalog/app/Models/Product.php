@@ -12,13 +12,15 @@ use Tucano\SharedKernel\Money\Money;
 
 /**
  * A product as the catalog keeps it. The array form is what the API returns
- * and what the cache stores.
+ * and what the cache stores. A product is born in a store and never leaves it
+ * (docs/adr/0031-a-store-is-a-tenant.md): no change or move takes it elsewhere.
  *
  * @phpstan-type ProductRecord array{
  *     id: string,
  *     sku: string,
  *     name: string,
  *     status: string,
+ *     store: string,
  *     category: string,
  *     price: array{amount: int, currency: string},
  *     weightGrams: int,
@@ -36,6 +38,7 @@ final readonly class Product implements JsonSerializable
         public string $sku,
         public string $name,
         public ProductStatus $status,
+        public string $store,
         public string $category,
         public Money $price,
         public int $weightGrams,
@@ -51,6 +54,7 @@ final readonly class Product implements JsonSerializable
             $input->sku,
             $input->name,
             ProductStatus::Draft,
+            $input->store,
             $input->category,
             $input->price,
             $input->weightGrams,
@@ -67,6 +71,7 @@ final readonly class Product implements JsonSerializable
             $this->sku,
             $changes->name ?? $this->name,
             $this->status,
+            $this->store,
             $changes->category ?? $this->category,
             $changes->price ?? $this->price,
             $changes->weightGrams ?? $this->weightGrams,
@@ -84,6 +89,7 @@ final readonly class Product implements JsonSerializable
             $this->sku,
             $this->name,
             $status,
+            $this->store,
             $this->category,
             $this->price,
             $this->weightGrams,
@@ -99,6 +105,7 @@ final readonly class Product implements JsonSerializable
         return $other->id->equals($this->id)
             && $other->name === $this->name
             && $other->status === $this->status
+            && $other->store === $this->store
             && $other->category === $this->category
             && $other->price->equals($this->price)
             && $other->weightGrams === $this->weightGrams
@@ -115,6 +122,7 @@ final readonly class Product implements JsonSerializable
             $record['sku'],
             $record['name'],
             ProductStatus::from($record['status']),
+            $record['store'],
             $record['category'],
             Money::of($record['price']['amount'], Currency::fromCode($record['price']['currency'])),
             $record['weightGrams'],
@@ -132,6 +140,7 @@ final readonly class Product implements JsonSerializable
             'sku' => $this->sku,
             'name' => $this->name,
             'status' => $this->status->value,
+            'store' => $this->store,
             'category' => $this->category,
             'price' => $this->price->toArray(),
             'weightGrams' => $this->weightGrams,

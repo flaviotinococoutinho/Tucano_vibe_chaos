@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Exceptions\UnknownStore;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Database\QueryException;
@@ -27,6 +28,9 @@ final class ProblemDetailsTest extends TestCase
         });
         $this->app->router->post('/test/validation', function (Request $request, ValidationFactory $validation): array {
             return $validation->make($request->all(), ['sku' => 'required'])->validate();
+        });
+        $this->app->router->get('/test/unknown-store', function (): never {
+            throw UnknownStore::withSlug('tucano');
         });
         $this->app->router->get('/test/crash', function (): never {
             throw new RuntimeException('database password is hunter2');
@@ -88,6 +92,17 @@ final class ProblemDetailsTest extends TestCase
             ->assertHeader('Content-Type', 'application/problem+json')
             ->assertJsonPath('status', 422)
             ->assertJsonPath('errors.sku.0', 'The sku field is required.');
+    }
+
+    #[Test]
+    public function a_value_the_catalog_refuses_is_listed_under_its_field(): void
+    {
+        $this->json('GET', '/test/unknown-store');
+
+        $this->response->assertUnprocessable()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('detail', 'Store "tucano" does not exist.')
+            ->assertJsonPath('errors', ['store' => ['Store "tucano" does not exist.']]);
     }
 
     #[Test]

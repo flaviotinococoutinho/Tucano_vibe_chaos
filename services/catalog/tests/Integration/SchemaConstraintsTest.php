@@ -22,6 +22,8 @@ final class SchemaConstraintsTest extends IntegrationTestCase
     private const int DUPLICATE_ENTRY = 1062;
     private const int NO_REFERENCED_ROW = 1452;
     private const int DATA_TRUNCATED = 1265;
+    private const int CANNOT_BE_NULL = 1048;
+    private const int ROW_IS_REFERENCED = 1451;
 
     #[Test]
     public function a_sku_outside_the_format_is_rejected(): void
@@ -51,6 +53,44 @@ final class SchemaConstraintsTest extends IntegrationTestCase
     public function a_product_needs_an_existing_category(): void
     {
         $this->assertRejected(self::NO_REFERENCED_ROW, fn() => $this->insertProduct(['category_id' => Uuid::uuid7()->getBytes()]));
+    }
+
+    #[Test]
+    public function a_product_needs_a_store(): void
+    {
+        $this->assertRejected(self::CANNOT_BE_NULL, fn() => $this->insertProduct(['store_id' => null]));
+    }
+
+    #[Test]
+    public function a_product_needs_an_existing_store(): void
+    {
+        $this->assertRejected(self::NO_REFERENCED_ROW, fn() => $this->insertProduct(['store_id' => Uuid::uuid7()->getBytes()]));
+    }
+
+    #[Test]
+    public function a_store_with_products_stays(): void
+    {
+        $this->assertRejected(self::ROW_IS_REFERENCED, fn() => $this->database()->table('stores')->where('slug', 'arara')->delete());
+    }
+
+    #[Test]
+    public function a_store_slug_outside_the_format_is_rejected(): void
+    {
+        $this->assertRejected(self::CHECK_VIOLATED, fn() => $this->insertStore(['slug' => 'Urutau']));
+        $this->assertRejected(self::CHECK_VIOLATED, fn() => $this->insertStore(['slug' => 'u']));
+        $this->assertRejected(self::CHECK_VIOLATED, fn() => $this->insertStore(['slug' => '9urutau']));
+    }
+
+    #[Test]
+    public function a_store_slug_is_taken_once(): void
+    {
+        $this->assertRejected(self::DUPLICATE_ENTRY, fn() => $this->insertStore(['slug' => 'arara']));
+    }
+
+    #[Test]
+    public function a_palette_outside_the_design_system_is_rejected(): void
+    {
+        $this->assertRejected(self::DATA_TRUNCATED, fn() => $this->insertStore(['palette' => 'pink']));
     }
 
     #[Test]

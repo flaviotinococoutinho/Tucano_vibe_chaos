@@ -40,6 +40,43 @@ final class ProductCachingTest extends IntegrationTestCase
     }
 
     #[Test]
+    public function the_cached_product_carries_its_store(): void
+    {
+        $this->json('GET', '/v1/products/HOME-MUG-001');
+
+        $entry = $this->app->make('cache.store')->get(ProductCache::key('HOME-MUG-001'));
+        self::assertIsArray($entry);
+        self::assertSame('sabia', $entry['store']);
+    }
+
+    #[Test]
+    public function a_store_reads_the_store_the_cached_product_carries(): void
+    {
+        $this->json('GET', '/v1/products/BOOK-DDD-001');
+        // Behind the service's back: only a check against the cached entry still sees arara.
+        $this->database()->table('products')->where('sku', 'BOOK-DDD-001')->update(['store_id' => $this->storeId('sabia')]);
+
+        $this->json('GET', '/v1/stores/arara/products/BOOK-DDD-001');
+        $this->response->assertOk()->assertJsonPath('store', 'arara');
+        $this->json('GET', '/v1/stores/sabia/products/BOOK-DDD-001');
+        $this->response->assertNotFound();
+    }
+
+    #[Test]
+    public function every_store_shares_one_entry_per_sku(): void
+    {
+        $logs = $this->captureLogs();
+
+        $this->json('GET', '/v1/stores/arara/products/HOME-MUG-001');
+        $this->response->assertNotFound();
+        $this->json('GET', '/v1/stores/sabia/products/HOME-MUG-001');
+
+        $this->response->assertOk()->assertJsonPath('sku', 'HOME-MUG-001');
+        // The 404 of the wrong store already read MySQL and cached the mug, store and all.
+        self::assertTrue($logs->hasDebug(['message' => 'product cache hit', 'context' => ['sku' => 'HOME-MUG-001']]));
+    }
+
+    #[Test]
     public function a_change_drops_the_cached_product(): void
     {
         $this->json('GET', '/v1/products/BOOK-DDD-001');
@@ -98,6 +135,7 @@ final class ProductCachingTest extends IntegrationTestCase
         $this->json('POST', '/v1/products', [
             'sku' => 'BOOK-REF-001',
             'name' => 'Refactoring',
+            'store' => 'arara',
             'category' => 'books',
             'price' => ['amount' => 15990, 'currency' => 'BRL'],
             'weightGrams' => 900,

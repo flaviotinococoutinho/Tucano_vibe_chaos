@@ -37,9 +37,26 @@ final class ProductRepositoryTest extends IntegrationTestCase
         $this->expectExceptionObject(DuplicateSku::of('BOOK-DDD-001'));
 
         $this->repository()->add(Product::draft(
-            new NewProduct('BOOK-DDD-001', 'Copy', 'books', Money::of(100, Currency::brl()), 100, Dimensions::ofMillimetres(1, 1, 1)),
+            new NewProduct('BOOK-DDD-001', 'Copy', 'arara', 'books', Money::of(100, Currency::brl()), 100, Dimensions::ofMillimetres(1, 1, 1)),
             new DateTimeImmutable(),
         ));
+    }
+
+    #[Test]
+    public function a_page_of_a_store_holds_only_what_the_store_sells(): void
+    {
+        $page = $this->repository()->activePage('sabia', null, 1);
+
+        self::assertSame(6, $page->total);
+        self::assertSame(['sabia'], array_values(array_unique(array_map(static fn(Product $product): string => $product->store, $page->products))));
+    }
+
+    #[Test]
+    public function a_page_of_the_platform_holds_every_store(): void
+    {
+        $stores = array_map(static fn(Product $product): string => $product->store, $this->repository()->activePage(null, null, 1)->products);
+
+        self::assertSame(['arara', 'bemtevi', 'sabia'], array_values(array_unique(self::sorted($stores))));
     }
 
     #[Test]
@@ -83,6 +100,17 @@ final class ProductRepositoryTest extends IntegrationTestCase
         self::assertSame('BOOK-DDD-001', $batches[0][0]->sku);
     }
 
+    /**
+     * @param list<string> $values
+     * @return list<string>
+     */
+    private static function sorted(array $values): array
+    {
+        sort($values);
+
+        return $values;
+    }
+
     private function repository(): ProductRepository
     {
         return $this->app->make(ProductRepository::class);
@@ -91,7 +119,7 @@ final class ProductRepositoryTest extends IntegrationTestCase
     private function refactoring(): Product
     {
         return Product::draft(
-            new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30)),
+            new NewProduct('BOOK-REF-001', 'Refactoring', 'arara', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30)),
             new DateTimeImmutable('2026-09-28T10:15:30.123456Z'),
         );
     }
