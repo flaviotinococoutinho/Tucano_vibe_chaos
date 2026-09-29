@@ -98,11 +98,18 @@ experiments: ## List the chaos experiments, each with the steady state it defend
 		printf '%-30s %s\n' "$$(basename $$file .json)" "$$(jq -r '."steady-state-hypothesis".title' $$file)"; \
 	done
 
+# chaos run exits non-zero when the steady state deviates after the fault, but with
+# --rollback-strategy always it exits 0, and writes "completed", when the steady state does not
+# even hold before the fault. So the verdict comes from the journal: the hypothesis held before
+# the fault and again with it on, and the run went to the end.
 experiment: ## Run a chaos experiment against the running stack (e=<name>); rollbacks always run
 	@test -n "$(e)" || { echo "Which one? make experiments lists them."; exit 1; }
 	@mkdir -p chaos/results
 	$(COMPOSE) --profile tools run --rm chaos --log-file /results/$(e).log \
 		run --rollback-strategy always --journal-path /results/$(e).json /chaos/experiments/$(e).json
+	@jq -e '.status == "completed" and .deviated == false and .steady_states.before.steady_state_met == true and .steady_states.after.steady_state_met == true' \
+		chaos/results/$(e).json > /dev/null \
+		|| { echo "$(e): the steady state did not hold before and after the fault (chaos/results/$(e).json)"; exit 1; }
 
 kong-reload: ## Apply infra/kong/kong.yml to the running Kong without downtime
 	@curl -s -o /dev/null -w "kong config reloaded (HTTP %{http_code})\n" -X POST localhost:8001/config -F config=@infra/kong/kong.yml

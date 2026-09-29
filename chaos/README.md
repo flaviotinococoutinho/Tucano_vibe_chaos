@@ -15,6 +15,8 @@ make experiment e=commerce-cut-from-the-web
 
 O `make experiment` roda o Chaos Toolkit num container com a versão fixa, na rede do compose, e guarda o diário da execução (`<nome>.json`) e o log (`<nome>.log`) em `chaos/results/`, fora do Git. Os rollbacks rodam sempre, até quando a hipótese falha: um experimento nunca deixa a stack quebrada para o próximo.
 
+O veredito vem do diário, não do código de saída do Chaos Toolkit. O `chaos run` sai com erro quando a hipótese desvia com a falha ativa, mas, com os rollbacks sempre ligados, ele sai com 0 e escreve `completed` quando a hipótese nem vale antes da falha, o caso de uma stack que já começa doente. Descobri isso medindo um experimento novo, que falhou na primeira conferência e passou verde. Agora o `make experiment` lê o diário e só aceita uma execução completa, com a hipótese valendo antes e depois da falha.
+
 ## Como um experimento pensa
 
 ```mermaid
