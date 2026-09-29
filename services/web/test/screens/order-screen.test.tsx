@@ -66,6 +66,26 @@ describe('the order screen', () => {
     });
   });
 
+  it('marks the last step of the history as the current one while the order still moves', async () => {
+    await renderOrder(fixtures.orderShipped);
+
+    const steps = within(pageScreen.getByRole('region', { name: 'Histórico' })).getAllByRole(
+      'listitem',
+    );
+    expect(steps.at(-1)).toHaveClass('timeline-step--current');
+  });
+
+  it('marks no step as current once the order has arrived', async () => {
+    await renderOrder(fixtures.orderDelivered);
+
+    const steps = within(pageScreen.getByRole('region', { name: 'Histórico' })).getAllByRole(
+      'listitem',
+    );
+    for (const step of steps) {
+      expect(step).not.toHaveClass('timeline-step--current');
+    }
+  });
+
   it('shows why a step happened, when it has a reason', async () => {
     const { orderCancelled } = fixtures;
     await renderOrder(orderCancelled);

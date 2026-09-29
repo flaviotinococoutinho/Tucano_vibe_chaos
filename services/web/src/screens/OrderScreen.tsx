@@ -41,6 +41,9 @@ export function OrderScreen({ screen }: { readonly screen: SirenScreen }): React
   const progress = readProgress(screen.properties) ?? [];
   const lines = entitiesOf(screen, 'item');
   const history = entitiesOf(screen, REL.history);
+  // The last step of the history is where the order is now only while a milestone is still
+  // current; a delivered, cancelled or returned order has no step in progress.
+  const stillMoving = progress.some((milestone) => milestone.state === 'current');
   const pay = findAction(screen.actions, 'pay');
   const live = findLink(screen.links, REL.live);
   const otherLinks = screen.links.filter(
@@ -111,7 +114,7 @@ export function OrderScreen({ screen }: { readonly screen: SirenScreen }): React
             {history.map((entity, index) => (
               <TimelineStep
                 entity={entity}
-                isCurrent={index === history.length - 1}
+                isCurrent={stillMoving && index === history.length - 1}
                 // biome-ignore lint/suspicious/noArrayIndexKey: steps are an ordered history, not identified entities.
                 key={index}
               />
