@@ -47,7 +47,7 @@ Eu escolho o fio pela pessoa do outro lado:
 | E se o webhook do PSP nunca chegar? | a conciliação pergunta ao PSP e aplica a resposta pelo mesmo caminho do webhook | [conciliação](../labs/payment-reconciliation.md) |
 | Por que não um microsserviço por entidade? | fronteira por subdomínio: o que muda junto fica junto | [ADR 0002](../adr/0002-services-per-subdomain.md) |
 | Por que PHP e Node juntos? | cada linguagem onde o trabalho dela faz sentido, com as mesmas convenções nas duas | [stacks](02-stacks.md) |
-| Como um cliente não vê o pedido do outro? | a sessão é assinada pelo BFF, o commerce filtra cada leitura pelo cliente e responde o mesmo 404 para um pedido alheio, e o Kong fecha as rotas por cliente na borda | [ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md) |
+| Como um cliente não vê o pedido do outro? | a sessão é assinada pelo BFF, o commerce filtra cada leitura pelo cliente e responde o mesmo 404 para um pedido alheio, e a borda só alcança as rotas públicas do commerce, por uma porta do nginx que não serve as do cliente | [ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md) |
 | Como você muda um contrato de evento sem quebrar ninguém? | mudança compatível no mesmo tópico, incompatível num tópico novo (`v2`) | [ADR 0010](../adr/0010-cloudevents-contracts.md) |
 | Como você impede a arquitetura de apodrecer? | cada regra importante é um teste que quebra o build | [abstrações](05-abstracoes.md) |
 | Por que hipermídia e não GraphQL? | o fluxo fica no servidor e a web não precisa saber a ordem das telas | [ADR 0023](../adr/0023-server-driven-ui-with-siren.md) |

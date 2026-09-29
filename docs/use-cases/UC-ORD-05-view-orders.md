@@ -22,7 +22,7 @@
 
 - Uma loja só mostra os próprios pedidos, e um cliente só lê os que fez. O pedido de outra loja, ou de outro cliente, responde o mesmo `404` de um pedido que não existe, palavra por palavra, sem dizer que ele existe.
 - Uma loja que nem é um slug, ou um id de cliente ou de pedido que nem é um UUIDv7, responde `404` e não diz mais nada.
-- As rotas por loja não saem na borda: o Kong chega ao commerce só pelas rotas públicas, onde elas nem existem, e só o BFF, na rede interna, chega nelas.
+- As rotas por loja não saem na borda: o Kong alcança o commerce por uma porta do nginx que só serve as rotas públicas e responde `404` para o resto, e só o BFF, na rede interna, chega nelas.
 - Os pedidos feitos antes das lojas continuam no commerce, mas nenhuma loja os lista nem os abre.
 - Com o MongoDB fora, só a lista cai. O pedido, o checkout e o pagamento seguem.
 
@@ -67,3 +67,4 @@
 - O pedido: port `ForViewingOrders` (`viewOrder` e `viewCustomerOrder`), caso de uso `ViewOrder`, que pergunta ao agregado `Order` se foi feito naquela loja (`isPlacedIn`) e por aquele cliente (`isPlacedBy`). Os controllers são o `ViewOrderController` e o `ViewCustomerOrderController`.
 - A lista: port `ForListingOrders`, caso de uso `ListOrders`, que lê o read model pelo port `ForReadingOrderViews` (adapter `MongoOrderViews`), sempre com a loja e o cliente. O controller é o `ListOrdersController`, com a validação da página no `ListOrdersRequest`, e a queda do MongoDB é o erro de domínio `OrderListUnavailable`, da categoria `Unavailable`.
 - A loja é o value object `StoreSlug`, o mesmo do UC-ORD-01.
+- A borda: o servidor da porta 8182 em `infra/nginx/conf.d/commerce.conf`, com a lista de rotas públicas, e o serviço `commerce` do `infra/kong/kong.yml`, que aponta para ela.

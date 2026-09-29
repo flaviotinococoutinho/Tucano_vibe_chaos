@@ -23,24 +23,16 @@ services:
         paths: [/api/catalog]
         strip_path: true
 
+  # The edge reaches commerce on 8182, the nginx listener that serves only its public routes
+  # (orders, payments, the PSP webhook, health). The customer routes live on 8082, which only the
+  # BFF reaches on the internal network (ADR 0030). A path rule here would not do: Kong matches
+  # the raw path, so /api/commerce/v1%2Fcustomers slipped past one and nginx decoded it.
   - name: commerce
-    url: http://nginx:8082
+    url: http://nginx:8182
     routes:
       - name: commerce-api
         paths: [/api/commerce]
         strip_path: true
-      # The orders of a customer are for the BFF only, which calls commerce on the internal
-      # network with the id of the active profile (ADR 0030). The longer path wins over
-      # /api/commerce, and the request never reaches the service.
-      - name: commerce-customers-internal
-        paths: [/api/commerce/v1/customers]
-        strip_path: true
-        plugins:
-          - name: request-termination
-            config:
-              status_code: 404
-              content_type: application/problem+json
-              body: '{"type":"about:blank","title":"Not Found","status":404,"detail":"The customer routes of commerce are internal: only the BFF calls them."}'
 
   - name: logistics
     url: http://nginx:8083
