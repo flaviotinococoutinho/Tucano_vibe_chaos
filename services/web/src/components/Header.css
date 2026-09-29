@@ -2,6 +2,12 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Inside a store, a line in the color of its palette across the top of the page: the store is
+ * there before a word is read. Decoration next to text (see src/styles/tokens.css). */
+.app-header--store {
+  border-top: 4px solid var(--color-brand-line);
+}
+
 /* Narrow first: the brand and the toggle on one row, the navigation below them, wrapping as
  * it needs so the page never scrolls sideways. Wide enough, all three share one row. */
 .app-header__inner {
@@ -34,6 +40,65 @@
 .app-header__title {
   font-size: 1.25rem;
   font-weight: 800;
+}
+
+/* The store as the brand: the monogram and the name, and under the name the quiet way back to
+ * every store of the platform. Only the name wraps, so a long one never pushes the toggle out. */
+.app-header__brand--store {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+}
+
+.store-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.store-brand__name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.store-brand:hover .store-brand__name {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+/* Lined up with the name, under the monogram's width, and at least 24px tall to tap (WCAG 2.5.8). */
+.app-header__platform {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 24px;
+  margin-left: calc(36px + var(--space-2));
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-header__platform:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* A chevron drawn with borders, like the way back of a screen: no character to spell out. */
+.app-header__platform::before {
+  content: "";
+  width: 0.4em;
+  height: 0.4em;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
 }
 
 .app-header__nav {

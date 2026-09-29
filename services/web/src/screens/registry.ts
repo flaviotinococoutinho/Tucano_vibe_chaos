@@ -8,6 +8,7 @@ import { OrderScreen } from './OrderScreen.tsx';
 import { OrdersScreen } from './OrdersScreen.tsx';
 import { ProductScreen } from './ProductScreen.tsx';
 import { ProfilesScreen } from './ProfilesScreen.tsx';
+import { StoreScreen } from './StoreScreen.tsx';
 import { TrackingScreen } from './TrackingScreen.tsx';
 
 export type ScreenComponentProps = { readonly screen: SirenScreen };
@@ -16,6 +17,7 @@ export type ScreenComponent = ComponentType<ScreenComponentProps>;
 /** Screen class to component. A class not listed here still works, through `GenericScreen`. */
 const REGISTRY: Readonly<Record<string, ScreenComponent>> = {
   home: HomeScreen,
+  store: StoreScreen,
   catalog: CatalogScreen,
   product: ProductScreen,
   checkout: CheckoutScreen,

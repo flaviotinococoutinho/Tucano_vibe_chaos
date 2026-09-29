@@ -1,9 +1,9 @@
 import { screen as pageScreen, render, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { HypermediaProvider } from '../../src/hypermedia/index.ts';
+import { HypermediaProvider, toBrowserPath } from '../../src/hypermedia/index.ts';
 import { ScreenRouter } from '../../src/screens/index.ts';
-import type { SirenAction } from '../../src/siren/index.ts';
+import { findLink, type SirenAction } from '../../src/siren/index.ts';
 import { fakeResponse } from '../support/fakeResponse.ts';
 import { fixtures } from '../support/fixtures.ts';
 import { mockFetchSequence } from '../support/mockFetch.ts';
@@ -41,15 +41,22 @@ async function renderCheckoutAndSubmit(user: UserEvent): Promise<void> {
   await user.click(pageScreen.getByRole('button', { name: placeOrderAction().title }));
 }
 
-describe('place-order', () => {
+// These tests type a whole form, key by key, which is the slowest thing the suite does: on a
+// machine busy with the rest of the stack they take seconds, so they get more than the default 5.
+describe('place-order', { timeout: 15_000 }, () => {
   it('posts JSON with the hidden fields and follows the Location of a 201', async () => {
     const action = placeOrderAction();
+    // Where the order lives from now on: the Location of the 201, the self of the order screen.
+    const orderHref = findLink(fixtures.orderPendingPayment.links, 'self')?.href ?? '';
     mockFetchSequence([
-      fakeResponse({ url: 'http://localhost/bff/v1/checkout', body: fixtures.checkout }),
+      fakeResponse({
+        url: 'http://localhost/bff/v1/stores/arara/checkout',
+        body: fixtures.checkout,
+      }),
       fakeResponse({
         status: 201,
         url: action.href,
-        headers: { Location: '/bff/v1/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20' },
+        headers: { Location: orderHref },
         body: fixtures.orderPendingPayment,
       }),
     ]);
@@ -77,13 +84,16 @@ describe('place-order', () => {
     expect(body.name).toBe('Ada Lovelace');
     expect(body.email).toBe('ada@example.com');
 
-    expect(window.location.pathname).toBe('/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20');
+    expect(window.location.pathname).toBe(toBrowserPath(orderHref));
   });
 
   it('shows a 422 next to each field, with the server detail, and focuses the first invalid field', async () => {
     const action = placeOrderAction();
     mockFetchSequence([
-      fakeResponse({ url: 'http://localhost/bff/v1/checkout', body: fixtures.checkout }),
+      fakeResponse({
+        url: 'http://localhost/bff/v1/stores/arara/checkout',
+        body: fixtures.checkout,
+      }),
       fakeResponse({ status: 422, url: action.href, body: fixtures.validationProblem }),
     ]);
 

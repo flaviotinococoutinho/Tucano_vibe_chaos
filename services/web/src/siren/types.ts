@@ -113,6 +113,18 @@ export type Milestone = {
   readonly at?: Instant;
 };
 
+/**
+ * The store a screen is in, as the `navigation` component tells it: what the header needs to
+ * show the store as the brand. `palette` names one of the palettes of the design system, and
+ * the web reads it with `paletteOf`, so a palette it does not know yet wears the platform's look.
+ */
+export type StoreBrand = {
+  readonly slug: string;
+  readonly name: string;
+  readonly palette: string;
+  readonly initial: string;
+};
+
 /** Who is shopping, as the `navigation` component tells it; the label is already the words to show. */
 export type Shopper = {
   readonly profileId?: string;

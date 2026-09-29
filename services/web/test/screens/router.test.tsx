@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { HypermediaProvider } from '../../src/hypermedia/index.ts';
 import { ScreenRouter } from '../../src/screens/index.ts';
-import type { SirenLink } from '../../src/siren/index.ts';
+import { REL, type SirenLink } from '../../src/siren/index.ts';
 import { fakeResponse } from '../support/fakeResponse.ts';
 import { fixtures } from '../support/fixtures.ts';
 import { mockFetchAlways, mockFetchSequence } from '../support/mockFetch.ts';
@@ -28,7 +28,10 @@ describe('the screen router', () => {
   it('offers the way back a screen names, the collection before the start', async () => {
     const { product } = fixtures;
     mockFetchAlways(
-      fakeResponse({ url: 'http://localhost/bff/v1/products/BOOK-DDD-001', body: product }),
+      fakeResponse({
+        url: 'http://localhost/bff/v1/stores/arara/products/BOOK-DDD-001',
+        body: product,
+      }),
     );
     renderRouter();
 
@@ -46,24 +49,19 @@ describe('the screen router', () => {
   });
 
   it('leaves the focus alone on the first screen and moves it to the title after a navigation', async () => {
-    const { home, catalog } = fixtures;
+    const { store, catalog } = fixtures;
     mockFetchSequence([
-      fakeResponse({ url: 'http://localhost/bff/v1', body: home }),
-      fakeResponse({ url: 'http://localhost/bff/v1/products?page=1', body: catalog }),
+      fakeResponse({ url: 'http://localhost/bff/v1/stores/arara', body: store }),
+      fakeResponse({ url: 'http://localhost/bff/v1/stores/arara/products', body: catalog }),
     ]);
     renderRouter();
 
-    const first = await pageScreen.findByRole('heading', { level: 1, name: home.title });
+    const first = await pageScreen.findByRole('heading', { level: 1, name: store.title });
     expect(first).not.toHaveFocus();
 
-    await userEvent.setup().click(
-      pageScreen.getByRole('link', {
-        name: linkTitled(
-          'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog',
-          home.links,
-        ),
-      }),
-    );
+    await userEvent
+      .setup()
+      .click(pageScreen.getByRole('link', { name: linkTitled(REL.catalog, store.links) }));
 
     const second = await pageScreen.findByRole('heading', { level: 1, name: catalog.title });
     await waitFor(() => expect(second).toHaveFocus());
@@ -71,7 +69,10 @@ describe('the screen router', () => {
 
   it('leaves validation to the server, which answers every field at once', async () => {
     mockFetchAlways(
-      fakeResponse({ url: 'http://localhost/bff/v1/checkout', body: fixtures.checkout }),
+      fakeResponse({
+        url: 'http://localhost/bff/v1/stores/arara/checkout',
+        body: fixtures.checkout,
+      }),
     );
     renderRouter();
 
@@ -85,7 +86,7 @@ describe('the screen router', () => {
     mockFetchAlways(
       fakeResponse({
         status: 404,
-        url: 'http://localhost/bff/v1/products/NO-SUCH-SKU',
+        url: 'http://localhost/bff/v1/stores/arara/products/NO-SUCH-SKU',
         body: { type: 'about:blank', title: 'Not Found', status: 404, detail },
       }),
     );
@@ -100,7 +101,7 @@ describe('the screen router', () => {
     mockFetchAlways(
       fakeResponse({
         status: 503,
-        url: 'http://localhost/bff/v1/products',
+        url: 'http://localhost/bff/v1/stores/arara/products',
         headers: { 'Retry-After': '5' },
         body: {
           type: 'about:blank',

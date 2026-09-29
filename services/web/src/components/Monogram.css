@@ -1,0 +1,35 @@
+/* The fill and the letter come from the brand tokens of the palette (see src/styles/tokens.css
+ * for the contrast of each pair); without a palette, the look of the platform. */
+.monogram {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  /* A ring inside, in the color of the letter: a store sign, never mistaken for an avatar. */
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-brand-text) 28%, transparent);
+  font-weight: 800;
+  line-height: 1;
+  user-select: none;
+}
+
+.monogram--small {
+  width: 36px;
+  height: 36px;
+  font-size: 1.0625rem;
+}
+
+.monogram--medium {
+  width: 48px;
+  height: 48px;
+  font-size: 1.375rem;
+}
+
+.monogram--large {
+  width: 72px;
+  height: 72px;
+  font-size: 2rem;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--color-brand-text) 28%, transparent);
+}

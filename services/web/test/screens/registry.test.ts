@@ -7,12 +7,14 @@ import {
   OrderScreen,
   OrdersScreen,
   ProfilesScreen,
+  StoreScreen,
 } from '../../src/screens/index.ts';
 import { fixtures } from '../support/fixtures.ts';
 
 describe('componentFor', () => {
   it('picks the component registered for the screen class', () => {
     expect(componentFor(fixtures.home)).toBe(HomeScreen);
+    expect(componentFor(fixtures.store)).toBe(StoreScreen);
     expect(componentFor(fixtures.catalog)).toBe(CatalogScreen);
     expect(componentFor(fixtures.orderDelivered)).toBe(OrderScreen);
     expect(componentFor(fixtures.orders)).toBe(OrdersScreen);

@@ -15,6 +15,7 @@ export {
   readNumber,
   readProgress,
   readShopper,
+  readStore,
   readString,
   readTone,
   screenClassOf,
@@ -38,5 +39,6 @@ export type {
   SirenProperties,
   SirenScreen,
   SirenSubEntity,
+  StoreBrand,
   Tone,
 } from './types.ts';

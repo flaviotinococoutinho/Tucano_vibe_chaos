@@ -11,6 +11,7 @@ import type {
   SirenProperties,
   SirenScreen,
   SirenSubEntity,
+  StoreBrand,
   Tone,
 } from './types.ts';
 
@@ -126,6 +127,27 @@ export function readShopper(properties: SirenProperties | undefined): Shopper | 
   return typeof value.profileId === 'string'
     ? { profileId: value.profileId, label: value.label, initial: value.initial }
     : { label: value.label, initial: value.initial };
+}
+
+/**
+ * Reads `properties.store` of the navigation: the store the screen is in, `null` on a screen of
+ * the platform, `undefined` when the shape is not one this web knows.
+ */
+export function readStore(properties: SirenProperties | undefined): StoreBrand | null | undefined {
+  const value = properties?.store;
+  if (value === null) {
+    return null;
+  }
+  if (
+    !isRecord(value) ||
+    typeof value.slug !== 'string' ||
+    typeof value.name !== 'string' ||
+    typeof value.palette !== 'string' ||
+    typeof value.initial !== 'string'
+  ) {
+    return undefined;
+  }
+  return { slug: value.slug, name: value.name, palette: value.palette, initial: value.initial };
 }
 
 export function isMoney(value: unknown): value is Money {

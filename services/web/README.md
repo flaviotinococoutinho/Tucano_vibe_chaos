@@ -1,12 +1,12 @@
 # web
 
-A loja da Tucano, em React 19 e TypeScript, construída pelo Vite e servida como arquivos estáticos pelo nginx. Não escrevi telas: escrevi um intérprete de hipermídia. O BFF responde cada tela em Siren (contrato em `contracts/http/bff`), e a web desenha o que chega, segue os links e envia as ações. O fluxo mora no servidor, não aqui.
+A web da Tucano, a plataforma e as lojas que ela hospeda, em React 19 e TypeScript, construída pelo Vite e servida como arquivos estáticos pelo nginx. Não escrevi telas: escrevi um intérprete de hipermídia. O BFF responde cada tela em Siren (contrato em `contracts/http/bff`), e a web desenha o que chega, segue os links e envia as ações. O fluxo mora no servidor, não aqui.
 
 A decisão está no [ADR 0023](../../docs/adr/0023-server-driven-ui-with-siren.md).
 
 ## O intérprete, em uma frase
 
-Um registro liga a classe de uma tela (`home`, `catalog`, `product`, `checkout`, `orders`, `order`, `profiles`, `tracking`) a um componente React. Uma classe que o registro não conhece cai num renderizador genérico, que mostra as `properties`, os `entities`, os `links` e as `actions` do jeito que a Siren já organiza. Por isso uma tela nova do BFF funciona antes mesmo de eu escrever um componente para ela.
+Um registro liga a classe de uma tela (`home`, `store`, `catalog`, `product`, `checkout`, `orders`, `order`, `profiles`, `tracking`) a um componente React. Uma classe que o registro não conhece cai num renderizador genérico, que mostra as `properties`, os `entities`, os `links` e as `actions` do jeito que a Siren já organiza. Por isso uma tela nova do BFF funciona antes mesmo de eu escrever um componente para ela.
 
 ## Como está organizado
 
@@ -14,17 +14,21 @@ Cada pasta de `src/` é um módulo com uma única porta de entrada, `index.ts`, 
 
 | Módulo | O que tem |
 |---|---|
-| `siren/` | o vocabulário do contrato: os tipos de tela, link, ação e campo, as relações do domínio (`REL`), e funções puras para ler e validar `properties` (`readMoney`, `readTone`, `readNotice`, `readProgress`, `readShopper`) e formatar um instante RFC 3339 para o leitor |
+| `siren/` | o vocabulário do contrato: os tipos de tela, link, ação e campo, as relações do domínio (`REL`), e funções puras para ler e validar `properties` (`readMoney`, `readTone`, `readNotice`, `readProgress`, `readShopper`, `readStore`) e formatar um instante RFC 3339 para o leitor |
 | `hypermedia/` | o único lugar com efeito colateral: `client.ts` fala com o `fetch`, `history.ts` fala com a History API, `prefix.ts` guarda a única URL fixa do app (`/bff/v1`) e converte entre o caminho do navegador e o endereço do BFF, e `HypermediaProvider` amarra tudo isso a um estado React (`useHypermedia`) que toda tela e todo componente usa para navegar e para enviar ações |
-| `theme/` | os tokens de cor como tabela (`tone.ts`, tom vira estilo de badge; `avatar.ts`, o id do perfil vira a cor do avatar) e o hook do tema claro/escuro (`useTheme`) |
-| `components/` | peças de apresentação: `Header`, `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `ProductCard`, `OrderCard`, `OrderLine`, `OrderProgress`, `ProgressDots`, `ProfileCard`, `Avatar`, `TimelineStep`, `LiveDelivery`, os estados de carregando, vazio e erro |
+| `theme/` | os tokens de cor como tabela (`tone.ts`, tom vira estilo de badge; `avatar.ts`, o id do perfil vira a cor do avatar; `palette.ts`, as paletas das lojas), o hook do tema claro/escuro (`useTheme`) e o que veste a página com a paleta da loja (`usePagePalette`) |
+| `components/` | peças de apresentação: `Header`, `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `StoreCard`, `Monogram`, `ProductCard`, `OrderCard`, `OrderLine`, `OrderProgress`, `ProgressDots`, `ProfileCard`, `Avatar`, `TimelineStep`, `LiveDelivery`, os estados de carregando, vazio e erro |
 | `screens/` | o registro de telas, o `ScreenRouter` (cabeçalho, aviso, foco, o corpo trocado por baixo) e um componente por classe conhecida, mais o `GenericScreen` de reserva |
 
 `App.tsx` só junta `HypermediaProvider`, o cabeçalho e o `ScreenRouter`. `main.tsx` monta a árvore.
 
 ## O cabeçalho vem da tela
 
-Toda tela do BFF traz um componente `navigation`: quem está comprando e os links do cabeçalho. O `Header` desenha a partir da tela que está na página, então não existe menu escrito na web: "Catálogo", "Meus pedidos" e o chip do perfil (o avatar com a inicial e o nome, ou "Entrar" quando o navegador ainda não tem sessão) são os links e os títulos que chegaram. Um problema não tem navegação, e o cabeçalho fica só com a marca e o botão do tema.
+Toda tela do BFF traz um componente `navigation`: a loja em que a pessoa está, quem está comprando e os links do cabeçalho. O `Header` desenha a partir da tela que está na página, então não existe menu escrito na web: "Catálogo", "Meus pedidos" e o chip do perfil (o avatar com a inicial e o nome, ou "Entrar" quando o navegador ainda não tem sessão) são os links e os títulos que chegaram, com a loja já no endereço.
+
+Dentro de uma loja, a loja é a marca: o monograma redondo na paleta dela e o nome, que levam ao início da loja, e embaixo do nome um "Todas as lojas" discreto, de volta à plataforma. Uma linha na cor da loja atravessa o topo da página. Nas telas da plataforma (o início com as lojas e os perfis), a marca é a da Tucano, e o link dela é o início da plataforma que a navegação traz. O monograma tem um anel por dentro, para nunca se confundir com o avatar de um perfil.
+
+Um problema não tem navegação, e nem a sessão nem a loja da tela anterior mudaram por causa dele, então o cabeçalho fica com a navegação e a paleta da última tela: um 404 que diz "troque de perfil" deixa o caminho para os perfis à vista, dentro da loja em que a pessoa estava. Um problema já na primeira tela deixa só a marca da Tucano e o botão do tema.
 
 O link da seção onde a pessoa está leva `aria-current`, comparando só endereços que o servidor deu: `page` na própria página (a lista de pedidos) e `true` numa página dentro da seção (um pedido, sob "Meus pedidos"), como o WAI-ARIA pede. O destaque é um fundo e um sublinhado, nunca só cor. No celular, a navegação quebra para baixo da marca, sem rolagem lateral.
 
@@ -52,7 +56,7 @@ O caminho do navegador e o endereço do BFF são só uma soma de prefixo: `toBff
 
 Todo link é uma âncora de verdade (`<a href>`), com o caminho do navegador já no `href`, então clique do meio e abrir em nova aba funcionam sem JavaScript nenhum. Um clique simples do botão esquerdo, sem tecla modificadora, é interceptado para navegar pelo `fetch` em vez de recarregar a página. Um link de classe `external` não passa por nada disso: sai como âncora comum, `target="_blank"` e `rel="noopener"`.
 
-Uma ação GET (`track-by-code`, `buy`) vira consulta na URL da própria ação; o `fetch` segue um 303 sozinho, e o endereço final da resposta é o que entra no histórico. Uma ação POST (`place-order`, `pay`) manda JSON e, num 201 ou 202, o corpo da resposta já é a tela seguinte: o cabeçalho `Location` só diz que endereço mostrar, sem buscar de novo. As ações de perfil (`use-profile`, `create-profile`) respondem 303, e o `fetch` também segue esse sozinho, com um GET: o que chega já é a lista de pedidos de quem ficou comprando. Um 422 fica na mesma tela: cada mensagem de `errors` aparece ao lado do campo (`aria-invalid`, `aria-describedby`), um resumo lista todos com link para cada campo, e o foco vai para o primeiro campo inválido. Uma mensagem sobre um campo escondido (o perfil que um botão escolheu) aparece no resumo como frase, sem nome de campo e sem link, porque não há o que corrigir ali.
+Uma ação GET (`track-by-code`, `buy`) vira consulta na URL da própria ação; o `fetch` segue um 303 sozinho, e o endereço final da resposta é o que entra no histórico. Uma ação POST (`place-order`, `pay`) manda JSON e, num 201 ou 202, o corpo da resposta já é a tela seguinte: o cabeçalho `Location` só diz que endereço mostrar, sem buscar de novo. As ações de perfil (`use-profile`, `create-profile`) respondem 303, e o `fetch` também segue esse sozinho, com um GET: o que chega já é a lista de pedidos de quem ficou comprando, na loja de onde os perfis foram abertos (ou o início da plataforma, quando não vieram de uma loja). Um 422 fica na mesma tela: cada mensagem de `errors` aparece ao lado do campo (`aria-invalid`, `aria-describedby`), um resumo lista todos com link para cada campo, e o foco vai para o primeiro campo inválido. Uma mensagem sobre um campo escondido (o perfil que um botão escolheu) aparece no resumo como frase, sem nome de campo e sem link, porque não há o que corrigir ali.
 
 O formulário desliga a validação do navegador (`novalidate`). Ela pararia no primeiro campo errado, num balão e com as palavras do navegador; o BFF responde todos os campos de uma vez, em português, ao lado de cada um. É o que o GOV.UK Design System recomenda pelo mesmo motivo. `required`, `pattern`, `inputmode` e `autocomplete` continuam lá: trazem o teclado certo no celular, o preenchimento automático e o que a tecnologia assistiva anuncia.
 
@@ -79,13 +83,23 @@ Quando a tela de rastreio traz um link `rel-live`, o que o BFF só faz enquanto 
 - `prefers-reduced-motion: reduce` zera a duração de toda animação e transição.
 - A tela anterior fica visível enquanto a próxima carrega (uma barra de progresso no topo); o esqueleto de carregamento só aparece na primeira tela.
 
-## A home
+## O início da plataforma e o de cada loja
 
-A home usa o banner da identidade. O original mora em `docs/assets`, com 2688 px e 4 MB; a web serve uma cópia em WebP com 1600 px e menos de 60 KB, que o `make web-art` gera a partir dele junto com as ilustrações das telas e os ícones. O banner é decorativo (`alt=""`), vem com largura e altura para a página não pular, e o texto fica sobre o terço vazio dele em tela larga. No celular, o banner vai para baixo do texto, recortado em volta do tucano. Como o banner é claro nos dois temas, o herói é um cartão claro também no tema escuro, e o texto por cima dele fica na cor tinta da paleta.
+O início da plataforma (`home`) lista as lojas em cartões, cada um na paleta da sua loja: o monograma, o nome, a frase e o convite para entrar, com as palavras que o BFF manda. O nome é o único link do cartão, e o cartão inteiro recebe o clique, como nos pedidos. Embaixo fica o rastreio por código, que acha a loja da encomenda sozinho. O início de uma loja (`store`) é o letreiro dela: o monograma grande, a frase, o caminho para o catálogo e o rastreio por código da loja.
+
+O início da plataforma usa o banner da identidade. O original mora em `docs/assets`, com 2688 px e 4 MB; a web serve uma cópia em WebP com 1600 px e menos de 60 KB, que o `make web-art` gera a partir dele junto com as ilustrações das telas e os ícones. O banner é decorativo (`alt=""`), vem com largura e altura para a página não pular, e o texto fica sobre o terço vazio dele em tela larga. No celular, o banner vai para baixo do texto, recortado em volta do tucano. Como o banner é claro nos dois temas, o herói é um cartão claro também no tema escuro, e o texto por cima dele fica na cor tinta da paleta.
 
 ## Tokens e tema
 
 As cores são as da Tucano (`docs/assets/README.md`), como propriedades customizadas em `src/styles/tokens.css`: claro por padrão, escuro por `prefers-color-scheme` ou pelo botão do cabeçalho, que grava a escolha em `localStorage` (`theme/useTheme.ts`, tudo dentro de `try/catch`, porque navegação privada e cota cheia existem).
+
+### As paletas das lojas
+
+Uma loja escolhe uma das paletas do design system pelo nome, e a web é dona das cores ([ADR 0031](../../docs/adr/0031-a-store-is-a-tenant.md)): nenhuma cor vem de banco. São três, com o nome do pássaro de cada loja: `arara` (o azul da arara-azul), `bemtevi` (o amarelo do bem-te-vi) e `sabia` (a ferrugem e o oliva do sabiá-laranjeira), cada uma com as suas cores no tema claro e no escuro.
+
+- A página veste a paleta da navegação da tela (`<html data-palette>`, pelo `usePagePalette` do cabeçalho), e a mantém sobre um problema, como os links. Um cartão de loja veste a sua pelo próprio `data-palette`, então as três convivem no início da plataforma.
+- Só a marca muda com a loja: o fundo dos botões principais e o texto deles, os links, o monograma e a linha de enfeite. Superfícies, texto, bordas, o anel de foco e os tons de status continuam os da plataforma, então um status se lê igual em toda loja, e todo par de texto ou controle passa de 4,5:1 nos dois temas (as contas estão no comentário de `src/styles/tokens.css`).
+- Uma paleta que a web ainda não conhece não pinta nada: a página fica com o visual da Tucano (`paletteOf` devolve `undefined`).
 
 O laranja da marca (`beak`) nunca é texto, só fundo de botão com texto `ink`, como o guia de identidade pede. No tema escuro, `teal-deep` e `coral-deep` não valem mais como texto sobre `ink` (o contraste medido cai para 2,99:1 e 3,58:1, abaixo dos 4,5:1 que o WCAG pede); o CSS troca por um teal mais claro (`#3FC7C7`, 8,34:1) e pelo `coral` comum (4,66:1). As contas e as fontes de cada par estão comentadas em `src/styles/tokens.css`.
 
@@ -101,11 +115,14 @@ Vitest, `@testing-library/react` e `user-event`, ambiente `jsdom`. `test/support
 |---|---|
 | `screens/registry.test.ts` | a classe certa pega o componente certo, e uma classe desconhecida cai no genérico |
 | `screens/examples.test.tsx` | toda tela de exemplo do contrato renderiza, cada uma com seu título como `h1`, com um WebSocket inerte no lugar do de verdade |
+| `screens/home-screen.test.tsx` | o início da plataforma lista as lojas na ordem do BFF, o nome como único link de cada cartão, cada cartão na sua paleta com a frase e o convite, e uma paleta desconhecida no visual da plataforma |
+| `screens/store-screen.test.tsx` | o início da loja com o letreiro na paleta dela, o caminho para o catálogo e o rastreio que fica na loja |
+| `theme/palette.test.ts` | só as paletas do design system viram paleta; qualquer outro nome fica no visual da plataforma |
 | `screens/tracking-screen.test.tsx` | o cartão ao vivo aparece só quando a tela oferece o link `rel-live` |
 | `screens/order-screen.test.tsx` | a frase de agora, o histórico com as etapas da entrega e o motivo de cada passo, o entregador ao vivo no pedido, o aviso sem as notícias da entrega e o pagamento só enquanto o pedido espera |
 | `screens/orders-screen.test.tsx` | cada pedido da lista tem o título como único link, a paginação, e a lista vazia com o tucano e o caminho para o catálogo |
 | `screens/profiles-screen.test.tsx` | o perfil que está comprando marcado, a troca nos outros, o formulário de perfil novo, e a troca levando aos pedidos de quem foi escolhido |
-| `components/header.test.tsx` | os links e o chip do perfil vêm da navegação da tela, o `aria-current` da seção, o convite para entrar sem sessão, e só a marca e o tema num problema |
+| `components/header.test.tsx` | os links e o chip do perfil vêm da navegação da tela, o `aria-current` da seção, a loja como marca com o "Todas as lojas" dentro de uma loja e a Tucano nas telas da plataforma, o convite para entrar sem sessão, a paleta da página seguindo a navegação e ficando sobre um problema, e só a marca e o tema num problema na primeira tela |
 | `components/order-progress.test.tsx` | cada marco com o seu estado, forma e palavras, `aria-current="step"` só no atual, a hora só do que já aconteceu, e o pedido cancelado parando no marco interrompido |
 | `components/live-delivery.test.tsx` | o endereço sai do href com o esquema certo, a posição vira distância, o fim encerra, a queda reconecta com espera crescente, o aviso de sem sinal aos 30 s e o fechamento ao desmontar |
 | `components/action-form.test.tsx` | um formulário nasce dos campos de uma ação, com rótulo, obrigatoriedade e opções de `select` |

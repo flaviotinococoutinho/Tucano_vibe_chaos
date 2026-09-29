@@ -29,7 +29,9 @@ function switchTo(label: string): SirenAction {
 
 describe('the profiles screen', () => {
   it('marks the profile shopping, and offers each of the others its switch', () => {
-    mockFetchAlways(fakeResponse({ url: 'http://localhost/bff/v1/profiles', body: profiles }));
+    mockFetchAlways(
+      fakeResponse({ url: 'http://localhost/bff/v1/profiles?store=arara', body: profiles }),
+    );
     renderWithHypermedia(<ProfilesScreen screen={profiles} />);
 
     expect(pageScreen.getByText(String(profiles.properties?.intro))).toBeInTheDocument();
@@ -52,7 +54,9 @@ describe('the profiles screen', () => {
   });
 
   it('offers the form that creates a profile, with its name field', () => {
-    mockFetchAlways(fakeResponse({ url: 'http://localhost/bff/v1/profiles', body: profiles }));
+    mockFetchAlways(
+      fakeResponse({ url: 'http://localhost/bff/v1/profiles?store=arara', body: profiles }),
+    );
     renderWithHypermedia(<ProfilesScreen screen={profiles} />);
 
     const create = findAction(profiles.actions, 'create-profile');
@@ -61,12 +65,12 @@ describe('the profiles screen', () => {
     expect(within(section).getByRole('button', { name: create?.title })).toBeInTheDocument();
   });
 
-  it('switches the profile and lands on the orders of the one chosen', async () => {
+  it('switches the profile and lands on the orders of the one chosen, in the store it came from', async () => {
     const bruno = switchTo('Bruno');
-    // fetch follows the 303 of the BFF by itself; what arrives is the orders screen.
+    // fetch follows the 303 of the BFF by itself; what arrives is the orders screen of the store.
     mockFetchSequence([
-      fakeResponse({ url: 'http://localhost/bff/v1/profiles', body: profiles }),
-      fakeResponse({ url: 'http://localhost/bff/v1/orders', body: fixtures.orders }),
+      fakeResponse({ url: 'http://localhost/bff/v1/profiles?store=arara', body: profiles }),
+      fakeResponse({ url: 'http://localhost/bff/v1/stores/arara/orders', body: fixtures.orders }),
     ]);
     render(
       <HypermediaProvider>
@@ -86,6 +90,6 @@ describe('the profiles screen', () => {
     expect(JSON.parse(String(postedInit?.body))).toEqual({
       profileId: bruno.fields?.[0]?.value,
     });
-    await waitFor(() => expect(window.location.pathname).toBe('/orders'));
+    await waitFor(() => expect(window.location.pathname).toBe('/stores/arara/orders'));
   });
 });
