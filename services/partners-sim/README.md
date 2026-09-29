@@ -193,6 +193,8 @@ Aceita a coleta, o CarrierFake anda a encomenda pela jornada dela sozinho, no re
 
 A frota própria (`tucano-express`) entrega dentro do estado do próprio CD e pula os hubs: vai direto de `picked_up` para `out_for_delivery`. Os parceiros passam por um hub (origem e destino no mesmo estado) ou por dois (estados diferentes). O nome do hub é `Hub <cidade> (<UF>)`, como `Hub Cajamar (SP)` ou `Hub Contagem (MG)`; um estado que o laboratório ainda não conhece cai no nome genérico `Hub <UF>`.
 
+Na frota própria, entre `out_for_delivery` e o desfecho da visita, o aparelho do entregador anda de verdade: a cada `COURIER_POSITION_INTERVAL_MS`, durante `COURIER_RIDE_MS`, ele informa a posição ao tracking (`POST /v1/positions`, assinado com `Courier-Signature`, o mesmo esquema dos webhooks), e depois do desfecho manda o `ended`. O trajeto sai do CD (GRU1 ou BHZ1) e vai até um ponto derivado do código de rastreio, a 2,5 a 7,5 km, numa curva suave, com alguns metros de ruído de GPS; a distância até a porta vai a zero no último ponto. Não há geocodificação: o destino é inventado, mas sempre o mesmo para o mesmo código. Cada posição é mandada uma vez e nunca repetida, porque a próxima a substitui, e um tracking fora do ar não segura a jornada: a primeira falha de um trajeto vira `warn`, as outras `debug`. O protocolo está em [`contracts/tracking`](../../contracts/tracking/README.md).
+
 Uma visita malsucedida tenta de novo, até três tentativas no total: depois de uma falha que não é recusa, com menos de três tentativas feitas, o CarrierFake volta para `out_for_delivery` com a tentativa seguinte. Uma recusa do destinatário, ou a terceira falha, manda a encomenda de volta (`returning` e depois `returned`). O campo `status` da coleta acompanha esses passos, e `attempts` conta quantas visitas ao endereço já houve.
 
 ### Idempotência
@@ -253,7 +255,7 @@ curl -s -X DELETE localhost:4000/_chaos/carriers    # tudo calmo de novo
 
 ## O que vem depois
 
-- **Entregadores**: aparelhos simulados que mandam posição de GPS ao tracking por WebSocket e confirmam as entregas, com entregas malsucedidas entre os controles de caos.
+- **Caos nos aparelhos**: perder uma parte das posições (a flag `chaos.tracking.gps-drop-rate` já existe) e deixar o entregador sem sinal no meio do trajeto, para a web mostrar o aviso de sem sinal num experimento.
 
 ## Onde ele fica na rede
 
@@ -281,6 +283,7 @@ Segue as mesmas regras do bff: o Node 24 executa os `.ts` direto (type stripping
 | `src/webhooks/` | o remetente de webhook com retentativa, a assinatura e o plano de caos (drop, duplicata, atraso), compartilhados entre os simuladores |
 | `src/payfake/` | o PayFake: ciclo de vida, caos e as rotas |
 | `src/carriers/` | o CarrierFake: a jornada da encomenda, hubs, caos e as rotas |
+| `src/couriers/` | o aparelho do entregador da frota própria: o trajeto do CD até a porta e as posições informadas ao tracking |
 | `src/platform/` | a cola com o Fastify: correlation id, logs, problem details, `DomainError` e health checks |
 | `test/` | testes com `node:test`, pelo `app.inject()` e, nos webhooks e timeouts, com servidor HTTP de verdade |
 | `test/support/` | relógio instantâneo, receptor de webhooks, sequência de sorteios e atalhos dos testes |
@@ -321,6 +324,10 @@ Os logs são do pino que já vem no Fastify: uma linha JSON por evento, com `tim
 | `CARRIERS_WEBHOOK_SECRET` | `whsec_local_carriers` | segredo do HMAC da assinatura, o mesmo que o logistics usa para verificar |
 | `CARRIERS_STEP_MIN_MS` | `1000` | menor tempo entre um passo da jornada e o seguinte |
 | `CARRIERS_STEP_MAX_MS` | `4000` | maior tempo entre os passos; não pode ser menor que o mínimo, e os dois vão até 600000 |
+| `TRACKING_URL` | `http://kong:8000/api/tracking` | onde o aparelho do entregador informa a posição, `http` ou `https` |
+| `COURIERS_SECRET` | `whsec_local_couriers` | segredo do HMAC da `Courier-Signature`, o mesmo que o tracking usa para verificar |
+| `COURIER_POSITION_INTERVAL_MS` | `1000` | uma posição a cada tanto |
+| `COURIER_RIDE_MS` | `20000` | quanto dura o trajeto do CD até a porta; não pode ser menor que um intervalo |
 | `WEBHOOKS_RETRY_DELAYS_MS` | `1000,2000,4000,8000,16000` | a espera antes de cada nova tentativa de um webhook; depois da última, ele é abandonado |
 | `WEBHOOKS_ATTEMPT_TIMEOUT_MS` | `5000` | quanto uma tentativa espera a resposta de quem recebe |
 | `PAYFAKE_RETENTION_HOURS` e `PAYFAKE_RETENTION_MAX_ENTRIES` | `24` e `20000` | quanto tempo e quantas cobranças (e Idempotency-Keys) o PayFake guarda na memória |

@@ -20,6 +20,11 @@ export type Config = {
   readonly upstreams: Upstreams;
   /** The whole exchange with a service, body included, before the BFF answers 503. */
   readonly upstreamTimeoutMs: number;
+  /**
+   * Where the web opens the live tracking WebSocket, on the public origin Kong serves
+   * (never the BFF's own address): a path the tracking screen links to, not a route it answers.
+   */
+  readonly trackingLivePath: string;
 };
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -83,6 +88,16 @@ export function loadConfig(env: Env): Config {
     return fallback;
   };
 
+  // Not a URL: Kong, not the BFF, answers it, so only the shape of a path matters here.
+  const originPath = (name: string, fallback: string): string => {
+    const value = text(name, fallback);
+    if (value.startsWith('/')) {
+      return value;
+    }
+    problems.push(`${name} must start with "/", got "${value}"`);
+    return fallback;
+  };
+
   // The defaults go through Toxiproxy, like every connection of the stack, so the chaos
   // reaches the door of the web too.
   const config: Config = {
@@ -97,6 +112,7 @@ export function loadConfig(env: Env): Config {
       logistics: url('LOGISTICS_URL', 'http://toxiproxy:18083'),
     },
     upstreamTimeoutMs: integer('UPSTREAM_TIMEOUT_MS', 5000, 1, 60_000),
+    trackingLivePath: originPath('TRACKING_LIVE_PATH', '/api/tracking/v1/live'),
   };
   if (problems.length > 0) {
     throw new InvalidConfig(config.serviceName, problems);

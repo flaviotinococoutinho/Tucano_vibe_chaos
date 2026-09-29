@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { Random } from '../chance.ts';
 import type { Clock } from '../clock.ts';
-import type { CarriersConfig, WebhookDeliveryConfig } from '../config.ts';
+import type { CarriersConfig, CouriersConfig, WebhookDeliveryConfig } from '../config.ts';
+import { CourierDevice } from '../couriers/device.ts';
 import { IdempotencyKeys, idempotencyKeyOf } from '../idempotency.ts';
 import { type Origin, Webhooks } from '../webhooks/sender.ts';
 import { Carriers, type ParcelEventData, type PickupRequest } from './carriers.ts';
@@ -14,6 +15,7 @@ const SIGNATURE_HEADER = 'Carrier-Signature';
 
 export type CarriersRoutesOptions = {
   readonly config: CarriersConfig;
+  readonly couriers: CouriersConfig;
   readonly webhookDelivery: WebhookDeliveryConfig;
   readonly clock: Clock;
   readonly random: Random;
@@ -27,7 +29,7 @@ type PickupRoute = { Params: { pickupId: string } };
  */
 export const carriersRoutes: FastifyPluginAsync<CarriersRoutesOptions> = async (
   app,
-  { config, webhookDelivery, clock, random },
+  { config, couriers, webhookDelivery, clock, random },
 ) => {
   const shutdown = new AbortController();
   const chaos = new Chaos(random);
@@ -39,11 +41,21 @@ export const carriersRoutes: FastifyPluginAsync<CarriersRoutesOptions> = async (
     plan: (log, event) => chaos.planWebhook(log, event.data.pickupId, event.id),
     signal: shutdown.signal,
   });
+  const device = new CourierDevice({
+    url: couriers.url,
+    secret: couriers.secret,
+    positionIntervalMs: couriers.positionIntervalMs,
+    rideMs: couriers.rideMs,
+    clock,
+    random,
+    signal: shutdown.signal,
+  });
   const carriers = new Carriers({
     clock,
     random,
     chaos,
     webhooks,
+    device,
     stepDelayMs: config.stepDelayMs,
     retention: config.retention,
     signal: shutdown.signal,

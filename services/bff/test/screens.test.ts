@@ -1,14 +1,23 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { checkoutScreen } from '../src/checkout/index.ts';
+import { rel } from '../src/hypermedia/index.ts';
 import { orderScreen } from '../src/orders/index.ts';
 import { catalogScreen, homeScreen, productScreen } from '../src/storefront/index.ts';
 import { trackingScreen } from '../src/tracking/index.ts';
 import type { Order, Tracking } from '../src/upstream/index.ts';
 import { example, wire } from './support/examples.ts';
-import { coffeeMaker, dddBook, deliveredParcel, pendingOrder } from './support/upstream-data.ts';
+import {
+  coffeeMaker,
+  dddBook,
+  deliveredParcel,
+  outForDeliveryOwnFleet,
+  pendingOrder,
+} from './support/upstream-data.ts';
 
 const PAY_KEY = '0199a2b4-9b21-7d62-a1e3-4f5a6b7c8d9e';
+/** The path Kong serves the live WebSocket at; `config.ts` reads the same default. */
+const LIVE_PATH = '/api/tracking/v1/live';
 
 /**
  * The examples of the contract are what the web renders in its tests. Each one here is
@@ -67,7 +76,17 @@ describe('the screens of the contract', () => {
   });
 
   it('tracking', () => {
-    assert.deepStrictEqual(wire(trackingScreen(deliveredParcel)), example('tracking.json'));
+    assert.deepStrictEqual(
+      wire(trackingScreen(deliveredParcel, LIVE_PATH)),
+      example('tracking.json'),
+    );
+  });
+
+  it('tracking of the own fleet, out for delivery, live', () => {
+    assert.deepStrictEqual(
+      wire(trackingScreen(outForDeliveryOwnFleet, LIVE_PATH)),
+      example('tracking-live.json'),
+    );
   });
 });
 
@@ -159,14 +178,14 @@ describe('the tracking screen', () => {
   };
 
   it('asks for news while the parcel moves', () => {
-    const screen = trackingScreen(moving);
+    const screen = trackingScreen(moving, LIVE_PATH);
 
     assert.deepStrictEqual(screen.class, ['screen', 'tracking', 'live']);
     assert.equal(screen.properties?.refreshAfterSeconds, 5);
   });
 
   it('says why a visit did not deliver', () => {
-    const last = trackingScreen(moving).entities?.at(-1);
+    const last = trackingScreen(moving, LIVE_PATH).entities?.at(-1);
 
     assert.deepStrictEqual(last?.properties, {
       status: 'delivery_failed',
@@ -177,7 +196,42 @@ describe('the tracking screen', () => {
   });
 
   it('shows the code of a carrier it has no name for yet', () => {
-    assert.equal(trackingScreen(moving).properties?.carrierLabel, 'mula-rapida');
+    assert.equal(trackingScreen(moving, LIVE_PATH).properties?.carrierLabel, 'mula-rapida');
+  });
+
+  it('offers to watch the courier live for the own fleet out for delivery', () => {
+    const screen = trackingScreen(outForDeliveryOwnFleet, LIVE_PATH);
+
+    assert.deepStrictEqual(
+      screen.links?.find((link) => link.rel.includes(rel.live)),
+      {
+        rel: [rel.live],
+        href: '/api/tracking/v1/live?trackingCode=TX02Q6AGJQ45G00',
+        title: 'Ver o entregador ao vivo',
+      },
+    );
+  });
+
+  it('never offers the live link for a partner carrier out for delivery', () => {
+    const partner: Tracking = { ...outForDeliveryOwnFleet, carrier: 'ligeirinho' };
+    const screen = trackingScreen(partner, LIVE_PATH);
+
+    assert.equal(
+      screen.links?.some((link) => link.rel.includes(rel.live)),
+      false,
+    );
+  });
+
+  it('never offers the live link for the own fleet outside out_for_delivery', () => {
+    for (const status of ['picked_up', 'in_transit', 'delivered', 'delivery_failed'] as const) {
+      const screen = trackingScreen({ ...outForDeliveryOwnFleet, status }, LIVE_PATH);
+
+      assert.equal(
+        screen.links?.some((link) => link.rel.includes(rel.live)),
+        false,
+        status,
+      );
+    }
   });
 });
 

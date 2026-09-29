@@ -16,7 +16,7 @@ Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados d
 
 ### O que isso faz?
 
-Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
+Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. Quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
 
 ### Por onde eu começo?
 
@@ -43,6 +43,7 @@ O [guia](docs/guia/README.md) conta a história inteira como um passeio, em cap�
 |---|---|
 | ![A home da loja, com o tucano pulando a pedra que falta no rio e o botão Ver o catálogo](docs/assets/telas/loja.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
 | ![Um pedido entregue, com o selo Entregue, o código de rastreio e o botão Acompanhar a entrega](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
+| ![O cartão Ao vivo da página de rastreio: um mapa pequeno com o rastro curvo do entregador e a frase O entregador está a 1,6 km](docs/assets/telas/ao-vivo.png) | Enquanto a encomenda sai com a frota própria, a página de rastreio mostra o entregador chegando: o aparelho dele informa a posição a cada segundo, e o tracking a empurra por WebSocket. Sem o WebSocket, a página avisa e segue se atualizando sozinha. |
 
 A tela do pedido se atualiza sozinha enquanto algo está para acontecer: "Confirmando o pagamento", "Pagamento aprovado", "A caminho", "Entregue". Com o cartão de teste recusado, ela termina em "Cancelado" e diz por quê.
 
@@ -58,6 +59,9 @@ Os [laboratórios](#os-laboratórios) contam o que eu quebrei e o que mudou no c
 | `catalog-slow-for-the-web` | 7 s de latência no catálogo | o BFF desiste em 5 s e diz quando tentar de novo |
 | `commerce-database-out` | o commerce perde o banco | fechar um pedido recusa na hora, com `503` e `Retry-After` |
 | `tracking-without-its-database` | a logística perde o banco | o rastreio continua respondendo, pela cópia no DynamoDB |
+| `tracking-without-its-copy` | a cópia do rastreio no DynamoDB some | a página recusa na hora, com `503` e `Retry-After`, em vez de pendurar |
+| `tracking-without-the-timeline` | o MongoDB da linha do tempo interna some | a página pública segue a encomenda até entregue, com todos os passos |
+| `kafka-out-and-back` | o Kafka some por 30 s, com um pedido pago no meio | a entrega nasce e chega a entregue quando o Kafka volta |
 
 O `commerce-database-out` tem história. Eu ia escrever no guia que, sem o banco, a loja recusa um pedido com honestidade. Medi antes de escrever, e ela respondia um `500` que não dizia nada. A frase virou o experimento, o experimento pegou a fraqueza na primeira execução, e a correção virou o [ADR 0026](docs/adr/0026-a-database-outage-is-unavailability.md). O [mapa de modos de falha](docs/architecture/failure-modes.md) junta tudo isso numa tabela, com a prova de cada reação e a lista do que ainda não tem prova.
 
@@ -65,13 +69,13 @@ O `commerce-database-out` tem história. Eu ia escrever no guia que, sem o banco
 
 | Serviço | Stack | O que faz |
 |---|---|---|
-| [web](services/web/README.md) | React 19, TypeScript, Vite | a loja: um intérprete das telas do BFF, com tela viva, acessibilidade e tema claro e escuro |
+| [web](services/web/README.md) | React 19, TypeScript, Vite | a loja: um intérprete das telas do BFF, com tela viva, o entregador ao vivo quando a tela oferece, acessibilidade e tema claro e escuro |
 | [bff](services/bff/README.md) | Node 24, Fastify 5 | a porta da web: cada tela em Siren, com as palavras em português, prazo e 503 com `Retry-After` por serviço |
 | [commerce](services/commerce/README.md) | Laravel 13, PHP 8.4 | pedidos, reserva de estoque, pagamento com circuit breaker e conciliação com o PSP |
 | [logistics](services/logistics/README.md) | Laravel 13, PHP 8.4 | remessas com máquina de estados, etiqueta pela fila, jornada contada pelas transportadoras, conciliação com o histórico delas, alerta de jornadas paradas e página de rastreio |
 | [catalog](services/catalog/README.md) | Lumen 11, PHP 8.3 | produtos com cache-aside, no papel de serviço legado |
-| [tracking](services/tracking/README.md) | Swoole 6, PHP 8.4 | a base do tempo real da frota: HTTP e WebSocket num processo de longa duração |
-| [partners-sim](services/partners-sim/README.md) | Node 24, Fastify 5 | o mundo lá fora: o PayFake (o PSP) e a CarrierFake (as transportadoras), com caos sob comando |
+| [tracking](services/tracking/README.md) | Swoole 6, PHP 8.4 | a entrega ao vivo: recebe a posição assinada do aparelho de cada entregador da frota própria e a empurra, por WebSocket, para quem acompanha aquele código, num processo de longa duração |
+| [partners-sim](services/partners-sim/README.md) | Node 24, Fastify 5 | o mundo lá fora: o PayFake (o PSP), a CarrierFake (as transportadoras) e o aparelho de cada entregador da frota própria, com caos sob comando |
 
 Em volta deles: Kong na frente de tudo; Kafka com ZooKeeper entre os contextos; PostgreSQL e MySQL para escrever (ACID), MongoDB e DynamoDB para ler (BASE); Redis; Floci como AWS local (S3, SQS e DynamoDB); Toxiproxy entre cada serviço e cada dependência; flagd para as feature flags; e Mailpit para os e-mails.
 
@@ -208,10 +212,10 @@ Depois do guia, a [documentação](docs/README.md) tem a referência: convençõ
 | `make config-check` | confere que compose, código e a referência de configuração concordam |
 | `make trim` | devolve ao Mac o espaço liberado dentro da VM do Colima |
 
-Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [guia do ambiente local](docs/operations/local-environment.md). Ainda em construção: o tempo real da frota por WebSocket, que o `tracking` já sabe servir e a web ainda não usa. O andamento de cada parte está na [tabela da arquitetura](docs/architecture/README.md).
+Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [guia do ambiente local](docs/operations/local-environment.md). Ainda em construção: o despacho da frota, que escolheria o entregador mais perto de cada remessa. O andamento de cada parte está na [tabela da arquitetura](docs/architecture/README.md).
 
 ## Para onde ele vai
 
-- **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o DynamoDB fora (hoje a recusa leva 5 s), o MongoDB fora por muito tempo (o projetor mandaria mensagens boas para a DLQ), o Kafka fora e o Redis junto com o PSP lento.
-- **O tempo real da frota**, que o `tracking` já sabe servir por WebSocket e a web ainda não usa.
+- **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Redis junto com o PSP lento, a entrega ao vivo sem o tracking ou sem o Redis, e o BFF sem a logistics.
+- **O despacho da frota** (UC-TRK-02): achar o entregador disponível mais perto de cada remessa, com o Redis GEO que o ADR 0013 previu. Hoje a posição ao vivo segue o código de rastreio, porque ninguém designa um entregador.
 - **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, login e sessão no lugar do cliente convidado. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).

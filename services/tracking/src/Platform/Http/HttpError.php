@@ -18,6 +18,23 @@ final class HttpError extends RuntimeException
         parent::__construct($detail);
     }
 
+    public static function badRequest(string $detail): self
+    {
+        return new self(400, $detail);
+    }
+
+    /** No WWW-Authenticate: the signature scheme is not one of HTTP's, and the caller knows it. */
+    public static function unauthorized(string $detail): self
+    {
+        return new self(401, $detail);
+    }
+
+    /** A plain request to a WebSocket endpoint: RFC 9110 answers 426 and names the protocol to switch to. */
+    public static function upgradeRequired(string $path): self
+    {
+        return new self(426, sprintf('The route %s speaks WebSocket only.', $path), ['Upgrade' => 'websocket', 'Connection' => 'Upgrade']);
+    }
+
     public static function notFound(string $path): self
     {
         return new self(404, sprintf('The route %s could not be found.', $path));

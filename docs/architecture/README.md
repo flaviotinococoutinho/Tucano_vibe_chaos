@@ -30,7 +30,7 @@ C4Context
 
   Rel(customer, tucano, "Compra e rastreia", "HTTPS, WebSocket")
   Rel(operator, tucano, "Opera remessas", "HTTPS")
-  Rel(courier, tucano, "Posição e entregas", "WebSocket")
+  Rel(courier, tucano, "Posição e entregas", "HTTPS assinado")
   BiRel(tucano, psp, "Cobranças e webhooks", "HTTPS")
   BiRel(tucano, carriers, "Envios e rastreio", "HTTPS")
   Rel(tucano, email, "Notifica", "SES")
@@ -75,10 +75,10 @@ C4Container
   }
 
   Rel(customer, kong, "HTTPS, WSS")
-  Rel(partners, kong, "webhooks, WSS")
+  Rel(partners, kong, "webhooks e posições, assinados")
   Rel(kong, web, "/")
   Rel(kong, bff, "/bff")
-  Rel(kong, tracking, "/ws")
+  Rel(kong, tracking, "/api/tracking, WebSocket em /v1/live")
   Rel(bff, commerce, "HTTP")
   Rel(bff, logistics, "HTTP")
   Rel(bff, catalog, "HTTP")
@@ -104,7 +104,7 @@ C4Container
 | `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, coleta e jornada até a entrega ou a devolução pelos webhooks das transportadoras, conciliação com o histórico delas, alerta das jornadas paradas no log e por e-mail, página pública de rastreio no DynamoDB e linha do tempo no MongoDB, cópia do catálogo, outbox |
-| `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | esqueleto rodando (health, erros) |
+| `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | entrega ao vivo rodando: posições assinadas do aparelho, WebSocket para quem acompanha o código, fan-out por Redis pub/sub ([ADR 0028](../adr/0028-live-delivery-by-tracking-code.md)); falta o despacho (UC-TRK-02) |
 | `partners-sim` | Node 24 + Fastify | simula o mundo externo: PSP, transportadoras e app da frota, com controles de caos | PayFake (cobranças, estornos, webhooks assinados) e CarrierFake (coleta e jornada da encomenda até a entrega ou a devolução), os dois com caos em tempo real |
 | `nginx` | nginx 1.30 | servidor web das aplicações PHP-FPM | rodando, esperando os apps |
 | `postgres` | PostgreSQL 18 | escrita ACID de commerce e logistics, com `uuidv7()` nativo | rodando |

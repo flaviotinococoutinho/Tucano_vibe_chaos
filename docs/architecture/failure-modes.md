@@ -34,7 +34,7 @@ Os números vêm da stack local, em 28/09/2026. Eles mudam de máquina para máq
 
 | Modo de falha | Efeito para o cliente | Detecção | Reação | Prova | O que sobra |
 |---|---|---|---|---|---|
-| Kafka fora | a remessa demora a nascer; a tela do pedido espera | o relay não consegue publicar | o evento espera na outbox, gravado na mesma transação do fato, e sai quando o Kafka volta; os consumidores retomam do último offset confirmado | [ADR 0008](../adr/0008-transactional-outbox.md) e os testes do pacote de mensageria | sem experimento como código ainda |
+| Kafka fora | a remessa demora a nascer; a tela do pedido espera | o relay não consegue publicar | o evento espera na outbox, gravado na mesma transação do fato, e sai quando o Kafka volta; os consumidores retomam do último offset confirmado, e a inbox descarta o que a volta entregar duas vezes | experimento `kafka-out-and-back`: depois de 30 s fora, a remessa nasceu 8,6 s depois da volta do Kafka e a encomenda chegou a entregue em 18,8 s; [ADR 0008](../adr/0008-transactional-outbox.md) | até uns 10 s de espera depois da volta, que é o teto do backoff de reconexão do cliente do Kafka |
 | evento entregue duas vezes | efeito em dobro | o id do evento, na inbox | a inbox descarta a repetição na mesma transação do efeito; `UNIQUE (order_id)` nas remessas | teste (pacote de mensageria e `SchemaConstraintsTest`) | nada |
 | mensagem ilegível, ou recusada pelo domínio | a partição travaria atrás dela | `PermanentFailure` | vai para `dlq.<consumer-group>` na hora, com o erro nos headers | teste (pacote de mensageria) | alguém precisa olhar a DLQ |
 | worker parado no meio de um retry | um efeito pela metade | `SIGTERM` | o offset não é confirmado, e a mensagem volta depois do restart | laboratório do banco fora do ar | nada |
@@ -55,22 +55,28 @@ Os números vêm da stack local, em 28/09/2026. Eles mudam de máquina para máq
 | o BFF perde a logistics | a tela de rastreio | o mesmo mecanismo | `503` só nas telas da logistics | o mesmo mecanismo dos dois experimentos acima | sem experimento próprio |
 | o Kong cai | nada responde | o health check do compose | nenhuma: no compose local, o Kong é um ponto único de falha | nenhuma | em produção, duas réplicas atrás de um balanceador |
 
+## A entrega ao vivo
+
+| Modo de falha | Efeito para o cliente | Detecção | Reação | Prova | O que sobra |
+|---|---|---|---|---|---|
+| o aparelho do entregador perde o sinal | o ponto do entregador para no mapa | a web compara o `at` da última posição com o relógio | depois de 30 s, a web diz há quanto tempo não há sinal; a próxima posição apaga o aviso | teste (`LiveDelivery` na web) | a flag `chaos.tracking.gps-drop-rate` existe e ninguém a lê ainda |
+| o tracking cai | a posição ao vivo some; a página de rastreio continua | o WebSocket fecha ou não abre | a web avisa que a posição não está disponível e tenta de novo com uma espera crescente; a tela segue se atualizando pelo polling de sempre; no desligamento, o tracking fecha com `1001`, e a web conecta de novo | teste (`LiveDelivery` na web; `ServerTest` do tracking, com o `1001` no `SIGTERM`) | as posições informadas durante a queda se perdem, de propósito: a próxima as substitui |
+| o Redis cai para o tracking | as posições param de chegar | o relato falha ao guardar ou publicar | o relato recebe `503`, e o aparelho não repete; a assinatura do canal tenta de novo a cada segundo; a web mostra o aviso de sem sinal depois de 30 s | teste (`DeliveriesUnavailable` vira `503` pela categoria) | sem experimento como código ainda |
+
 ## Infraestrutura de apoio
 
 | Modo de falha | Efeito para o cliente | Detecção | Reação | Prova | O que sobra |
 |---|---|---|---|---|---|
 | Redis fora | o catálogo perde o cache, e o pagamento perde o circuit breaker | falha de conexão | o catálogo lê direto do MySQL; o breaker deixa as chamadas passarem, porque um breaker quebrado não pode derrubar o serviço | medição: catálogo em 1,13 s e produto em 0,21 s, com o Redis cortado; laboratório do circuit breaker | sem o breaker, um PSP lento ao mesmo tempo voltaria a prender processos; a janela que evita alerta repetido não foi medida |
 | flagd fora | nenhum | a avaliação falha | cada avaliação tem um padrão seguro no código: caos desligado, estratégia `atomic` | [feature flags](feature-flags.md); [ADR 0015](../adr/0015-feature-flags-openfeature-flagd.md) | sem experimento como código ainda |
-| MongoDB fora | nenhum na web; a lista de pedidos e a linha do tempo param de andar | os projetores falham | os projetores tentam de novo, com as tentativas contadas; uma projeção se refaz relendo o tópico, porque deduplica pelo id do evento | medição: rastreio e catálogo em `200` com o MongoDB cortado | pela leitura do código, uma queda longa manda mensagens boas para a DLQ (item 2 abaixo) |
-| DynamoDB fora | o rastreio público não abre | o prazo do BFF | `503` com `Retry-After`, mas só quando o prazo do BFF vence | medição: `503` em 5,03 s | o cliente da AWS na logistics espera mais que o BFF; um timeout curto nele faria a recusa sair na hora |
+| MongoDB fora | nenhum: a página pública segue a encomenda | o projetor da linha do tempo não alcança o MongoDB | a linha do tempo interna espera o MongoDB sem limite e alcança quando ele volta; a página pública lê os eventos num grupo de consumo próprio e nem percebe a queda ([ADR 0027](../adr/0027-one-consumer-group-per-read-model.md)) | experimento `tracking-without-the-timeline`: a página chegou a entregue em 14,6 s, com todos os passos; antes da correção, a jornada inteira foi para a DLQ e a página ficou sem nenhum passo | a linha do tempo interna atrasa enquanto durar a queda |
+| DynamoDB fora | o rastreio público não abre | a leitura falha sem resposta | a leitura tem uma tentativa só, de até 800 ms, e a página recusa na hora com `503` e `Retry-After: 5`; a escrita do projetor mantém as tentativas do SDK | experimento `tracking-without-its-copy`: `503` em 0,06 s, contra 5,05 s antes da correção | enquanto durar a queda, não há rastreio para mostrar |
 
 ## O que ainda não tem prova
 
 Uma análise honesta termina pelo que falta. Estes são os próximos experimentos, em ordem de valor:
 
-1. **DynamoDB fora**: a recusa demora 5 s porque quem desiste é o BFF, não a logistics. Um timeout de conexão curto no cliente da AWS, e um experimento que exija a recusa em até 1 s.
-2. **MongoDB fora por muito tempo**: o retry sem limite dos consumidores só reconhece conexão perdida com o PostgreSQL. Pela leitura do código, o projetor da linha do tempo esgota as tentativas e manda para a DLQ mensagens que não têm defeito nenhum, o mesmo problema que o [ADR 0017](../adr/0017-wait-for-the-database-not-the-dlq.md) resolveu para o PostgreSQL. Falta o experimento que prove, e depois a correção.
-3. **Kafka fora**: a outbox garante que nenhum evento se perde, mas nenhum experimento mede quanto tempo a remessa leva para nascer depois que o Kafka volta.
-4. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
-5. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
-6. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.
+1. **Redis fora com o PSP lento**: as duas falhas juntas tiram a proteção do breaker. O experimento diria se o timeout de 2 s sozinho segura o checkout.
+2. **A entrega ao vivo sem o tracking ou sem o Redis**: a web foi feita para seguir pelo polling, mas nenhum experimento confere isso numa encomenda de verdade. Pede uma sonda que abra o WebSocket, o que a imagem do Chaos Toolkit ainda não sabe fazer.
+3. **O BFF sem a logistics**: o mecanismo é o mesmo do commerce, mas sem experimento próprio ele pode quebrar sem ninguém ver.
+4. **O Kong**: aceitar o ponto único no ambiente local é uma decisão, e ela merece um ADR quando o projeto ganhar um ambiente com mais de uma máquina.

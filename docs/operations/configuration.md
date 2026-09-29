@@ -147,7 +147,8 @@ O Compose junta o override com o `compose.yaml` sozinho. O `--no-deps` evita rec
 | `SQS_TIMEOUT_MS` e `SQS_CONNECT_TIMEOUT_MS` | `5000` e `2000` | o padrão do Laravel espera 60 s pelo SQS, e uma fila lenta assim é uma fila fora do ar |
 | `S3_TIMEOUT_MS` e `S3_CONNECT_TIMEOUT_MS` | `5000` e `2000` | as chamadas ao S3 das etiquetas |
 | `TRACKING_TABLE` | `tracking_lookup` | a tabela do DynamoDB com a página pública de rastreio |
-| `DYNAMODB_TIMEOUT_MS` e `DYNAMODB_CONNECT_TIMEOUT_MS` | `3000` e `1000` | a página responde a uma pessoa esperando: um DynamoDB lento vira 503, não um request pendurado |
+| `DYNAMODB_TIMEOUT_MS` e `DYNAMODB_CONNECT_TIMEOUT_MS` | `3000` e `1000` | a escrita do projetor, que roda em segundo plano e ainda tem as tentativas do SDK por trás de cada chamada |
+| `DYNAMODB_READ_TIMEOUT_MS` | `800` | a leitura da página pública: uma pessoa espera, então é uma tentativa só, e um DynamoDB lento ou fora vira 503 com `Retry-After`, e não um request pendurado até o BFF desistir |
 | `TRACKING_PAGE_RETENTION_DAYS` | `90` | quantos dias a página fica depois do último passo; o TTL do DynamoDB apaga depois |
 
 ## catalog
@@ -168,6 +169,8 @@ O Compose junta o override com o `compose.yaml` sozinho. O `--no-deps` evita rec
 |---|---|---|
 | `SWOOLE_WORKERS` | `2` | processos worker do Swoole |
 | `SWOOLE_MAX_WAIT_SECONDS` | `5` | no `SIGTERM`, os requests em andamento têm esse tempo para terminar, dentro dos 10 s que o Docker espera |
+| `COURIERS_SECRET` | `whsec_local_couriers` | o segredo com que os aparelhos dos entregadores assinam as posições (`Courier-Signature`); o mesmo do partners-sim |
+| `LIVE_NEWS_TTL_SECONDS` | `900` | quanto tempo a última notícia de uma entrega fica no Redis para quem chega depois; o tracking nunca guarda uma história |
 
 As outras variáveis do tracking (`HOST`, `PORT`, `REDIS_*`, `FLAGD_*`) estão nas tabelas comuns. Um valor inválido derruba o boot com uma mensagem que diz qual variável e por quê.
 
@@ -184,8 +187,10 @@ As outras variáveis do tracking (`HOST`, `PORT`, `REDIS_*`, `FLAGD_*`) estão n
 | `CARRIERS_RETENTION_HOURS` e `CARRIERS_RETENTION_MAX_ENTRIES` | `24` e `20000` | quanto tempo e quantas coletas, com o histórico, a CarrierFake guarda; com pouco tempo, dá para ver a conciliação encontrar um histórico vazio |
 | `WEBHOOKS_RETRY_DELAYS_MS` | `1000,2000,4000,8000,16000` | a espera antes de cada nova tentativa de um webhook; depois da última, ele é abandonado |
 | `WEBHOOKS_ATTEMPT_TIMEOUT_MS` | `5000` | quanto uma tentativa espera a resposta de quem recebe |
+| `TRACKING_URL` | `http://kong:8000/api/tracking` | onde o aparelho simulado de cada entregador da frota própria informa a posição |
+| `COURIER_POSITION_INTERVAL_MS` e `COURIER_RIDE_MS` | `1000` e `20000` | uma posição a cada tanto, durante o trajeto do centro de distribuição até a porta, que leva esse tempo; um trajeto mais curto que um intervalo impede a subida |
 
-Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos do commerce e da logistics.
+Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos do commerce e da logistics, e o `COURIERS_SECRET` é o mesmo do tracking.
 
 ## bff
 
@@ -193,6 +198,7 @@ Os segredos `PAYFAKE_WEBHOOK_SECRET` e `CARRIERS_WEBHOOK_SECRET` são os mesmos 
 |---|---|---|
 | `CATALOG_URL`, `COMMERCE_URL` e `LOGISTICS_URL` | `http://toxiproxy:18081`, `http://toxiproxy:18082` e `http://toxiproxy:18083` | onde o BFF encontra cada serviço, cada um pelo seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`), para um laboratório cortar uma tela de cada vez |
 | `UPSTREAM_TIMEOUT_MS` | `5000` | a troca inteira com um serviço, corpo incluído; passou disso, a tela responde 503 com `Retry-After`. Fica acima dos 2 s que o commerce dá ao PSP, para o BFF não desistir de um pagamento que o commerce ainda espera |
+| `TRACKING_LIVE_PATH` | `/api/tracking/v1/live` | o caminho, na origem pública servida pelo Kong, do WebSocket que a tela de rastreio oferece enquanto a frota própria está a caminho da porta; não é uma rota do BFF |
 
 Um endereço que não é URL http ou https, ou um timeout fora de 1 a 60000, impede a subida, com a lista do que está errado.
 

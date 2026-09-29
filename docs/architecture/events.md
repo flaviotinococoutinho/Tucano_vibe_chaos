@@ -81,9 +81,10 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 | `logistics.pickup-bookings` | `logistics.shipments.v2` | agenda a coleta na transportadora de cada remessa pronta |
 | `commerce.shipment-sync` | `logistics.shipments.v2` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
 | `commerce.order-projector` | `commerce.orders.v2` | mantém o read model de pedidos no MongoDB |
-| `logistics.timeline-projector` | `logistics.shipments.v2` | mantém a linha do tempo no MongoDB e o lookup público no DynamoDB |
+| `logistics.timeline-projector` | `logistics.shipments.v2` | mantém a linha do tempo interna no MongoDB |
+| `logistics.tracking-pages` | `logistics.shipments.v2` | mantém a página pública de rastreio no DynamoDB, num grupo separado da linha do tempo para uma queda de um banco não parar o outro ([ADR 0027](../adr/0027-one-consumer-group-per-read-model.md)) |
 | `commerce.notification-router` | `commerce.orders.v2`, `logistics.shipments.v2` | decide o que vira notificação e publica no SNS |
-| `bff.live` | `commerce.orders.v2`, `logistics.shipments.v2` | empurra atualizações para o navegador via WebSocket |
+| `bff.live` | `commerce.orders.v2`, `logistics.shipments.v2` | reservado: o grupo e a sua DLQ existem, mas nenhum consumidor o usa. A tela viva busca a tela de novo, e a posição do entregador chega pelo tracking ([ADR 0028](../adr/0028-live-delivery-by-tracking-code.md)) |
 
 ## Garantias de entrega
 

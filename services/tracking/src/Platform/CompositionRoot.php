@@ -9,6 +9,14 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Psr\Log\LoggerInterface;
+use Tracking\Delivery\Adapter\Driven\RedisDeliveryNews;
+use Tracking\Delivery\Adapter\Driving\Http\CourierSignature;
+use Tracking\Delivery\Adapter\Driving\Http\FollowLiveController;
+use Tracking\Delivery\Adapter\Driving\Http\ReportDeliveryController;
+use Tracking\Delivery\Adapter\Driving\WebSocket\DeliveriesSubscription;
+use Tracking\Delivery\Application\Port\Driving\ForFollowingDeliveries;
+use Tracking\Delivery\Application\UseCase\FollowDelivery;
+use Tracking\Delivery\Application\UseCase\ReportDelivery;
 use Tracking\Platform\Health\HealthController;
 use Tracking\Platform\Health\Readiness;
 use Tracking\Platform\Health\RedisCheck;
@@ -33,17 +41,29 @@ final readonly class CompositionRoot
     private function __construct(
         public Kernel $kernel,
         public FeatureFlags $featureFlags,
+        public ForFollowingDeliveries $deliveries,
+        public DeliveriesSubscription $subscription,
     ) {}
 
     public static function boot(Config $config, LoggerInterface $logger): self
     {
-        $health = new HealthController(new Readiness([new RedisCheck($config->redisHost, $config->redisPort, $config->redisTimeoutMs / 1_000)]), $logger);
+        $redisTimeoutSeconds = $config->redisTimeoutMs / 1_000;
+        $health = new HealthController(new Readiness([new RedisCheck($config->redisHost, $config->redisPort, $redisTimeoutSeconds)]), $logger);
+        $news = new RedisDeliveryNews($config->redisHost, $config->redisPort, $redisTimeoutSeconds, $config->liveNewsTtlSeconds);
+        $report = new ReportDeliveryController(new ReportDelivery($news, $news), new CourierSignature($config->couriersSecret), time(...));
         $router = new Router(
             new Route('GET', '/health/live', $health->live(...)),
             new Route('GET', '/health/ready', $health->ready(...)),
+            new Route('POST', ReportDeliveryController::PATH, $report(...)),
+            new Route('GET', FollowLiveController::PATH, new FollowLiveController()(...)),
         );
 
-        return new self(new Kernel($router, $logger), self::featureFlags($config));
+        return new self(
+            new Kernel($router, $logger),
+            self::featureFlags($config),
+            new FollowDelivery($news),
+            new DeliveriesSubscription($config->redisHost, $config->redisPort, $redisTimeoutSeconds, $logger),
+        );
     }
 
     /** One JSON object per line on stderr, with the service name and, inside a request, its correlation id. */

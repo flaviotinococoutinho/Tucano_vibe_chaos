@@ -32,6 +32,8 @@ final readonly class Config
         public int $flagsCacheSeconds,
         public int $flagdTimeoutMs,
         public int $flagdConnectTimeoutMs,
+        public string $couriersSecret,
+        public int $liveNewsTtlSeconds,
     ) {}
 
     /** @param array<string, string> $env usually getenv() */
@@ -55,6 +57,10 @@ final readonly class Config
             flagsCacheSeconds: self::positiveInteger($env, 'FLAGS_CACHE_SECONDS', 2),
             flagdTimeoutMs: self::positiveInteger($env, 'FLAGD_TIMEOUT_MS', 300),
             flagdConnectTimeoutMs: self::positiveInteger($env, 'FLAGD_CONNECT_TIMEOUT_MS', 200),
+            // The courier devices sign their reports with it, the way the carriers sign their webhooks.
+            couriersSecret: self::text($env, 'COURIERS_SECRET', 'whsec_local_couriers'),
+            // How long the last news of a tracking code is kept for a follower who arrives late.
+            liveNewsTtlSeconds: self::positiveInteger($env, 'LIVE_NEWS_TTL_SECONDS', 900),
         );
     }
 

@@ -16,6 +16,7 @@ describe('config', () => {
         logistics: 'http://toxiproxy:18083',
       },
       upstreamTimeoutMs: 5000,
+      trackingLivePath: '/api/tracking/v1/live',
     });
   });
 
@@ -30,6 +31,7 @@ describe('config', () => {
       COMMERCE_URL: 'http://nginx:8082',
       LOGISTICS_URL: 'https://logistics.internal',
       UPSTREAM_TIMEOUT_MS: '2500',
+      TRACKING_LIVE_PATH: '/live/tracking',
     });
 
     assert.deepEqual(config, {
@@ -44,6 +46,7 @@ describe('config', () => {
         logistics: 'https://logistics.internal',
       },
       upstreamTimeoutMs: 2500,
+      trackingLivePath: '/live/tracking',
     });
   });
 
@@ -71,6 +74,15 @@ describe('config', () => {
       message:
         'Invalid configuration: PORT must be an integer from 1 to 65535, got "70000"; ' +
         'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, got "loud".',
+    });
+  });
+
+  it('refuses a tracking live path that is not a path on the origin', () => {
+    assert.throws(() => loadConfig({ TRACKING_LIVE_PATH: 'wss://tracking/v1/live' }), {
+      name: 'InvalidConfig',
+      message:
+        'Invalid configuration: TRACKING_LIVE_PATH must start with "/", got ' +
+        '"wss://tracking/v1/live".',
     });
   });
 });

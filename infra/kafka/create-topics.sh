@@ -35,6 +35,7 @@ consumer_groups=(
   commerce.shipment-sync
   commerce.order-projector
   logistics.timeline-projector
+  logistics.tracking-pages
   commerce.notification-router
   bff.live
 )

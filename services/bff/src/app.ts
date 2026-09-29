@@ -84,7 +84,7 @@ export function buildApp({
     secureCookies: config.environment === 'production',
   });
   app.register(ordersRoutes, { commerce, newId });
-  app.register(trackingRoutes, { logistics });
+  app.register(trackingRoutes, { logistics, livePath: config.trackingLivePath });
 
   return app;
 }

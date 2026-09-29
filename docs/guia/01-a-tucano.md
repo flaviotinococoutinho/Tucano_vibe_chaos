@@ -25,7 +25,7 @@ Um serviço por subdomínio, não um por entidade ([ADR 0002](../adr/0002-servic
 | Catálogo | `catalog` (Lumen) | o que existe à venda, com que preço e medidas; faz o papel de sistema legado |
 | Pedidos, estoque e pagamentos | `commerce` (Laravel) | se o pedido fecha, se o estoque segura, se o dinheiro entrou |
 | Logística | `logistics` (Laravel) | quem leva, qual etiqueta, onde a encomenda está, quando algo travou |
-| Frota ao vivo | `tracking` (Swoole) | a base do tempo real dos entregadores (ainda o esqueleto) |
+| Frota ao vivo | `tracking` (Swoole) | onde está o entregador que leva a encomenda, enquanto ela está a caminho da porta ([UC-TRK-03](../use-cases/UC-TRK-03-follow-delivery-live.md)) |
 | Apresentação | `bff` (Node) e `web` (React) | que tela mostrar, com que palavras, e qual o próximo passo |
 
 Cada contexto tem a sua linguagem, e as palavras mudam de sentido na fronteira: para o commerce, "shipped" é um status do pedido; para a logistics, é um momento da jornada da remessa. O [context map](../architecture/context-map.md) mostra quem fala com quem e com que padrão, e a [linguagem ubíqua](../architecture/ubiquitous-language.md) guarda o vocabulário.
@@ -38,7 +38,7 @@ Cada contexto tem a sua linguagem, e as palavras mudam de sentido na fronteira: 
 4. Pago, o pedido publica `order.paid` pela outbox. A logistics cria a remessa, escolhe a transportadora e pede a etiqueta, que um worker gera em ZPL e guarda no S3 ([UC-SHP-01](../use-cases/UC-SHP-01-create-shipment.md) a [UC-SHP-03](../use-cases/UC-SHP-03-generate-label.md)).
 5. A transportadora coleta, passa por hubs, sai para entrega e entrega, ou tenta três vezes e devolve. Cada passo chega por webhook e vira um evento de `logistics.shipments.v2` ([UC-SHP-04](../use-cases/UC-SHP-04-record-pickup.md) a [UC-SHP-08](../use-cases/UC-SHP-08-return-to-sender.md)).
 6. O pedido acompanha a remessa um passo atrás e aprende o código de rastreio na coleta ([UC-ORD-04](../use-cases/UC-ORD-04-follow-shipment.md)). Numa devolução, o pagamento vai para estorno na mesma transação.
-7. A web mostra tudo isso sem recarregar: a tela do pedido se atualiza sozinha enquanto algo está para acontecer, e a página de rastreio lê uma cópia no DynamoDB, por chave ([UC-SHP-10](../use-cases/UC-SHP-10-track-by-code.md)).
+7. A web mostra tudo isso sem recarregar: a tela do pedido se atualiza sozinha enquanto algo está para acontecer, e a página de rastreio lê uma cópia no DynamoDB, por chave ([UC-SHP-10](../use-cases/UC-SHP-10-track-by-code.md)). Quando a encomenda sai com a frota própria, a página mostra o entregador chegando, ao vivo: o aparelho dele informa a posição a cada segundo, e o tracking a empurra por WebSocket para quem acompanha aquele código ([UC-TRK-03](../use-cases/UC-TRK-03-follow-delivery-live.md)).
 
 Quando alguma peça falha no meio, os casos de uso "do relógio" põem ordem: a reserva vence e devolve o estoque ([UC-ORD-03](../use-cases/UC-ORD-03-expire-unpaid-orders.md)), a conciliação pergunta ao PSP o que ficou sem resposta ([UC-PAY-03](../use-cases/UC-PAY-03-reconcile-payments.md)), a conciliação da jornada pergunta à transportadora o que se perdeu ([UC-SHP-12](../use-cases/UC-SHP-12-reconcile-journeys.md)), e a vigia avisa uma pessoa quando nenhuma tentativa resolve ([UC-SHP-13](../use-cases/UC-SHP-13-watch-stalled-journeys.md)).
 

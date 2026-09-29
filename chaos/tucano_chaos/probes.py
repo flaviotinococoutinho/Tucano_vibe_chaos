@@ -14,6 +14,11 @@ from .store import APPROVED_CARD, TRACK, Answer, Shopper, link_to, logger, self_
 # screens that must still answer when the service behind them is out.
 _remembered_order: str | None = None
 _remembered_tracking: str | None = None
+# The order bought while the fault is on, which the probe after the method follows.
+_bought_during_the_fault: str | None = None
+
+# The steps every journey of the own fleet goes through, from the shipment to the door.
+JOURNEY = ("created", "ready_for_pickup", "picked_up", "out_for_delivery", "delivered")
 
 
 def catalog_opens(within_seconds: float = 2.0) -> bool:
@@ -81,12 +86,16 @@ def placing_answers_quickly(within_seconds: float = 2.0) -> bool:
     return order.seconds <= within_seconds and (order.status == 201 or _is_honest_refusal(order))
 
 
-def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: float = 90.0) -> bool:
+def tracking_screen_answers(
+    within_seconds: float = 1.0, pickup_within_seconds: float = 90.0, or_refuses: bool = False
+) -> bool:
     """The public tracking screen answers in time, read from its copy in DynamoDB.
 
     The first check buys a mug with the card that approves and follows the order until the
-    carrier picks it up and the order offers its tracking link: the one probe that spends
-    stock. The next check only opens that link, while the database behind it may be out.
+    carrier picks it up and the order offers its tracking link: the probe that spends stock.
+    The next check only opens that link, while what is behind it may be out. With or_refuses,
+    a 503 that says when to come back counts as an answer: when the copy itself is out, there
+    is nothing to show, and refusing at once is the right thing to do.
     """
     global _remembered_tracking
     if _remembered_tracking is None:
@@ -95,7 +104,47 @@ def tracking_screen_answers(within_seconds: float = 1.0, pickup_within_seconds: 
             return False
     answer = Shopper().open(_remembered_tracking)
     logger.info("the tracking screen answered %s", answer.described())
+    if or_refuses:
+        return _content_or_honest_refusal(answer, within_seconds)
     return answer.status == 200 and answer.seconds <= within_seconds
+
+
+def the_page_follows_the_journey(within_seconds: float = 90.0) -> bool:
+    """The public tracking page follows a parcel to the door, with every step of the journey.
+
+    It follows the order bought while the fault was on when there is one, and buys a new one
+    otherwise, with the card that approves: a parcel has to ship. The page is read the way
+    the web reads it, through the tracking link of the order screen.
+    """
+    shopper = Shopper()
+    order = _bought_during_the_fault
+    if order is None:
+        order = _a_paid_order(shopper)
+        if order is None:
+            return False
+
+    started = time.monotonic()
+    tracking = None
+    while time.monotonic() - started <= within_seconds:
+        if tracking is None:
+            screen = shopper.open(order)
+            tracking = link_to(screen.screen, TRACK) if screen.status == 200 else None
+            if tracking is not None:
+                logger.info("the order got its tracking link after %.1f s", time.monotonic() - started)
+        else:
+            page = shopper.open(tracking)
+            if page.status == 200:
+                steps = [step["properties"]["status"] for step in page.screen.get("entities", [])]
+                if page.screen["properties"]["status"] == "delivered":
+                    missing = [step for step in JOURNEY if step not in steps]
+                    waited = time.monotonic() - started
+                    logger.info("the page reached delivered after %.1f s, with %s", waited, ", ".join(steps))
+                    if missing:
+                        logger.info("the page lost the steps %s", ", ".join(missing))
+                    return not missing
+        time.sleep(2)
+    logger.info("the page did not reach delivered in %.0f s", within_seconds)
+    return False
 
 
 def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
@@ -127,6 +176,19 @@ def payment_reaches_an_outcome(within_seconds: float = 90.0) -> bool:
         time.sleep(2)
     logger.info("no outcome after %.0f s", within_seconds)
     return False
+
+
+def _a_paid_order(shopper: Shopper) -> str | None:
+    """Buys a mug with the card that approves, and returns the order screen to follow."""
+    order = shopper.place_order()
+    if order.status != 201:
+        logger.info("could not place the order: %s", order.described())
+        return None
+    payment = shopper.pay(order, card=APPROVED_CARD)
+    if payment.status != 202:
+        logger.info("the payment was not accepted: %s", payment.described())
+        return None
+    return self_link(payment.screen)
 
 
 def _a_parcel_to_track(within_seconds: float) -> str | None:

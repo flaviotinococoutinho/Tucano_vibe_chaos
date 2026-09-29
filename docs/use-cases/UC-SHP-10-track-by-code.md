@@ -28,8 +28,8 @@
 
 ## Cenário principal de sucesso
 
-1. O projetor (`logistics.timeline-projector`) lê cada evento de `logistics.shipments.v2`.
-2. O projetor acrescenta o passo à linha do tempo da remessa no MongoDB e à página do código no DynamoDB.
+1. Dois projetores leem cada evento de `logistics.shipments.v2`, cada um no seu grupo de consumo ([ADR 0027](../adr/0027-one-consumer-group-per-read-model.md)).
+2. O `logistics.timeline-projector` acrescenta o passo à linha do tempo da remessa no MongoDB, e o `logistics.tracking-pages`, à página do código no DynamoDB. Quando a loja de um deles está fora, ele espera por ela, e o outro segue.
 3. O cliente pede `GET /v1/tracking/{código}`.
 4. O sistema lê a página pela chave e responde com o status e os passos.
 
@@ -48,4 +48,4 @@
 
 ## No código
 
-- Pacote `Logistics\Timeline`, separado do `Shipping`: o modelo de escrita não sabe que a página existe. Ports `ForProjectingTimelines` (caso de uso `ProjectTimeline`) e `ForTrackingShipments` (caso de uso `TrackShipment`); os read models são os adapters `MongoTimelines` e `DynamoTrackingViews`. O projetor é o `TimelineProjector`, no `logistics:project-timelines`, e a página é o `TrackingController`.
+- Pacote `Logistics\Timeline`, separado do `Shipping`: o modelo de escrita não sabe que a página existe. Ports `ForProjectingTimelines` (caso de uso `ProjectTimeline`), `ForUpdatingTrackingPages` (caso de uso `UpdateTrackingPage`) e `ForTrackingShipments` (caso de uso `TrackShipment`); os read models são os adapters `MongoTimelines` e `DynamoTrackingViews`. Os projetores são o `TimelineProjector`, no `logistics:project-timelines`, e o `TrackingPageProjector`, no `logistics:update-tracking-pages`, os dois lendo o evento pelo `ShipmentStepNews`, e a página é o `TrackingController`.
