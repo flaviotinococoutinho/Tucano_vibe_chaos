@@ -131,4 +131,4 @@ Estas são as fitness functions do projeto. Se alguma quebra, o PR não entra:
 - **Testes de arquitetura**: casos de uso documentados, e pacotes que só se encontram pelas fachadas (os ports de entrada).
 - **PHPStan e `tsc`**: tipos.
 - **Pint e Biome**: estilo.
-- **`pr-policy`**: nomes de branch, fluxo de destino e títulos de PR.
+- **`pr-policy`**: fluxo de destino e título não vazio; Conventional Commits no título são recomendados, sem bloquear o PR (veja [as regras de contribuição](../../CONTRIBUTING.md#pull-requests)).

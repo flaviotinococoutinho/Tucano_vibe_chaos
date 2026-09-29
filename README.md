@@ -2,15 +2,17 @@
   <img src="docs/assets/banner.png" alt="O tucano da Tucano pulando o vão de uma pedra que falta num rio, com uma encomenda pendurada no bico" width="100%">
 </p>
 
-# TUCANO (UM ESTUDO DE CASO PARA APLICAR A ENGENHARIA DO CAOS E ENTENDER AS CAUSAS E EFEITOS EM SISTEMAS DISTRIBUÍDOS SEJAM OS REGRAS FUNCIONAIS OU NÃO FUNCIONAIS)
+# Tucano — laboratório de engenharia do caos
 
 [![ci](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/flaviotinococoutinho/chaos_playground?color=F28C28)](https://github.com/flaviotinococoutinho/chaos_playground/releases)
 [![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-138A8A)](LICENSE)
 
-Uma loja de verdade, feita para ser quebrada de propósito. A **Tucano** é um e-commerce fictício com entrega própria, a Tucano Express, e este repositório é o laboratório onde eu construo esse sistema do jeito que construiria no trabalho, para depois derrubar um banco, deixar o PSP lento ou sumir com um webhook, e medir o que a pessoa do outro lado sente.
+**Este projeto é um piloto de estudo e experimentação em sistemas distribuídos.** A ideia é calibrar o conhecimento com o comportamento observado: ganhar familiaridade com as versões das tecnologias utilizadas, explorar seus limites e entender o que acontece quando elas trabalham em conjunto. A **Tucano**, um e-commerce fictício com entrega própria, a Tucano Express, dá um contexto concreto a esse aprendizado: comprar, pagar e acompanhar uma entrega enquanto partes do sistema ficam lentas ou indisponíveis.
 
-Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados deles. Este projeto é o meu reencontro com uma tecnologia com que eu tinha muita familiaridade, o PHP, e com o Node: sentir de novo o tato delas e ver o quanto evoluíram, principalmente quando se juntam às soluções transversais que hoje atravessam qualquer linguagem, como Kafka, Kong, Toxiproxy, OpenFeature e CloudEvents.
+Passei um tempo usando mais stacks como Java, Kotlin e seus frameworks. Este projeto é também meu reencontro com o PHP e o Node: recuperar o tato, conhecer a evolução dessas tecnologias e confrontar expectativas com experimentos. Quem chega pode usar o mesmo laboratório para estudar os runtimes e frameworks, sua integração com Kafka, Kong, bancos, caches e outras ferramentas, e as consequências de cada configuração.
+
+O objetivo é observar **regras funcionais**, como preservar um pedido e evitar efeitos duplicados, junto de **requisitos não funcionais**, como latência, disponibilidade, consistência e recuperação. É um ambiente de aprendizado com parceiros simulados; seus resultados precisam ser interpretados dentro da versão, da carga e dos recursos usados em cada execução.
 
 ## Em três perguntas
 
@@ -25,6 +27,7 @@ Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a 
 | ver funcionando | [subir a stack](#subindo) e abrir `http://localhost:8000`: dois comandos |
 | entender as decisões | [como eu penso esse tipo de sistema](docs/guia/00-como-eu-penso.md), o capítulo 0 do guia |
 | ver o caos | `make experiment e=commerce-database-out`, o experimento que pegou um bug enquanto eu escrevia a documentação |
+| comparar versões e configurações | [o que investigar](#o-que-investigar-nas-tecnologias-e-no-conjunto) e [como comparar](#como-comparar-sem-perder-o-contexto) |
 | conversar sobre o projeto | o [roteiro de apresentação](docs/guia/08-como-apresentar.md), do pitch de um minuto à conversa técnica longa |
 
 ### Por que foi feito assim?
@@ -36,6 +39,37 @@ Porque cada escolha tem um porquê escrito, com o ganho e o custo, num [ADR](doc
 - **O que importa, um computador confere.** Direção das dependências, fronteiras entre pacotes, contratos, configuração, onde um dado pessoal pode aparecer e até as hipóteses de resiliência: cada regra é um teste ou um experimento que quebra quando alguém a quebra.
 
 O [guia](docs/guia/README.md) conta a história inteira como um passeio, em capítulos que cabem numa leitura de café.
+
+## Da teoria do caos à engenharia do caos
+
+A **teoria do caos** estuda, entre outros fenômenos, sistemas dinâmicos determinísticos não lineares sensíveis às condições iniciais: pequenas diferenças no ponto de partida podem produzir trajetórias muito diferentes ao longo do tempo. O trabalho de [Edward Lorenz, de 1963](#referências-para-o-estudo), é uma referência fundamental. Essa ideia ajuda a formular perguntas sobre interações e efeitos desproporcionais, mas uma falha em cascata no software, por si só, não demonstra caos no sentido matemático.
+
+A prática aplicada aqui é a **engenharia do caos**: formular uma hipótese sobre o comportamento do sistema, introduzir uma perturbação controlada e procurar evidências que contrariem a hipótese. A pergunta precisa dizer algo verificável, por exemplo: “se o banco do commerce cair, o checkout responde com indisponibilidade dentro do prazo e o catálogo continua acessível?”. Os [Principles of Chaos Engineering](https://principlesofchaos.org/) orientam esse método.
+
+No laboratório, o interesse está também nas interações: um timeout maior pode manter conexões ocupadas por mais tempo; retries em várias camadas podem multiplicar chamadas; um consumidor bloqueado pode atrasar uma projeção usada pela interface. São situações para investigar com medições, como discutem os capítulos sobre [sobrecarga](https://sre.google/sre-book/handling-overload/) e [falhas em cascata](https://sre.google/sre-book/addressing-cascading-failures/) do Google SRE.
+
+### O que investigar nas tecnologias e no conjunto
+
+| Dimensão | Perguntas para explorar |
+|---|---|
+| Versões de runtimes, frameworks e bibliotecas | O que mudou no comportamento, nas APIs, nos padrões de configuração e no uso de recursos entre duas versões? |
+| Limites de cada componente | Em qual carga ou duração da falha aparecem saturação, filas, timeouts ou crescimento de memória? |
+| Integração entre ferramentas | Como os prazos do gateway, do BFF, dos serviços e dos SDKs se combinam? Onde uma tentativa pode virar várias? |
+| Dados e mensageria | O que acontece com pedidos, eventos e projeções durante uma queda e depois da retomada? Há atraso, perda ou duplicação de efeitos? |
+| Resiliência e experiência | Circuit breakers, reconciliação e fallbacks preservam quais jornadas? O cliente recebe uma resposta útil dentro do prazo? |
+| Alternativas e evolução | Uma nova configuração, versão ou ferramenta melhora qual medida, e qual custo ou complexidade acrescenta? |
+
+Essas perguntas orientam o estudo; a cobertura já implementada está nos [experimentos](chaos/README.md) e no [mapa de modos de falha](docs/architecture/failure-modes.md). A stack atual é um ponto de partida: não há uma matriz automática de benchmarks entre todas as versões ou ferramentas.
+
+### Como comparar sem perder o contexto
+
+1. **Registre o ponto de partida:** commit, versões efetivamente instaladas, imagens e seus digests, configuração, CPU, memória, dados e carga. O [`compose.yaml`](compose.yaml), os Dockerfiles e os lockfiles dos serviços ajudam a localizar as dependências.
+2. **Defina hipótese e medida:** qual jornada deve continuar funcionando, qual degradação é aceitável e quais limites de tempo, erros ou integridade serão avaliados. Comece pela stack saudável.
+3. **Altere uma variável por vez:** uma versão, um timeout ou uma falha. Repita com a mesma carga e recursos; explore combinações depois, identificando os fatores que mudaram.
+4. **Observe a falha e a recuperação:** registre respostas, latência, filas e efeitos nos dados conforme a hipótese. Nos experimentos existentes, preserve os diários e logs de `chaos/results/` antes da próxima execução; planeje a reversão e confira se a stack voltou ao estado esperado.
+5. **Escreva a conclusão com seu alcance:** compare o observado com o esperado, registre a decisão e repita o cenário depois da correção. Diferencie hipótese, resultado medido e limitação do experimento.
+
+Uma execução local bem-sucedida aumenta a confiança naquele cenário. Capacidade máxima, comportamento com várias réplicas e equivalência com serviços reais exigem experimentos próprios. Comparar duas versões com cargas ou recursos diferentes também não permite atribuir a diferença somente à versão.
 
 ## A loja
 
@@ -219,3 +253,14 @@ Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [gu
 - **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Redis junto com o PSP lento, a entrega ao vivo sem o tracking ou sem o Redis, e o BFF sem a logistics.
 - **O despacho da frota** (UC-TRK-02): achar o entregador disponível mais perto de cada remessa, com o Redis GEO que o ADR 0013 previu. Hoje a posição ao vivo segue o código de rastreio, porque ninguém designa um entregador.
 - **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, login e sessão no lugar do cliente convidado. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).
+
+## Referências para o estudo
+
+| Referência | Como contribui para o laboratório |
+|---|---|
+| Edward N. Lorenz, **Deterministic Nonperiodic Flow** (1963), *Journal of the Atmospheric Sciences*, 20(2), 130–141 — [artigo](https://journals.ametsoc.org/view/journals/atsc/20/2/1520-0469_1963_020_0130_dnf_2_0_co_2.xml) | Fundamento para entender sensibilidade às condições iniciais e os limites de previsão em sistemas determinísticos não lineares. |
+| **[Principles of Chaos Engineering](https://principlesofchaos.org/)** | Hipóteses mensuráveis, perturbações representativas e controle do alcance dos experimentos. |
+| Google, **Site Reliability Engineering** — [Handling Overload](https://sre.google/sre-book/handling-overload/) e [Addressing Cascading Failures](https://sre.google/sre-book/addressing-cascading-failures/) | Sobrecarga, retries e propagação de falhas: referências para investigar o comportamento do conjunto. |
+| **Chaos Toolkit** — [conceitos](https://chaostoolkit.org/reference/concepts/) e [fluxo de execução](https://chaostoolkit.org/reference/tutorials/run-flow/) | Vocabulário e execução dos experimentos: hipótese de estado estável, sondas, ações e rollbacks. |
+
+As referências dão o fundamento; os [ADRs](docs/adr/README.md), os [laboratórios](docs/labs) e os [experimentos](chaos/README.md) mostram como as ideias foram aplicadas aqui e quais evidências já existem.
