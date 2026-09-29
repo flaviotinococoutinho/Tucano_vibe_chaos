@@ -13,11 +13,12 @@ make up                                   # a stack sobe e espera os health chec
 open http://localhost:8000                # a loja
 ```
 
-1. Compro um livro e pago com o cartão que aprova. A tela do pedido se atualiza sozinha: confirmando, pagamento aprovado, a caminho, entregue. O código de rastreio aparece quando a transportadora coleta.
+1. Compro um livro e pago com o cartão que aprova. A tela do pedido se atualiza sozinha e vai contando a história: as cinco etapas, do pedido feito à entrega, e o histórico que junta o que o commerce e a logística sabem. Na saída para entrega, o entregador aparece ao vivo na própria tela.
 2. Compro de novo e pago com o cartão recusado. A tela termina em "Cancelado", dizendo por quê, e o estoque volta para a prateleira.
-3. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
-4. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
-5. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
+3. Troco de perfil no topo e crio o Bruno. "Meus pedidos" dele está vazio, e a URL de um pedido da Ana responde "Não encontrado". Volto para a Ana, e os pedidos dela estão lá.
+4. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
+5. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
+6. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
 
 ## Numa conversa técnica longa
 
@@ -46,11 +47,12 @@ Eu escolho o fio pela pessoa do outro lado:
 | E se o webhook do PSP nunca chegar? | a conciliação pergunta ao PSP e aplica a resposta pelo mesmo caminho do webhook | [conciliação](../labs/payment-reconciliation.md) |
 | Por que não um microsserviço por entidade? | fronteira por subdomínio: o que muda junto fica junto | [ADR 0002](../adr/0002-services-per-subdomain.md) |
 | Por que PHP e Node juntos? | cada linguagem onde o trabalho dela faz sentido, com as mesmas convenções nas duas | [stacks](02-stacks.md) |
+| Como um cliente não vê o pedido do outro? | a sessão é assinada pelo BFF, o commerce filtra cada leitura pelo cliente e responde o mesmo 404 para um pedido alheio, e o Kong fecha as rotas por cliente na borda | [ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md) |
 | Como você muda um contrato de evento sem quebrar ninguém? | mudança compatível no mesmo tópico, incompatível num tópico novo (`v2`) | [ADR 0010](../adr/0010-cloudevents-contracts.md) |
 | Como você impede a arquitetura de apodrecer? | cada regra importante é um teste que quebra o build | [abstrações](05-abstracoes.md) |
 | Por que hipermídia e não GraphQL? | o fluxo fica no servidor e a web não precisa saber a ordem das telas | [ADR 0023](../adr/0023-server-driven-ui-with-siren.md) |
 | Como você lida com a LGPD? | dado pessoal num proxy que se imprime mascarado, e minimização no que circula | [ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md) |
-| O que você faria diferente num sistema de verdade? | login e sessão, OpenTelemetry no lugar do correlation id caseiro, CDC no lugar do relay, criptografia no armazenamento de dado pessoal, bulkheads no BFF | as possibilidades do capítulo [conceitos](06-conceitos.md) |
+| O que você faria diferente num sistema de verdade? | um provedor de identidade no lugar dos perfis sem senha, OpenTelemetry no lugar do correlation id caseiro, CDC no lugar do relay, criptografia no armazenamento de dado pessoal, bulkheads no BFF | as possibilidades do capítulo [conceitos](06-conceitos.md) |
 
 ## O que eu digito antes de falar
 

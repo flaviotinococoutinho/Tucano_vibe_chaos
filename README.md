@@ -16,7 +16,7 @@ Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados d
 
 ### O que isso faz?
 
-Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. Quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
+Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. A tela do pedido conta a história dele, do pagamento à porta, e quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Cada perfil de cliente acha os próprios pedidos em "Meus pedidos", e nenhum perfil vê os pedidos de outro. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
 
 ### Por onde eu começo?
 
@@ -42,10 +42,13 @@ O [guia](docs/guia/README.md) conta a história inteira como um passeio, em cap�
 | | |
 |---|---|
 | ![A home da loja, com o tucano pulando a pedra que falta no rio e o botão Ver o catálogo](docs/assets/telas/loja.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
-| ![Um pedido entregue, com o selo Entregue, o código de rastreio e o botão Acompanhar a entrega](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
+| ![Um pedido a caminho: o selo A caminho, a frase Seu pedido saiu para entrega com a Tucano Express, as cinco etapas com três concluídas, e o cartão Ao vivo com o entregador a 2,8 km](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
 | ![O cartão Ao vivo da página de rastreio: um mapa pequeno com o rastro curvo do entregador e a frase O entregador está a 1,6 km](docs/assets/telas/ao-vivo.png) | Enquanto a encomenda sai com a frota própria, a página de rastreio mostra o entregador chegando: o aparelho dele informa a posição a cada segundo, e o tracking a empurra por WebSocket. Sem o WebSocket, a página avisa e segue se atualizando sozinha. |
+| ![Meus pedidos da Ana: dois pedidos entregues, cada um com número, total, item, data, os cinco pontos do progresso e o selo Entregue](docs/assets/telas/meus-pedidos.png) | ![Quem está comprando: os perfis Ana e Bruno, com Bruno como perfil atual, o botão Comprar como Ana e o formulário de perfil novo](docs/assets/telas/perfis.png) |
 
-A tela do pedido se atualiza sozinha enquanto algo está para acontecer: "Confirmando o pagamento", "Pagamento aprovado", "A caminho", "Entregue". Com o cartão de teste recusado, ela termina em "Cancelado" e diz por quê.
+A tela do pedido se atualiza sozinha enquanto algo está para acontecer, e junta num histórico só o que o commerce e a logística sabem: pedido feito, pagamento aprovado, etiqueta pronta, coleta, saída para entrega, entrega. Com o cartão de teste recusado, ela termina em "Cancelado", com a etapa "Pagamento recusado" parada em vermelho, e diz por quê. Sem a logística, o pedido abre do mesmo jeito, com o que o commerce sabe e um aviso.
+
+Não há senha: o navegador guarda perfis de cliente numa sessão assinada, e trocar de perfil faz o papel de entrar com outra conta. "Meus pedidos" lê uma cópia no MongoDB, que pode ficar alguns segundos atrás do pedido, e a tela avisa isso ([ADR 0030](docs/adr/0030-each-customer-sees-only-its-orders.md)).
 
 ## Caos com hipótese
 
@@ -218,4 +221,4 @@ Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [gu
 
 - **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Redis junto com o PSP lento, a entrega ao vivo sem o tracking ou sem o Redis, e o BFF sem a logistics.
 - **O despacho da frota** (UC-TRK-02): achar o entregador disponível mais perto de cada remessa, com o Redis GEO que o ADR 0013 previu. Hoje a posição ao vivo segue o código de rastreio, porque ninguém designa um entregador.
-- **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, login e sessão no lugar do cliente convidado. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).
+- **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, um provedor de identidade no lugar dos perfis sem senha. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).

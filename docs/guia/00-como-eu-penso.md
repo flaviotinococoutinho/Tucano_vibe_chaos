@@ -113,7 +113,7 @@ Cada decisão deste projeto é para este momento: um laboratório numa máquina 
 |---|---|---|
 | o relay lê a outbox de tempos em tempos | quando a latência do relay ou a carga no banco pesarem | captura de mudanças (CDC) lendo o log do PostgreSQL, sem mexer em nenhum produtor |
 | o `X-Correlation-Id` carimbado pelo Kong | quando eu precisar do tempo de cada trecho, e não só do fio da meada | OpenTelemetry, com traces que atravessam o Kafka |
-| cliente convidado num cookie | quando existir conta de verdade | login e sessão, e o carrinho da pessoa entre aparelhos |
+| perfis sem senha numa sessão assinada pelo BFF | quando existir conta de verdade | um provedor de identidade: a sessão guarda quem entrou, e o carrinho da pessoa segue entre aparelhos |
 | um PostgreSQL com um banco por serviço | quando um serviço crescer mais que os outros | cada banco no seu servidor, réplicas de leitura e, no limite, pedidos particionados por chave |
 | o catálogo em Lumen, no papel de legado | quando o legado virar gargalo | estrangular aos poucos, como no *Strangler Fig* de Fowler: rotas novas num serviço novo, atrás do mesmo Kong |
 

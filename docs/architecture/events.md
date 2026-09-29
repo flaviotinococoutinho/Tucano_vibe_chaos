@@ -80,7 +80,7 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 | `logistics.label-requests` | `logistics.shipments.v2` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
 | `logistics.pickup-bookings` | `logistics.shipments.v2` | agenda a coleta na transportadora de cada remessa pronta |
 | `commerce.shipment-sync` | `logistics.shipments.v2` | avança o pedido (enviado, entregue, devolvido) e dispara estornos |
-| `commerce.order-projector` | `commerce.orders.v2` | mantém o read model de pedidos no MongoDB |
+| `commerce.order-projector` | `commerce.orders.v2` | mantém no MongoDB a lista de pedidos de cada cliente, "Meus pedidos" ([UC-ORD-08](../use-cases/UC-ORD-08-project-order-views.md)). Com o MongoDB fora de alcance, espera sem limite; com a flag `chaos.commerce.order-projector-paused` ligada, sai do grupo e volta dos offsets confirmados quando ela desliga ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)) |
 | `logistics.timeline-projector` | `logistics.shipments.v2` | mantém a linha do tempo interna no MongoDB |
 | `logistics.tracking-pages` | `logistics.shipments.v2` | mantém a página pública de rastreio no DynamoDB, num grupo separado da linha do tempo para uma queda de um banco não parar o outro ([ADR 0027](../adr/0027-one-consumer-group-per-read-model.md)) |
 | `commerce.notification-router` | `commerce.orders.v2`, `logistics.shipments.v2` | decide o que vira notificação e publica no SNS |
@@ -105,7 +105,7 @@ flowchart LR
 
 ## Evolução de schema
 
-- Dentro de uma versão, só mudanças aditivas (campos novos e opcionais). Consumidores são tolerant readers e ignoram o que não conhecem.
+- Dentro de uma versão, só mudanças aditivas (campos novos e opcionais). Consumidores são tolerant readers e ignoram o que não conhecem. O `name` de cada item do `order.placed` entrou assim: o schema ganhou o campo como opcional, o produtor passou a mandá-lo sempre, e o projetor da lista mostra o SKU quando lê um evento antigo, sem ele.
 - Mudança que quebra contrato vira tópico novo ([ADR 0010](../adr/0010-cloudevents-contracts.md)). Os consumidores aprendem a ler a versão nova primeiro, os produtores trocam de tópico depois, e a leitura da versão antiga sai quando o lag dela zera em todos os consumer groups.
 
 ### O endereço, do v1 para o v2

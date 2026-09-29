@@ -4,6 +4,26 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Perfis de cliente e "Meus pedidos" (ADR 0030). O navegador guarda até 8 perfis numa sessão que o BFF assina com HMAC (`tucano_session`), e trocar de perfil faz o papel de entrar com outra conta, sem senha. Cada perfil só vê os próprios pedidos: o BFF lê pelas rotas por cliente do commerce (`/v1/customers/{id}/orders` e `/v1/customers/{id}/orders/{orderId}`), um pedido de outro cliente responde o mesmo 404 de um que não existe, e o Kong encerra essas rotas na borda. Telas novas: "Quem está comprando?" (`profiles`) e "Meus pedidos" (`orders`), e toda tela passa a trazer a navegação (`rel-navigation`), com o catálogo, os pedidos e o perfil de quem está comprando.
+- A lista "Meus pedidos" lê o read model `order_views` no MongoDB, como o ADR 0012 previa: o projetor `commerce-order-projector` (grupo `commerce.order-projector`, UC-ORD-08) o mantém a partir de `commerce.orders.v2`, pela versão que cada status tem na máquina de estados, então um evento repetido, atrasado ou relido nunca volta a lista para trás. Com o MongoDB fora, só a lista recusa, com `503`; o projetor espera sem limite.
+- O laboratório de consistência: a flag `chaos.commerce.order-projector-paused` tira o projetor do grupo. O pedido novo abre na hora, lido no PostgreSQL, e só aparece em "Meus pedidos" depois que a flag desliga, em uns 2 s.
+- A tela do pedido conta a história dele: uma frase sobre onde ele está, as cinco etapas (pedido feito, pagamento, preparo, a caminho, entregue, ou onde parou), e um histórico que junta as transições do pedido, que o commerce agora devolve em `history`, às etapas da remessa na logistics. O entregador ao vivo (ADR 0028) aparece também na tela do pedido. A busca na logistics tem um prazo curto só dela (`ENRICHMENT_TIMEOUT_MS`, 1,5 s): sem a logistics, o pedido abre com o que o commerce sabe e um aviso.
+- Variáveis novas no BFF: `SESSION_SECRET`, com um segredo de laboratório no compose, e `ENRICHMENT_TIMEOUT_MS`.
+
+### Changed
+
+- O `order.placed` leva o `name` de cada item, uma mudança aditiva no mesmo tópico (ADR 0010); a lista mostra o SKU quando lê um evento antigo, sem o nome.
+- Pagar confere antes, pela leitura por cliente, que o pedido é de quem está comprando.
+- O consumidor Kafka do pacote `packages/php/messaging` pode pausar: enquanto uma pergunta diz que sim, ele sai do grupo entre duas mensagens, com tudo confirmado, e volta dos offsets confirmados. Os workers que não pedem pausa seguem iguais.
+- O cabeçalho da web desenha a navegação que vem em cada tela e a mantém numa página de erro, para um 404 que diz "troque de perfil" deixar o caminho à vista.
+- Os probes do caos guardam, com cada pedido que acompanham, a sessão que o comprou, porque só ela o abre.
+
+### Removed
+
+- O cookie `tucano_guest`. O BFF o expira quando o vê e não aproveita o id dele, que nunca foi assinado. Os pedidos feitos com ele continuam no commerce, sem perfil que os liste.
+
 ## [0.10.0] - 2026-09-28
 
 ### Added

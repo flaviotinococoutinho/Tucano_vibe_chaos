@@ -40,6 +40,8 @@ Eric Brewer apresentou em 2000 a conjectura que virou o teorema CAP: quando a re
 
 Daniel Abadi completou a ideia em 2012 com o PACELC: mesmo sem partição, sobra a escolha entre latência e consistência. É a mesma conta da tabela do começo deste capítulo: a lista de pedidos aceita atraso para ser barata, e a tela de um pedido específico paga a leitura no PostgreSQL para mostrar o fato.
 
+Dá para ver essa conta na tela. Ligue a flag `chaos.commerce.order-projector-paused` e compre alguma coisa: o pedido abre na hora, com todo o histórico, e "Meus pedidos" ainda não sabe dele. Desligue a flag, e ele aparece na lista em uns 2 s. O passo a passo está no [laboratório de consistência](../architecture/feature-flags.md#o-laboratório-de-consistência).
+
 ## Identidade
 
 - **UUIDv7** para identidade interna: gerado pelo domínio, sem ir ao banco, e ordenado no tempo, o que mantém o índice feliz. Fica em `uuid` no PostgreSQL e em `BINARY(16)` no MySQL, nunca em `CHAR(36)`.

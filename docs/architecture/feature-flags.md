@@ -101,6 +101,19 @@ make flag-reset key=chaos.logistics.label-failure-rate          # volta ao que e
 
 O `make flag` só aceita variantes que a flag já tem, e lista as válidas quando recebe outra.
 
+### O laboratório de consistência
+
+A flag `chaos.commerce.order-projector-paused` mostra na tela o que o [ADR 0012](../adr/0012-acid-writes-base-reads.md) decidiu: o pedido é lido forte, no PostgreSQL, e a lista "Meus pedidos" é lida eventual, no MongoDB. Com ela ligada, o projetor da lista sai do seu consumer group entre duas mensagens, com tudo confirmado:
+
+```bash
+make flag key=chaos.commerce.order-projector-paused variant=on
+# compre alguma coisa: a tela do pedido abre na hora, e "Meus pedidos" não o mostra
+make flag-reset key=chaos.commerce.order-projector-paused
+# o projetor volta dos offsets confirmados, e o pedido aparece na lista em uns 2 s
+```
+
+O worker lê a flag antes de cada poll, com o cache de 2 s. Com o flagd fora, ela vale desligada, como toda flag de caos.
+
 ## Testando na mão
 
 ```bash

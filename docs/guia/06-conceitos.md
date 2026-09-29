@@ -137,7 +137,7 @@ Pat Helland, *Life beyond Distributed Transactions* (2007) e *Idempotence Is Not
 - **Ganho**: retry vira seguro. O clique duplo, o timeout do cliente e a reentrega do Kafka não criam um segundo pedido nem cobram duas vezes.
 - **Custo**: uma chave para guardar, uma janela de validade, e o cuidado de a chave casar sempre com o mesmo corpo.
 - **Possibilidade**: expor o `Idempotent-Replayed` na web para mostrar à pessoa que a segunda tentativa não duplicou nada.
-- **Onde**: `Idempotency-Key` nos `POST`, a inbox dos consumidores, o cookie do cliente convidado no BFF.
+- **Onde**: `Idempotency-Key` nos `POST`, a inbox dos consumidores, e o perfil ativo da sessão no BFF, que mantém o mesmo cliente, e o mesmo corpo, em cada nova tentativa de um pedido.
 
 ## Padrões de estabilidade
 
