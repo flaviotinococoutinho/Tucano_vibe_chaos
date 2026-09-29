@@ -9,15 +9,20 @@ use Tucano\Messaging\Kafka\ReceivedMessage;
 /**
  * Order events as Commerce publishes them on commerce.orders.v2. The contract
  * test keeps these fixtures in the shape of contracts/events/commerce.order.*,
- * so the handler is tested against what Commerce really sends.
+ * so the handler is tested against what Commerce really sends: an order of one
+ * store, with every line a product of that store (ADR 0031).
  */
 final class OrderEvents
 {
     public const string ORDER = '01999a1e-3c4d-7a2b-8c9d-0e1f2a3b4c5d';
 
+    public const string STORE = 'sabia';
+
     public const string PAID_EVENT = '01999a21-0b1c-7d2e-8f3a-4b5c6d7e8f90';
 
     public const string CANCELLED_EVENT = '01999a22-1c2d-7e3f-9a4b-5c6d7e8f9a01';
+
+    public const string PAID_BEFORE_THE_STORES_EVENT = '01999a25-4f5a-7b6c-8d7e-8f9a0b1c2d34';
 
     private const string CUSTOMER = '01999a1d-2b3c-7a4b-9c5d-6e7f8a9b0c1d';
 
@@ -26,7 +31,28 @@ final class OrderEvents
     /** @param array<string, mixed> $data fields to change in the data of the event */
     public static function paid(array $data = [], string $eventId = self::PAID_EVENT): string
     {
-        return self::event('tucano.commerce.order.paid', $eventId, [
+        return self::event('tucano.commerce.order.paid', $eventId, [...self::paidOrder(), ...$data]);
+    }
+
+    /**
+     * An order.paid from before the stores, still on the topic or replayed from the dead
+     * letters: the same order, without the store.
+     *
+     * @param array<string, mixed> $data fields to change in the data of the event
+     */
+    public static function paidBeforeTheStores(array $data = []): string
+    {
+        $order = [...self::paidOrder(), ...$data];
+        unset($order['store']);
+
+        return self::event('tucano.commerce.order.paid', self::PAID_BEFORE_THE_STORES_EVENT, $order);
+    }
+
+    /** @return array<string, mixed> */
+    private static function paidOrder(): array
+    {
+        return [
+            'store' => self::STORE,
             'orderId' => self::ORDER,
             'orderNumber' => '97663530295234560',
             'customer' => ['id' => self::CUSTOMER, 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
@@ -45,12 +71,11 @@ final class OrderEvents
             ],
             'fulfillmentCenter' => 'GRU1',
             'lines' => [
-                ['sku' => 'BOOK-DDD-001', 'name' => 'Domain-Driven Design', 'quantity' => 2],
-                ['sku' => 'HOME-MUG-001', 'name' => 'Caneca de cerâmica', 'quantity' => 1],
+                ['sku' => 'HOME-MUG-001', 'name' => 'Caneca de cerâmica', 'quantity' => 2],
+                ['sku' => 'SPORT-BOTTLE-001', 'name' => 'Garrafa térmica', 'quantity' => 1],
             ],
-            'total' => ['amount' => 42970, 'currency' => 'BRL'],
-            ...$data,
-        ]);
+            'total' => ['amount' => 16970, 'currency' => 'BRL'],
+        ];
     }
 
     /**

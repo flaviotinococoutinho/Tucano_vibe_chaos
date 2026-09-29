@@ -22,7 +22,7 @@ use Logistics\Timeline\Application\UseCase\ProjectTimeline;
 use Logistics\Timeline\Application\UseCase\TrackShipment;
 use Logistics\Timeline\Application\UseCase\UpdateTrackingPage;
 
-/** The read side of shipments (UC-SHP-10): the projection into MongoDB and DynamoDB, and the public tracking page. */
+/** The read side of shipments (UC-SHP-10): the projection into MongoDB and DynamoDB, and the public tracking page, platform-wide and by store. */
 final class TimelineServiceProvider extends ServiceProvider
 {
     /** @var array<class-string, class-string> */
@@ -64,7 +64,8 @@ final class TimelineServiceProvider extends ServiceProvider
     {
         $this->commands([ProjectTimelines::class, UpdateTrackingPages::class]);
         $router->middleware('api')->group(static function (Router $router): void {
-            $router->get('/v1/tracking/{trackingCode}', TrackingController::class);
+            $router->get('/v1/tracking/{trackingCode}', [TrackingController::class, 'platformWide']);
+            $router->get('/v1/stores/{store}/tracking/{trackingCode}', [TrackingController::class, 'inStore']);
         });
     }
 }

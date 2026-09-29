@@ -14,33 +14,34 @@ sequenceDiagram
   participant CO as commerce
   participant L as logistics
   W->>B: GET /bff/v1 (a única URL que a web conhece)
-  W->>B: link catalog, depois o card do produto
-  B->>CA: GET /v1/products, GET /v1/products/{sku}
-  W->>B: ação buy (GET /bff/v1/checkout)
+  B->>CA: GET /v1/stores (as lojas, guardadas 60 s)
+  W->>B: card da loja (GET /bff/v1/stores/arara), depois o catálogo e o produto
+  B->>CA: GET /v1/stores/arara/products, GET /v1/stores/arara/products/{sku}
+  W->>B: ação buy (GET /bff/v1/stores/arara/checkout)
   B-->>W: tela checkout + cookie tucano_session (um perfil novo, ainda sem nome)
-  W->>B: ação place-order (POST /bff/v1/orders)
-  B->>CO: POST /v1/orders, com o perfil como cliente e a Idempotency-Key do formulário
+  W->>B: ação place-order (POST /bff/v1/stores/arara/orders)
+  B->>CO: POST /v1/orders, com a loja, o perfil como cliente e a Idempotency-Key do formulário
   B-->>W: 201, Location, a tela do pedido e o perfil já com o primeiro nome
-  W->>B: ação pay (POST /bff/v1/orders/{id}/payments)
-  B->>CO: GET /v1/customers/{perfil}/orders/{id} (o pedido é deste perfil?)
+  W->>B: ação pay (POST /bff/v1/stores/arara/orders/{id}/payments)
+  B->>CO: GET /v1/stores/arara/customers/{perfil}/orders/{id} (o pedido é deste perfil, nesta loja?)
   B->>CO: POST /v1/orders/{id}/payments
   B-->>W: 202 e o pedido "confirmando o pagamento", live a cada 2 s
   W->>B: segue o self até a história acabar
-  B->>CO: GET /v1/customers/{perfil}/orders/{id}, com o histórico
-  B->>L: GET /v1/tracking/{código}, com prazo curto, quando o pedido tem código
-  W->>B: link orders (GET /bff/v1/orders)
-  B->>CO: GET /v1/customers/{perfil}/orders?page=&perPage=
+  B->>CO: GET /v1/stores/arara/customers/{perfil}/orders/{id}, com o histórico
+  B->>L: GET /v1/stores/arara/tracking/{código}, com prazo curto, quando o pedido tem código
+  W->>B: link orders (GET /bff/v1/stores/arara/orders)
+  B->>CO: GET /v1/stores/arara/customers/{perfil}/orders?page=&perPage=
 ```
 
-Para ver acontecer, com a stack no ar, dá para andar pela loja só com `curl` e `jq`, seguindo o que cada tela oferece. O arquivo `cookies` faz o papel do navegador que guarda a sessão:
+Para ver acontecer, com a stack no ar, dá para andar pelas lojas só com `curl` e `jq`, seguindo o que cada tela oferece. O arquivo `cookies` faz o papel do navegador que guarda a sessão:
 
 ```bash
-curl -s localhost:8000/bff/v1 | jq '{title, actions: [.actions[].name], links: [.links[].href]}'
-curl -s localhost:8000/bff/v1/products | jq '.entities[].properties | {sku, name, price: .price.formatted}'
+curl -s localhost:8000/bff/v1 | jq '[.entities[] | select(.class[0] == "store-card").properties.name]'
+curl -s localhost:8000/bff/v1/stores/sabia/products | jq '.entities[].properties | {sku, name, price: .price.formatted}'
 curl -s -i 'localhost:8000/bff/v1/tracking?code=%20tx02px83txc5goo%20' | grep -i location
 curl -s -c cookies -b cookies -H 'content-type: application/json' -d '{"name":"Ana"}' \
-  -o /dev/null -w '%{http_code} %{redirect_url}\n' localhost:8000/bff/v1/profiles
-curl -s -b cookies localhost:8000/bff/v1/orders | jq '.entities[] | select(.class[0] == "navigation").properties'
+  -o /dev/null -w '%{http_code} %{redirect_url}\n' 'localhost:8000/bff/v1/profiles?store=sabia'
+curl -s -b cookies localhost:8000/bff/v1/stores/sabia/orders | jq '.entities[] | select(.class[0] == "navigation").properties'
 ```
 
 ## Como está organizado
@@ -50,19 +51,26 @@ curl -s -b cookies localhost:8000/bff/v1/orders | jq '.entities[] | select(.clas
 | `src/hypermedia/` | o vocabulário Siren: tipos, relações do RFC 8288, endereços, páginas, dinheiro, tom, tela, leitor de formulário | `platform` |
 | `src/upstream/` | a camada anticorrupção: o único lugar que conhece o JSON do catalog, do commerce e da logistics | `platform` |
 | `src/session/` | a sessão num cookie assinado: os perfis do navegador, o HMAC e os hooks que leem e gravam o cookie | nada |
-| `src/storefront/` | início, catálogo e produto | as fundações e o barrel de `tracking` |
+| `src/stores/` | as lojas da plataforma: o cadastro que o catálogo dá, guardado em memória, a loja em que cada request está e como uma loja aparece numa tela | `platform` e `upstream` |
+| `src/storefront/` | o início da plataforma com as lojas, o início de uma loja, o catálogo e o produto | as fundações e o barrel de `tracking` |
 | `src/checkout/` | checkout e o formulário do pedido | as fundações e os barrels de `storefront` e `orders` |
 | `src/orders/` | o pedido e a sua história (marcos, frase de agora, histórico com as etapas da entrega), a lista de pedidos e o pagamento | as fundações e o barrel de `tracking` |
 | `src/profiles/` | a tela de perfis, as ações de criar e de trocar de perfil, e a navegação que toda tela leva | as fundações |
-| `src/tracking/` | a página da entrega e o rastreio por código | as fundações |
+| `src/tracking/` | a página da entrega, o rastreio por código numa loja e o rastreio por código da plataforma, que acha a loja da encomenda | as fundações |
 | `src/platform/` | a cola com o Fastify: correlation id, logs, problem details, `DomainError` e health checks | nada |
 | `src/app.ts`, `src/config.ts`, `src/server.ts` | a montagem, a configuração e o ponto de entrada | tudo |
 
 Cada pasta tem um `index.ts` que diz o que ela exporta, e um módulo só alcança outro por esse barrel. O `test/architecture.test.ts` cobra isso, cobra que as fundações não conheçam nenhuma tela, que as features não formem ciclo e que toda pasta nova seja declarada fundação ou feature, para nenhuma escapar das regras. É a mesma regra que o `PackagesMeetThroughTheirFacadesTest` cobra nos serviços PHP: o barrel é o contrato do módulo, e o resto pode mudar sem pedir licença a ninguém.
 
-As telas são funções puras: recebem o que os serviços responderam, já lido e tipado, e devolvem um valor. Só as rotas conhecem o Fastify. A navegação, que toda tela leva, entra num lugar só, na saída: um hook `preSerialization` acrescenta o componente a cada tela Siren com a sessão como ela terminou o request, e nenhuma função de tela precisa saber quem está comprando.
+As telas são funções puras: recebem o que os serviços responderam, já lido e tipado, e a loja em que estão, e devolvem um valor. Só as rotas conhecem o Fastify. A navegação, que toda tela leva, entra num lugar só, na saída: um hook `preSerialization` acrescenta o componente a cada tela Siren com a sessão como ela terminou o request e a loja em que o request entrou, e nenhuma função de tela precisa saber quem está comprando.
+
+As rotas de uma loja moram todas num plugin só, com o prefixo `/v1/stores/:store`, e um hook `onRequest` desse plugin entra na loja antes de qualquer outra coisa: lê a loja do endereço, confere com o catálogo (ou com a memória) e guarda para o request. Uma loja que o catálogo não tem é um 404 em qualquer rota dela, antes de ler um formulário ou começar uma sessão, e nenhuma rota nova de uma loja tem como esquecer o filtro.
 
 ## As decisões, com o que cada uma custa
+
+**A loja no endereço.** Cada tela de uma loja mora em `/bff/v1/stores/{loja}/...`, e cada link dela já sai com a loja ([ADR 0031](../../docs/adr/0031-a-store-is-a-tenant.md)). A web continua sem montar URL: ela só segue o que chega. O BFF manda a loja no pedido novo e lê pelas rotas da loja no commerce e na logistics, então um pedido ou uma encomenda de outra loja responde o mesmo 404 de um que não existe. A plataforma fica acima das lojas: o início, com as lojas, o rastreio por código, que acha a loja da encomenda e responde 303 para a página dentro dela, e os perfis, que valem em todas as lojas e voltam para a loja de onde foram abertos (`?store=`). O custo é mais um segmento em todo endereço, e a loja como mais um parâmetro de cada tela.
+
+**As lojas guardadas por um minuto.** Toda tela de uma loja precisa da loja, e quem guarda as lojas é o catálogo. Perguntar a ele em cada tela faria do catálogo uma dependência de todas elas. O BFF guarda cada loja em memória por 60 s, por processo, com no máximo 64 lojas. Passado o minuto, a loja guardada ainda responde na hora, e uma chamada só, por trás, pergunta de novo ao catálogo (stale-while-revalidate, RFC 5861); várias telas que pedem a mesma loja ao mesmo tempo esperam essa mesma chamada. Com o catálogo fora ou lento, só as telas que mostram produtos caem: o pedido, a lista e o rastreio de uma loja que o BFF conhece continuam, e os perfis nunca esperam o catálogo. O custo: uma loja renomeada aparece com o nome antigo por até um minuto em cada processo, e uma loja que o BFF nunca viu, com o catálogo fora, é um 503.
 
 **Hipermídia em vez de GraphQL.** O fluxo mora no servidor: a web não sabe que depois do checkout vem o pagamento, ela só segue a ação que chegou. Uma regra nova (um passo de endereço, um cartão a mais) muda o BFF e mais ninguém. O custo é uma web genérica, que desenha componentes por classe, e um contrato de vocabulário que precisa de cuidado para não inchar.
 
@@ -70,13 +78,13 @@ As telas são funções puras: recebem o que os serviços responderam, já lido 
 
 **Uma camada anticorrupção.** O `upstream/` lê o JSON de cada serviço campo a campo, com o mesmo espírito do `EventFields` do PHP. Um serviço que muda o contrato sem avisar vira um 500 com uma linha de log que diz a chamada e o campo, em vez de um `undefined` passeando pela tela. Um campo novo que um serviço antigo ainda não manda (o `trackingCode` antes do commerce aprender a guardá-lo) chega como `null`.
 
-**Cada tela cai sozinha.** Toda chamada tem um prazo para a troca inteira, corpo incluído (`UPSTREAM_TIMEOUT_MS`). Sem resposta a tempo, erro de rede ou um 502, 503 ou 504 viram 503 com `Retry-After` e uma frase em português. O ready do BFF não pergunta aos serviços: com o commerce fora, o catálogo continua abrindo; com o read model dos pedidos fora, só a lista cai, e cada pedido continua abrindo; sem a logistics, o pedido abre sem as notícias da entrega. Cada serviço tem o seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`), então um laboratório corta uma tela de cada vez.
+**Cada tela cai sozinha.** Toda chamada tem um prazo para a troca inteira, corpo incluído (`UPSTREAM_TIMEOUT_MS`). Sem resposta a tempo, erro de rede ou um 502, 503 ou 504 viram 503 com `Retry-After` e uma frase em português. O ready do BFF não pergunta aos serviços: com o commerce fora, o catálogo continua abrindo; com o read model dos pedidos fora, só a lista cai, e cada pedido continua abrindo; sem a logistics, o pedido abre sem as notícias da entrega; com o catálogo fora, as lojas que o BFF já conhece continuam abrindo, menos os produtos. Cada serviço tem o seu proxy no Toxiproxy (`bff-catalog`, `bff-commerce` e `bff-logistics`), então um laboratório corta uma tela de cada vez.
 
 **Idempotência de ponta a ponta.** Cada formulário que faz algo num serviço nasce com uma chave nova (UUIDv7) num campo escondido, e o BFF a repassa ao commerce como `Idempotency-Key`. Um clique duplo ou um retry manda a mesma chave e recebe o mesmo pedido. Uma recusa não prende a chave, então a pessoa corrige o campo e manda o mesmo formulário de novo. As ações de perfil só mexem na sessão e não levam chave: escolher o mesmo perfil duas vezes dá no mesmo lugar, e duas criações em voo partem do mesmo cookie, então só uma fica.
 
 **Perfis numa sessão assinada.** O laboratório não tem login, e o commerce quer um id de cliente. O navegador guarda até 8 perfis no cookie `tucano_session` (`HttpOnly`, `SameSite=Lax`, `Path=/bff`, um ano, `Secure` em produção), e um deles está comprando ([ADR 0030](../../docs/adr/0030-each-customer-sees-only-its-orders.md)). O valor é o JSON dos perfis em base64url, um ponto e o HMAC-SHA256 dele sob o `SESSION_SECRET`, conferido em tempo constante: qualquer um lê, só quem tem a chave escreve um que abre. Um cookie que não abre vale como nenhuma sessão, deixa uma linha `warn` sem o valor e sai expirado. O BFF não guarda nada, então um restart ou uma segunda instância conhecem todas as sessões do mesmo jeito. O custo: trocar o segredo desfaz todas elas, e o cookie cabe em poucos perfis.
 
-**O BFF é a fronteira da identidade.** Todo pedido novo vai ao commerce com o id do perfil que está comprando, e toda leitura passa por `/v1/customers/{id}/orders`, então o pedido de outro perfil responde o mesmo 404 de um pedido que não existe. O commerce aceita pagamento de qualquer pedido, por isso o BFF confere antes, pela leitura do perfil, que o pedido é dele. A sessão só nasce quando algo precisa de um cliente (o checkout, as ações de perfil), nunca numa leitura. O perfil que o checkout cria fica sem nome até o primeiro pedido, e aí guarda só o primeiro nome digitado: o cookie leva o mínimo que o cabeçalho precisa. O antigo `tucano_guest` é expirado quando aparece e nunca adotado: ele não era assinado, e adotá-lo seria confiar num id que o navegador escolheu. Num sistema de verdade, o id viria do provedor de identidade; só a origem dele mudaria.
+**O BFF é a fronteira da identidade.** Todo pedido novo vai ao commerce com o id do perfil que está comprando, e toda leitura passa por `/v1/stores/{loja}/customers/{id}/orders`, então o pedido de outro perfil, ou de outra loja, responde o mesmo 404 de um pedido que não existe. O commerce aceita pagamento de qualquer pedido, por isso o BFF confere antes, pela leitura do perfil na loja, que o pedido é dele e dela. A sessão só nasce quando algo precisa de um cliente (o checkout, as ações de perfil), nunca numa leitura. O perfil que o checkout cria fica sem nome até o primeiro pedido, e aí guarda só o primeiro nome digitado: o cookie leva o mínimo que o cabeçalho precisa. O antigo `tucano_guest` é expirado quando aparece e nunca adotado: ele não era assinado, e adotá-lo seria confiar num id que o navegador escolheu. Num sistema de verdade, o id viria do provedor de identidade; só a origem dele mudaria.
 
 **As notícias da entrega enfeitam o pedido, não o seguram.** Quando o pedido tem código de rastreio, o BFF busca a página da entrega na logistics para contar a história inteira, com um prazo só dela (`ENRICHMENT_TIMEOUT_MS`, 1,5 s). Sem resposta a tempo, com 503 ou erro de rede, o pedido sai 200 com o que o commerce sabe, um aviso neutro e a tela viva, que tenta de novo sozinha. Um contrato quebrado da logistics também fica de fora, com uma linha `error` para alguém olhar: o pedido não pode sumir por causa do que só o enfeita.
 
@@ -107,19 +115,23 @@ Pelo Kong, tudo fica sob `/bff`: o Kong tira o prefixo, então o BFF serve `/v1`
 
 | Rota | O que responde |
 |---|---|
-| `GET /v1` | a tela de início, com o rastreio por código e o link do catálogo |
-| `GET /v1/products?page=` | o catálogo, com `next` e `prev` quando existem |
-| `GET /v1/products/{sku}` | o produto, com a ação `buy` enquanto ele está à venda |
-| `GET /v1/checkout?sku=&quantity=` | o checkout, com o formulário do pedido; começa a sessão, com um perfil novo, quando o navegador não tem uma |
-| `POST /v1/orders` | `201`, `Location` e a tela do pedido, feito pelo perfil que está comprando; dá o primeiro nome ao perfil que ainda não tinha |
-| `GET /v1/orders?page=` | os pedidos do perfil que está comprando, do mais novo ao mais velho, lidos do read model; sem sessão, a lista vazia |
-| `GET /v1/orders/{id}` | o pedido do perfil, com os marcos, a frase de agora e o histórico junto das etapas da entrega; com `?awaiting=payment`, acompanha o pagamento |
-| `POST /v1/orders/{id}/payments` | confere que o pedido é do perfil e responde `202`, `Location` e o pedido acompanhando o pagamento |
-| `GET /v1/profiles` | os perfis do navegador, com a troca e a criação de perfil |
-| `POST /v1/profiles` e `POST /v1/profiles/active` | cria um perfil, ou escolhe um, e responde `303` para os pedidos de quem ficou comprando |
-| `GET /v1/tracking?code=` | `303` para a página da entrega |
-| `GET /v1/tracking/{código}` | a página da entrega, com a linha do tempo; enquanto uma encomenda da frota própria está a caminho da porta, também o link `live` para o entregador ao vivo |
+| `GET /v1` | o início da plataforma: as lojas, cada uma com o convite para entrar, e o rastreio por código |
+| `GET /v1/tracking?code=` | acha a loja da encomenda e responde `303` para a página da entrega dentro dela; um código que nenhuma loja mostra é 404 |
+| `GET /v1/profiles?store=` | os perfis do navegador, com a troca e a criação de perfil; com uma loja, o caminho de volta é ela |
+| `POST /v1/profiles?store=` e `POST /v1/profiles/active?store=` | cria um perfil, ou escolhe um, e responde `303` para os pedidos de quem ficou comprando na loja de `?store=`; sem loja, para o início da plataforma |
+| `GET /v1/stores/{loja}` | o início da loja, com o catálogo e o rastreio por código da loja |
+| `GET /v1/stores/{loja}/products?page=` | o catálogo da loja, com `next` e `prev` quando existem |
+| `GET /v1/stores/{loja}/products/{sku}` | o produto da loja, com a ação `buy` enquanto ele está à venda |
+| `GET /v1/stores/{loja}/checkout?sku=&quantity=` | o checkout, com o formulário do pedido; começa a sessão, com um perfil novo, quando o navegador não tem uma |
+| `POST /v1/stores/{loja}/orders` | `201`, `Location` e a tela do pedido, feito na loja pelo perfil que está comprando; dá o primeiro nome ao perfil que ainda não tinha |
+| `GET /v1/stores/{loja}/orders?page=` | os pedidos do perfil que está comprando nesta loja, do mais novo ao mais velho, lidos do read model; sem sessão, a lista vazia |
+| `GET /v1/stores/{loja}/orders/{id}` | o pedido do perfil nesta loja, com os marcos, a frase de agora e o histórico junto das etapas da entrega; com `?awaiting=payment`, acompanha o pagamento |
+| `POST /v1/stores/{loja}/orders/{id}/payments` | confere que o pedido é do perfil, nesta loja, e responde `202`, `Location` e o pedido acompanhando o pagamento |
+| `GET /v1/stores/{loja}/tracking?code=` | `303` para a página da entrega, na loja |
+| `GET /v1/stores/{loja}/tracking/{código}` | a página da entrega da loja, com a linha do tempo; enquanto uma encomenda da frota própria está a caminho da porta, também o link `live` para o entregador ao vivo |
 | `GET /health/live` e `GET /health/ready` | o processo está de pé; o ready não depende dos serviços |
+
+Uma loja que o catálogo não tem responde 404, "Não encontrei essa loja.", em qualquer rota sob `/v1/stores/{loja}`.
 
 Todo erro sai como `application/problem+json` (RFC 9457) com os campos dos serviços PHP: `type`, `title`, `status`, `detail`, `instance` e `correlationId`. Os erros que o BFF cria falam com a pessoa, em português, no `detail`, e um formulário com problemas volta com `errors`, as mensagens por campo, todas de uma vez. Um `DomainError` pode levar `retryAfterSeconds`, que vira o header `Retry-After`, e um 503 de domínio mostra o `detail`, porque diz o que fazer; só o erro inesperado esconde o detalhe e manda o stack para o log.
 
@@ -161,7 +173,7 @@ make logs s=bff
 | `npm run format` | aplica as correções do Biome |
 | `npm start` | sobe o servidor; `npm run dev` faz o mesmo e reinicia a cada mudança (`node --watch`) |
 
-Os testes não usam rede de verdade além da própria máquina: `test/screens.test.ts` monta cada exemplo do contrato e compara com o arquivo (e falha se sobrar exemplo sem quem o monte), `test/journeys.test.ts` sobe um servidor falso que faz o papel dos três serviços e percorre compra, pagamento e rastreio, inclusive com serviço lento, fora do ar e com contrato quebrado, `test/sessions.test.ts` cobra a assinatura (ida e volta, adulteração, chave errada, tamanho, conteúdo que não é sessão) e o cookie, `test/profiles.test.ts` põe dois perfis num navegador e cobra que um não abre nem paga o pedido do outro, `test/order-story.test.ts` percorre a lista e a história do pedido com a logistics respondendo, lenta além do prazo, fora do ar e sem notícias, e `test/architecture.test.ts` guarda as fronteiras dos módulos.
+Os testes não usam rede de verdade além da própria máquina: `test/screens.test.ts` monta cada exemplo do contrato e compara com o arquivo (e falha se sobrar exemplo sem quem o monte), `test/journeys.test.ts` sobe um servidor falso que faz o papel dos três serviços e percorre compra, pagamento e rastreio numa loja, inclusive com serviço lento, fora do ar e com contrato quebrado, `test/stores.test.ts` põe o mesmo cliente em duas lojas (os pedidos de cada uma só nela, o pedido de uma loja pelo endereço da outra como 404, o rastreio da plataforma indo para a loja certa, a loja que não existe como 404 em toda rota, os perfis voltando para a loja de onde vieram) e cobra a memória das lojas (o minuto, a resposta por trás, o catálogo fora, a loja esquecida, a chamada única e o limite), `test/sessions.test.ts` cobra a assinatura (ida e volta, adulteração, chave errada, tamanho, conteúdo que não é sessão) e o cookie, `test/profiles.test.ts` põe dois perfis num navegador e cobra que um não abre nem paga o pedido do outro, `test/order-story.test.ts` percorre a lista e a história do pedido com a logistics respondendo, lenta além do prazo, fora do ar e sem notícias, e `test/architecture.test.ts` guarda as fronteiras dos módulos.
 
 A pasta `src/platform/` é idêntica à do [`partners-sim`](../partners-sim/README.md) de propósito, e a CI compara as cópias ([ADR 0016](../../docs/adr/0016-copied-node-platform.md)).
 

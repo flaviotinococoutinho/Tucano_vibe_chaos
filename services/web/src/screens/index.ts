@@ -8,4 +8,5 @@ export { ProductScreen } from './ProductScreen.tsx';
 export { ProfilesScreen } from './ProfilesScreen.tsx';
 export { componentFor, type ScreenComponent, type ScreenComponentProps } from './registry.ts';
 export { ScreenRouter } from './ScreenRouter.tsx';
+export { StoreScreen } from './StoreScreen.tsx';
 export { TrackingScreen } from './TrackingScreen.tsx';

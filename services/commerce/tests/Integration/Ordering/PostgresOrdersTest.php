@@ -11,6 +11,7 @@ use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderStatus;
 use Commerce\Ordering\Domain\Order\StatusTransition;
 use Commerce\Ordering\Domain\Order\TrackingCode;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Database\Seeders\FulfillmentCenterSeeder;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +45,33 @@ final class PostgresOrdersTest extends TestCase
         $this->orders->add($order);
 
         self::assertEquals($order->toSnapshot(), $this->orders->get($order->id())->toSnapshot());
+    }
+
+    #[Test]
+    public function an_order_comes_back_in_the_store_it_was_placed_in(): void
+    {
+        $order = OrderBuilder::anOrder()->in('sabia')->withLines(OrderBuilder::line('HOME-MUG-001', 'Caneca de cerâmica', 1, 4990))->place();
+
+        $this->orders->add($order);
+
+        self::assertSame('sabia', DB::table('orders')->where('id', $order->id()->toString())->value('store'));
+        self::assertTrue($this->orders->get($order->id())->isPlacedIn(StoreSlug::of('sabia')));
+    }
+
+    #[Test]
+    public function an_order_from_before_the_stores_comes_back_without_one_and_still_moves_on(): void
+    {
+        $order = OrderBuilder::anOrder()->place();
+        $this->orders->add($order);
+        // A row written before the column existed.
+        DB::table('orders')->where('id', $order->id()->toString())->update(['store' => null]);
+
+        $old = $this->orders->get($order->id());
+        self::assertNull($old->toSnapshot()->store);
+        $old->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00Z'));
+        $this->orders->save($old);
+
+        self::assertSame(['paid', null], array_values((array) DB::table('orders')->where('id', $order->id()->toString())->first(['status', 'store'])));
     }
 
     #[Test]

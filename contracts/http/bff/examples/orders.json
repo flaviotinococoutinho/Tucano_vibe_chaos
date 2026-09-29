@@ -30,11 +30,11 @@
         "tone": "success",
         "placedAt": "2026-09-27T14:02:31.000Z",
         "total": {
-          "amount": 9980,
+          "amount": 43980,
           "currency": "BRL",
-          "formatted": "R$ 99,80"
+          "formatted": "R$ 439,80"
         },
-        "itemsLabel": "2x Caneca de cerâmica",
+        "itemsLabel": "2x Release It!",
         "progress": [
           {
             "label": "Pedido feito",
@@ -65,7 +65,7 @@
           "rel": [
             "self"
           ],
-          "href": "/bff/v1/orders/0199a1f0-3c2d-7b4e-8a5f-6d7e8f9a0b1c"
+          "href": "/bff/v1/stores/arara/orders/0199a1f0-3c2d-7b4e-8a5f-6d7e8f9a0b1c"
         }
       ]
     },
@@ -85,9 +85,9 @@
         "tone": "danger",
         "placedAt": "2026-09-27T13:40:02.000Z",
         "total": {
-          "amount": 28980,
+          "amount": 31980,
           "currency": "BRL",
-          "formatted": "R$ 289,80"
+          "formatted": "R$ 319,80"
         },
         "itemsLabel": "Domain-Driven Design e mais 1 item",
         "progress": [
@@ -108,7 +108,7 @@
           "rel": [
             "self"
           ],
-          "href": "/bff/v1/orders/0199a1e8-0a1b-7c2d-9e3f-4a5b6c7d8e9f"
+          "href": "/bff/v1/stores/arara/orders/0199a1e8-0a1b-7c2d-9e3f-4a5b6c7d8e9f"
         }
       ]
     },
@@ -120,6 +120,12 @@
         "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
       ],
       "properties": {
+        "store": {
+          "slug": "arara",
+          "name": "Arara Livros",
+          "palette": "arara",
+          "initial": "A"
+        },
         "shopper": {
           "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
           "label": "Ana",
@@ -129,23 +135,37 @@
       "links": [
         {
           "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-stores"
+          ],
+          "href": "/bff/v1",
+          "title": "Todas as lojas"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-store"
+          ],
+          "href": "/bff/v1/stores/arara",
+          "title": "Arara Livros"
+        },
+        {
+          "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
           ],
-          "href": "/bff/v1/products",
+          "href": "/bff/v1/stores/arara/products",
           "title": "Catálogo"
         },
         {
           "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
           ],
-          "href": "/bff/v1/orders",
+          "href": "/bff/v1/stores/arara/orders",
           "title": "Meus pedidos"
         },
         {
           "rel": [
             "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
           ],
-          "href": "/bff/v1/profiles",
+          "href": "/bff/v1/profiles?store=arara",
           "title": "Ana"
         }
       ]
@@ -156,20 +176,20 @@
       "rel": [
         "self"
       ],
-      "href": "/bff/v1/orders?page=2"
+      "href": "/bff/v1/stores/arara/orders?page=2"
     },
     {
       "rel": [
         "prev"
       ],
-      "href": "/bff/v1/orders?page=1",
+      "href": "/bff/v1/stores/arara/orders?page=1",
       "title": "Página anterior"
     },
     {
       "rel": [
         "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
       ],
-      "href": "/bff/v1/products",
+      "href": "/bff/v1/stores/arara/products",
       "title": "Ver o catálogo"
     }
   ]

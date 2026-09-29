@@ -8,9 +8,10 @@ The examples in [`examples/`](examples) are real documents: the BFF tests build 
 
 ## Addresses
 
-- Every BFF resource lives under `/bff/v1`. The entry point is `GET /bff/v1`.
-- The browser path mirrors the BFF path without the prefix: the web shows `/orders/{id}` by fetching `/bff/v1/orders/{id}`, and turns every `/bff/v1/...` href back into a browser path.
-- Hrefs are absolute-path references (`/bff/v1/...`). A link with class `external` points outside the app (the docs, for example) and opens as a plain link.
+- Every BFF resource lives under `/bff/v1`. The entry point is `GET /bff/v1`, the home of the platform.
+- The address says the store ([ADR 0031](../../../docs/adr/0031-a-store-is-a-tenant.md)). Every screen of a store lives under `/bff/v1/stores/{store}`, with the slug of the store (`arara`, `bemtevi`, `sabia`), and every link of a store screen stays in it. The platform keeps its own screens above the stores: its home, the tracking by code across the stores, and the profiles, which belong to the platform. A store the catalog does not have is a `404` on every address under it.
+- The browser path mirrors the BFF path without the prefix: the web shows `/stores/arara/orders/{id}` by fetching `/bff/v1/stores/arara/orders/{id}`, and turns every `/bff/v1/...` href back into a browser path.
+- Hrefs are absolute-path references (`/bff/v1/...`), and they already carry the store: the web never builds an address, not even the one of a store. A link with class `external` points outside the app (the docs, for example) and opens as a plain link.
 
 ## Entity
 
@@ -31,34 +32,48 @@ Registered relation types ([RFC 8288](https://www.rfc-editor.org/rfc/rfc8288)) m
 
 | Relation | Meaning |
 |---|---|
-| <a id="rel-catalog"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog` | the catalog of products |
+| <a id="rel-stores"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-stores` | the home of the platform, with every store it hosts ("Todas as lojas") |
+| <a id="rel-store"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-store` | the home of the store the screen is in, titled with the name of the store |
+| <a id="rel-catalog"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog` | the catalog of products of the store |
 | <a id="rel-track"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-track` | the tracking page of the shipment of an order |
 | <a id="rel-live"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-live` | the live position of the courier carrying the parcel: a WebSocket on the same origin, to open with `ws:` or `wss:` as the page is served, speaking the [live delivery](../../tracking/README.md) protocol. Offered only while a parcel of the own fleet is out for delivery |
-| <a id="rel-navigation"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation` | the navigation every screen embeds: who is shopping, and the links of the header |
-| <a id="rel-orders"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders` | the orders of the profile shopping ("Meus pedidos") |
-| <a id="rel-profiles"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles` | the profiles of this browser, where a person picks who is shopping |
+| <a id="rel-navigation"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation` | the navigation every screen embeds: the store the person is in, who is shopping, and the links of the header |
+| <a id="rel-orders"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders` | the orders of the profile shopping in the store ("Meus pedidos") |
+| <a id="rel-profiles"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles` | the profiles of this browser, where a person picks who is shopping; they belong to the platform, and from a store screen the link carries the store to come back to (`?store=`) |
 | <a id="rel-history"></a>`https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history` | a step of the story of an order: one of its own moves or, once it ships, a step of its parcel |
 
 ## Screens
 
+The platform has two screens of its own: its home and the profiles. Every other screen belongs to a store and lives under `/bff/v1/stores/{store}`.
+
 | Class | Resource | Properties | Actions and links |
 |---|---|---|---|
-| `home` | `GET /bff/v1` | `headline`, `tagline` | action `track-by-code`; link catalog |
-| `catalog` | `GET /bff/v1/products?page=` | `page`, `perPage`, `total` | `product-card` entities (`item`); links `next` and `prev` when they exist, `up` |
-| `product` | `GET /bff/v1/products/{sku}` | `sku`, `name`, `category`, `categoryLabel`, `price`, `weightGrams`, `dimensions` | action `buy`; links `collection`, `up` |
-| `checkout` | `GET /bff/v1/checkout?sku=&quantity=` | `sku`, `name`, `quantity`, `unitPrice`, `subtotal` | action `place-order`; link `up` (the product) |
-| `orders` | `GET /bff/v1/orders?page=` | `page`, `perPage`, `total`, and a `notice` that a new order may take a few seconds to appear | `order-summary` entities (`item`), newest first; links `next` and `prev` when they exist; link catalog |
-| `order` | `GET /bff/v1/orders/{id}` | `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `headline`, `placedAt`, `reservationExpiresAt` (null once the order no longer waits for payment), `total`, `trackingCode`, `progress`, and `notice` and `refreshAfterSeconds` when they apply | `order-line` entities (`item`); `timeline-step` entities (history), oldest first; action `pay` only while the order waits for payment; link `collection` (the orders); link track once it ships; link live under the rule of the tracking screen; link catalog |
-| `profiles` | `GET /bff/v1/profiles` | `intro` | `profile` entities (`item`); action `create-profile`; link `up` |
-| `tracking` | `GET /bff/v1/tracking/{code}` | `trackingCode`, `status`, `statusLabel`, `tone`, `carrier` (the code), `carrierLabel` (the name people read), `destination`, `updatedAt`, and `refreshAfterSeconds` while the parcel moves | `timeline-step` entities (`item`), oldest first; link `up`; link live while a parcel of the own fleet is out for delivery |
+| `home` | `GET /bff/v1` | `headline`, `tagline` | `store-card` entities (`item`), sorted by name; action `track-by-code` across the stores |
+| `profiles` | `GET /bff/v1/profiles?store=` | `intro` | `profile` entities (`item`); action `create-profile`; link `up`: the store of `?store=` when the platform has it, titled with its name, or the home of the platform |
+| `store` | `GET /bff/v1/stores/{store}` | `slug`, `name`, `tagline`, `palette`, `initial` | action `track-by-code` in the store; link catalog |
+| `catalog` | `GET /bff/v1/stores/{store}/products?page=` | `page`, `perPage`, `total` | `product-card` entities (`item`); links `next` and `prev` when they exist, `up` (the store) |
+| `product` | `GET /bff/v1/stores/{store}/products/{sku}` | `sku`, `name`, `category`, `categoryLabel`, `price`, `weightGrams`, `dimensions` | action `buy`; links `collection`, `up` |
+| `checkout` | `GET /bff/v1/stores/{store}/checkout?sku=&quantity=` | `sku`, `name`, `quantity`, `unitPrice`, `subtotal` | action `place-order`; link `up` (the product) |
+| `orders` | `GET /bff/v1/stores/{store}/orders?page=` | `page`, `perPage`, `total`, and a `notice` that a new order may take a few seconds to appear | `order-summary` entities (`item`), newest first, of this store only; links `next` and `prev` when they exist; link catalog |
+| `order` | `GET /bff/v1/stores/{store}/orders/{id}` | `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `headline`, `placedAt`, `reservationExpiresAt` (null once the order no longer waits for payment), `total`, `trackingCode`, `progress`, and `notice` and `refreshAfterSeconds` when they apply | `order-line` entities (`item`); `timeline-step` entities (history), oldest first; action `pay` only while the order waits for payment; link `collection` (the orders); link track once it ships; link live under the rule of the tracking screen; link catalog |
+| `tracking` | `GET /bff/v1/stores/{store}/tracking/{code}` | `trackingCode`, `status`, `statusLabel`, `tone`, `carrier` (the code), `carrierLabel` (the name people read), `destination`, `updatedAt`, and `refreshAfterSeconds` while the parcel moves | `timeline-step` entities (`item`), oldest first; link `up` (the store); link live while a parcel of the own fleet is out for delivery |
 
-Every screen also embeds one `navigation` component (`rel-navigation`), after its own entities, so the web draws its header from the screen it shows.
+Every screen also embeds one `navigation` component (`rel-navigation`), after its own entities, so the web draws its header, and wears the palette of the store, from the screen it shows.
 
 The product screen of a product out of line comes without `buy` and with a `notice`. `orderNumber` is the decimal text of a Snowflake, as Commerce publishes it (`97856663872212992`): the web shows it as it comes and never parses it.
 
-The orders screen reads a read model a few seconds behind the orders ([ADR 0012](../../../docs/adr/0012-acid-writes-base-reads.md)), so it says a new order may take a few seconds to show. A browser with no session gets an empty list, and asking for it starts no session.
+The orders screen reads a read model a few seconds behind the orders ([ADR 0012](../../../docs/adr/0012-acid-writes-base-reads.md)), so it says a new order may take a few seconds to show. A browser with no session gets an empty list, and asking for it starts no session. Each store lists only its own orders: the same profile sees its orders of Arara in Arara, and those of Sabiá in Sabiá.
 
-`GET /bff/v1/tracking?code=` answers `303 See Other` with the tracking page as `Location`, so the form of `track-by-code` lands on the address of the page.
+`GET /bff/v1/stores/{store}/tracking?code=` answers `303 See Other` with the tracking page in that store as `Location`, so the form of `track-by-code` lands on the address of the page. The form of the platform, `GET /bff/v1/tracking?code=`, finds which store the parcel is of and answers `303 See Other` to its page in that store; a code no store shows (unknown, or of a parcel from before the stores) is a `404`.
+
+## The stores
+
+A store is a tenant of the platform ([ADR 0031](../../../docs/adr/0031-a-store-is-a-tenant.md)): it has a slug, a name, a tagline and a palette, and the catalog keeps them. The palette is one of the palettes of the design system of the web (`arara`, `bemtevi`, `sabia`): the store picks, the web owns the colors, and a palette the web does not know yet wears the look of the platform.
+
+- Every screen of a store says where the person is: the `navigation` carries the store, so the web shows the store as the brand and wears its palette. On the screens of the platform, the store is null, and the brand is Tucano.
+- The BFF reads a store from the catalog (`GET /v1/stores/{store}`) and keeps it in memory for 60 s per process. Past that, the store it kept still answers at once while the catalog is asked again behind it, so a catalog that is out or slow holds only the screens that show products: the orders and the tracking of a store the BFF knows go on. A store it never knew, with the catalog out, is a `503`.
+- The home of the platform lists the stores the catalog lists, and each store it lists is kept too, so entering one asks nobody.
+- The profiles belong to the platform, and the same profile shops in every store; its orders belong to each store.
 
 ## The story of an order
 
@@ -71,7 +86,8 @@ The orders screen reads a read model a few seconds behind the orders ([ADR 0012]
 
 | Class | Properties |
 |---|---|
-| `navigation` | `shopper`: `{"profileId", "label", "initial"}` of the profile shopping, or null when nobody shops in this browser yet; links catalog, orders ("Meus pedidos") and profiles, titled with the label of the shopper or "Entrar" |
+| `navigation` | `store`: `{"slug", "name", "palette", "initial"}` of the store the screen is in, or null on a screen of the platform; `shopper`: `{"profileId", "label", "initial"}` of the profile shopping, or null when nobody shops in this browser yet. Links, in this order: stores ("Todas as lojas"); in a store, the store (its name), catalog ("Catálogo") and orders ("Meus pedidos"); and profiles, titled with the label of the shopper or "Entrar", carrying `?store=` from a store screen |
+| `store-card` | `slug`, `name`, `tagline`, `palette`, `initial`; link `self` to the home of the store, titled with the call to enter it ("Entrar na loja") |
 | `product-card` | `sku`, `name`, `category`, `categoryLabel`, `price`; link `self` to the product |
 | `order-summary` | `title` ("Pedido 97856663872212992"); `orderId`, `orderNumber`, `status`, `statusLabel`, `tone`, `placedAt`, `total`, `itemsLabel` ("Domain-Driven Design e mais 1 item", "2x Caneca de cerâmica"), `progress`; link `self` to the order |
 | `order-line` | `sku`, `name`, `quantity`, `unitPrice`, `subtotal` |
@@ -97,12 +113,12 @@ After `pay`, the order follows the payment. An approved card turns it `paid`, an
 
 | Action | Request | Answer |
 |---|---|---|
-| `track-by-code` | `GET /bff/v1/tracking`, field `code` | `303` to the tracking page. The BFF takes the code the way people type it (any case, spaces around, and the letters Crockford Base32 reads as digits: O as 0, I and L as 1), and the field's `pattern` lets those through |
-| `buy` | `GET /bff/v1/checkout`, fields `sku` and `quantity` | the checkout screen |
-| `place-order` | `POST /bff/v1/orders`, JSON of the fields | `201 Created`, `Location` of the order, and the order screen |
-| `pay` | `POST /bff/v1/orders/{id}/payments`, JSON of the fields | `202 Accepted`, `Location` of the live order screen, and that screen |
-| `use-profile` | `POST /bff/v1/profiles/active`, hidden field `profileId` | `303 See Other` to the orders, with that profile shopping |
-| `create-profile` | `POST /bff/v1/profiles`, field `name` (1 to 40 characters) | `303 See Other` to the orders, with the new profile shopping |
+| `track-by-code` | `GET /bff/v1/stores/{store}/tracking` in a store, `GET /bff/v1/tracking` on the platform, field `code` | `303` to the tracking page, in the store of the form or, from the platform, in the store of the parcel. The BFF takes the code the way people type it (any case, spaces around, and the letters Crockford Base32 reads as digits: O as 0, I and L as 1), and the field's `pattern` lets those through |
+| `buy` | `GET /bff/v1/stores/{store}/checkout`, fields `sku` and `quantity` | the checkout screen |
+| `place-order` | `POST /bff/v1/stores/{store}/orders`, JSON of the fields | `201 Created`, `Location` of the order, and the order screen. The BFF sends the store with the order, and Commerce refuses a product the store does not sell |
+| `pay` | `POST /bff/v1/stores/{store}/orders/{id}/payments`, JSON of the fields | `202 Accepted`, `Location` of the live order screen, and that screen |
+| `use-profile` | `POST /bff/v1/profiles/active?store=`, hidden field `profileId` | `303 See Other` to the orders in the store of `?store=`, with that profile shopping; without a store the platform has, to the home of the platform |
+| `create-profile` | `POST /bff/v1/profiles?store=`, field `name` (1 to 40 characters) | `303 See Other` to the orders in the store of `?store=`, with the new profile shopping; without a store the platform has, to the home of the platform |
 
 Field types are the input types of HTML (`text`, `email`, `number`, `hidden`, `tel`) plus `select`, whose choices come in `options` (`[{"value", "title"}]`). Fields may also carry `value`, `required`, `placeholder`, `autocomplete`, `inputmode`, `pattern`, `min`, `max` and `maxlength`, with the meaning they have in HTML, so the browser helps (autofill, the right keyboard on a phone) and validates before the request.
 
@@ -110,7 +126,7 @@ Actions that place something in a service carry a hidden `idempotencyKey` field,
 
 ## Sessions and profiles
 
-There is no login. A browser holds up to eight **profiles**, and one of them is shopping; switching profiles plays the part of signing in with another account ([ADR 0030](../../../docs/adr/0030-each-customer-sees-only-its-orders.md)). Each profile is a customer of its own in Commerce: the BFF places every order with the id of the profile shopping, and reads every order through the routes of that customer, so an order of another profile answers `404` like an order that does not exist, and paying one is refused the same way, before any charge.
+There is no login. A browser holds up to eight **profiles**, and one of them is shopping; switching profiles plays the part of signing in with another account ([ADR 0030](../../../docs/adr/0030-each-customer-sees-only-its-orders.md)). A profile belongs to the platform and shops in every store. Each profile is a customer of its own in Commerce: the BFF places every order with the id of the profile shopping and the store of the address, and reads every order through the routes of that customer in that store, so an order of another profile, or of another store, answers `404` like an order that does not exist, and paying one is refused the same way, before any charge.
 
 The session lives in the `tucano_session` cookie ([RFC 6265](https://www.rfc-editor.org/rfc/rfc6265): `HttpOnly`, `SameSite=Lax`, `Path=/bff`, a `Max-Age` of one year, `Secure` in production): the JSON of the profiles and of the one shopping, in base64url, a dot, and its HMAC-SHA256 under `SESSION_SECRET`, checked in constant time. A profile is `{"id", "name"}`: a UUIDv7 the BFF made, and a name of 1 to 40 characters, or null. A cookie that does not open (forged, signed with another key, longer than 4096 characters, or holding something that is not a session) counts as no session: the BFF leaves a `warn` line without the value, and expires the cookie.
 
@@ -122,7 +138,7 @@ The web keeps the default `credentials` of `fetch`. Screens are never cached (`C
 
 - The problems the BFF makes speak to the person, in Portuguese, in `detail`; `title` stays the phrase of the HTTP status.
 - `422` with `errors`: an object from field name to messages, with the names of the fields of the action, so the web shows each message next to its field. Every field that needs attention comes in the same answer. A ninth profile is refused on `name`, and a profile the browser does not hold on `profileId`.
-- `404` when the product, the order or the tracking code does not exist, and when the order belongs to another profile: the same answer, so it never tells one from the other.
+- `404` when the store, the product, the order or the tracking code does not exist, and when the order belongs to another profile or to another store, or the product or the parcel to another store: the same answer as the one that does not exist, so it never tells one from the other. A store the catalog does not have answers "Não encontrei essa loja." on every address under it, before anything else is read.
 - `409` when the order cannot be placed (no stock for that quantity) or paid (it no longer waits for payment), and when the product left the line.
-- `503` with `Retry-After` when a service behind the BFF is out or slower than `UPSTREAM_TIMEOUT_MS`; the web says when it is worth trying again. Only the screens that need that service fail: with Commerce out, the catalog still opens, and with the read model of the orders out, only the list falls. The news of a parcel never turns the order into a `503`: without logistics, the order opens with what Commerce knows.
+- `503` with `Retry-After` when a service behind the BFF is out or slower than `UPSTREAM_TIMEOUT_MS`; the web says when it is worth trying again. Only the screens that need that service fail: with Commerce out, the catalog still opens, and with the read model of the orders out, only the list falls. The news of a parcel never turns the order into a `503`: without logistics, the order opens with what Commerce knows. With the catalog out, the screens of a store the BFF already knows still open (all but the products), and the profiles never wait for it.
 - Every problem carries `correlationId`, the same id of the logs of every service the request went through.

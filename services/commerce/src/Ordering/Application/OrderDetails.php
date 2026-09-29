@@ -27,6 +27,8 @@ final readonly class OrderDetails
         return new self([
             'orderId' => $order->id->toString(),
             'orderNumber' => (string) $order->number,
+            // Null only for an order placed before the stores (ADR 0031).
+            'store' => $order->store === null ? null : (string) $order->store,
             'status' => $order->status->value,
             // Masked on purpose (LGPD, minimization): there is no login, so whoever has the
             // id of an order sees the order, not who bought it.

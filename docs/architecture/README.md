@@ -53,12 +53,12 @@ C4Container
 
   System_Boundary(edge, "Borda") {
     Container(kong, "API Gateway", "Kong 3.9, DB-less", "Rotas, rate limit, correlation id")
-    Container(web, "Web", "React 19 + Vite", "Loja, operações e laboratórios")
+    Container(web, "Web", "React 19 + Vite", "A plataforma e as lojas, operações e laboratórios")
     Container(bff, "BFF", "Node 24 + Fastify", "Telas em hipermídia (Siren) sobre os serviços")
   }
 
   System_Boundary(services, "Serviços") {
-    Container(catalog, "Catalog", "Lumen 11, PHP 8.3", "Produtos e preços")
+    Container(catalog, "Catalog", "Lumen 11, PHP 8.3", "Lojas, produtos e preços")
     Container(commerce, "Commerce", "Laravel 13, PHP 8.4", "Pedidos, estoque, pagamentos")
     Container(logistics, "Logistics", "Laravel 13, PHP 8.4", "Remessas, transportadoras, etiquetas")
     Container(tracking, "Tracking", "Swoole 6, PHP 8.4", "Frota em tempo real e despacho")
@@ -99,9 +99,9 @@ C4Container
 | Container | Tecnologia | Motivo | Status |
 |---|---|---|---|
 | `kong` | Kong Gateway 3.9 OSS, DB-less | borda única: rotas, rate limit, correlation id, cache e circuit breaking por health check | rodando, rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
-| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | a loja rodando: um intérprete das telas Siren do BFF, com vitrine, checkout, perfis de cliente, "Meus pedidos", o pedido que conta a própria história (etapas, histórico e o entregador ao vivo) e rastreio; o console e os painéis vêm depois |
-| `bff` | Node 24 + Fastify | monta as telas da web em Siren (HATEOAS) sobre catalog, commerce e logistics, para a web só desenhar e seguir links | vitrine, checkout, perfis numa sessão assinada, "Meus pedidos", o pedido com etapas e histórico (commerce e logistics juntos) e rastreio; cada serviço pelo seu proxy no Toxiproxy, com timeout e 503 com `Retry-After` quando um deles cai, e a história da entrega com um prazo curto próprio, que a tela do pedido dispensa quando a logistics não responde |
-| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | produtos com cache-aside e snapshots no tópico compactado |
+| `web` | React 19 + Vite | loja, console de operações, laboratórios e painel de caos | a plataforma rodando: um intérprete das telas Siren do BFF, com a página das lojas, cada loja na sua paleta, vitrine, checkout, perfis de cliente, "Meus pedidos", o pedido que conta a própria história (etapas, histórico e o entregador ao vivo) e rastreio; o console e os painéis vêm depois |
+| `bff` | Node 24 + Fastify | monta as telas da web em Siren (HATEOAS) sobre catalog, commerce e logistics, para a web só desenhar e seguir links | a plataforma e as telas de cada loja em `/v1/stores/{loja}`, com a loja guardada em memória por 60 s, vitrine, checkout, perfis numa sessão assinada, "Meus pedidos", o pedido com etapas e histórico (commerce e logistics juntos) e rastreio; cada serviço pelo seu proxy no Toxiproxy, com timeout e 503 com `Retry-After` quando um deles cai, e a história da entrega com um prazo curto próprio, que a tela do pedido dispensa quando a logistics não responde |
+| `catalog` | Lumen 11, PHP 8.3 | subdomínio de suporte, leitura intensa e cache-aside, no papel de serviço legado | as lojas da plataforma e os produtos de cada uma, com cache-aside e snapshots no tópico compactado |
 | `commerce` | Laravel 13, PHP 8.4 | núcleo transacional: pedidos, estoque, pagamentos e notificações | pedidos, reserva de estoque, pagamento com circuit breaker, webhook e conciliação, outbox, leituras por cliente com o histórico de cada pedido, e a lista "Meus pedidos" no MongoDB, pelo projetor `commerce-order-projector` |
 | `logistics` | Laravel 13, PHP 8.4 | núcleo logístico: remessas, máquina de estados, transportadoras, etiquetas | remessa criada a partir do pedido pago e cancelada com o pedido, escolha de transportadora, etiqueta em ZPL no S3 pela fila SQS, coleta e jornada até a entrega ou a devolução pelos webhooks das transportadoras, conciliação com o histórico delas, alerta das jornadas paradas no log e por e-mail, página pública de rastreio no DynamoDB e linha do tempo no MongoDB, cópia do catálogo, outbox |
 | `tracking` | Swoole 6, PHP 8.4 | milhares de conexões de GPS e WebSocket em um processo de longa duração | entrega ao vivo rodando: posições assinadas do aparelho, WebSocket para quem acompanha o código, fan-out por Redis pub/sub ([ADR 0028](../adr/0028-live-delivery-by-tracking-code.md)); falta o despacho (UC-TRK-02) |

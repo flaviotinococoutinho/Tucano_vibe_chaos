@@ -10,6 +10,7 @@ use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderLines;
 use Commerce\Ordering\Domain\Order\OrderNumber;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 
 final readonly class OrderPlaced extends OrderEvent
@@ -17,13 +18,14 @@ final readonly class OrderPlaced extends OrderEvent
     public function __construct(
         OrderId $orderId,
         OrderNumber $orderNumber,
+        StoreSlug $store,
         private CustomerId $customerId,
         private OrderLines $lines,
         private FulfillmentCenterCode $center,
         private DateTimeImmutable $reservationExpiresAt,
         DateTimeImmutable $placedAt,
     ) {
-        parent::__construct($orderId, $orderNumber, $placedAt);
+        parent::__construct($orderId, $orderNumber, $store, $placedAt);
     }
 
     protected function fact(): string

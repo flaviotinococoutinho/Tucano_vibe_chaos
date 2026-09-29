@@ -6,10 +6,11 @@ hypothesis held and the log says by how much.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass
 
-from .store import APPROVED_CARD, TRACK, Answer, Shopper, link_to, logger, self_link
+from .store import APPROVED_CARD, STORE_PATH, TRACK, Answer, Shopper, link_to, logger, self_link
 
 
 @dataclass(frozen=True)
@@ -31,18 +32,21 @@ _remembered_tracking: str | None = None
 # The order bought while the fault is on, which the probe after the method follows.
 _bought_during_the_fault: Followed | None = None
 
+# What a neighbor store answered while another store was in a rush: (status, seconds) pairs.
+_neighbor_during_the_rush: list[tuple[int, float]] = []
+
 # The steps every journey of the own fleet goes through, from the shipment to the door.
 JOURNEY = ("created", "ready_for_pickup", "picked_up", "out_for_delivery", "delivered")
 
 
 def catalog_opens(within_seconds: float = 2.0) -> bool:
     """The catalog is the door of the store: it must open while the rest suffers."""
-    answer = Shopper().open("/bff/v1/products")
+    answer = Shopper().open(f"{STORE_PATH}/products")
     logger.info("catalog answered %s", answer.described())
     return answer.status == 200 and answer.seconds <= within_seconds
 
 
-def screen_answers(within_seconds: float = 6.0, screen: str = "/bff/v1/products") -> bool:
+def screen_answers(within_seconds: float = 6.0, screen: str = f"{STORE_PATH}/products") -> bool:
     """A screen answers in time: with its content, or with a 503 that says when to try again."""
     answer = Shopper().open(screen)
     logger.info("%s answered %s", screen, answer.described())
@@ -244,3 +248,34 @@ def _content_or_honest_refusal(answer: Answer, within_seconds: float) -> bool:
 def _is_honest_refusal(answer: Answer) -> bool:
     """A 503 is an acceptable answer only when it says when to come back."""
     return answer.status == 503 and answer.retry_after is not None
+
+
+def the_neighbor_keeps_its_pace(within_seconds: float = 1.0, store: str = "sabia") -> bool:
+    """A store's catalog keeps opening quickly while another store is in a rush.
+
+    Before the rush it measures the catalog itself: one read to warm the caches a restart
+    emptied, which does not count, then five. After the rush it reads what the neighbor measured
+    during it. Either way: every answer a 200, and 95 in 100 of them within the limit.
+    """
+    samples = list(_neighbor_during_the_rush)
+    moment = "during the rush"
+    if not samples:
+        shopper = Shopper()
+        shopper.open(f"/bff/v1/stores/{store}/products")
+        for _ in range(5):
+            answer = shopper.open(f"/bff/v1/stores/{store}/products")
+            samples.append((answer.status, answer.seconds))
+        moment = "at rest"
+    statuses = sorted({status for status, _ in samples})
+    seconds = sorted(elapsed for _, elapsed in samples)
+    p95 = seconds[math.ceil(len(seconds) * 0.95) - 1]
+    logger.info(
+        "%s the %s catalog answered %d times with %s, p95 %.2f s, slowest %.2f s",
+        moment,
+        store,
+        len(samples),
+        ", ".join(str(status) for status in statuses),
+        p95,
+        seconds[-1],
+    )
+    return statuses == [200] and p95 <= within_seconds

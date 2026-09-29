@@ -38,6 +38,7 @@
 - 2a. Sem `If-Match`: o sistema usa a versão que leu no começo do request; a proteção contra escrita simultânea continua.
 - 3a. A versão mudou: `409`; o administrador relê e tenta de novo.
 - 3b. O corpo não muda nada: o sistema devolve o produto como está, sem versão nova e sem evento.
+- 3c. O corpo traz uma loja: a que o produto já tem não muda nada, e qualquer outra é `422` no campo `store`, porque um produto nunca muda de loja ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)).
 
 ## Variações de tecnologia
 
@@ -45,4 +46,4 @@
 
 ## No código
 
-- `ProductController@update`, `ProductService::change()`, `ProductRepository::update()`.
+- `ProductController@update`, `ProductService::change()`, `ProductRepository::update()`, `StoreChangeNotAllowed`.

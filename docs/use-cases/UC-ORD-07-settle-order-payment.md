@@ -22,7 +22,7 @@
 
 ## Garantias de sucesso
 
-- Aprovado: pedido `paid`, estoque vendido (UC-INV-04) e `OrderPaid` na outbox, com tudo que o Logistics precisa para criar a remessa.
+- Aprovado: pedido `paid`, estoque vendido (UC-INV-04) e `OrderPaid` na outbox, com tudo que o Logistics precisa para criar a remessa, inclusive a loja do pedido ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)).
 - Recusado: pedido `cancelled` com `payment_declined`, estoque liberado (UC-INV-03) e `OrderCancelled` na outbox.
 
 ## Cenário principal de sucesso

@@ -11,6 +11,24 @@
  *   teal-light (#3FC7C7) / ink 8.34, coral (not coral-deep) / ink 4.66.
  * Profile avatars (theme/avatar.ts) bring their own pair in both themes, all from the lists
  * above: ink on beak, sun, teal-light or coral, and paper on teal-deep (5.88) or coral-deep (5.36).
+ *
+ * Store palettes (ADR 0031, the end of this file): a store picks one by name, and the web owns
+ * its colors. Only the brand changes with the store: the fill of the primary buttons and its
+ * text, the links, the monogram and a line of decoration. Surfaces, text, borders, the focus ring
+ * and the tones of a status stay the platform's, so a status reads the same in every store.
+ * Every pair is measured on paper and on surface-elevated light (#f4ebdf), or on ink and on
+ * surface-elevated dark (#2b2a2d):
+ *   arara (the arara-azul):     light, paper on cobalt #2447a8 7.72 (buttons, monogram) and the
+ *                               cobalt as link 7.72 / 7.00; dark, ink on sky #9db4ff 8.51 and the
+ *                               sky as link 8.51 / 7.07.
+ *   bemtevi (the bem-te-vi):    both themes, ink on yellow #f5c400 10.45 (buttons, monogram);
+ *                               link bark #7a4b12 6.90 / 6.26 in light, #f5d24a 11.61 / 9.65 in dark.
+ *   sabia (the sabiá-laranjeira): light, paper on rust #a9471f 5.44 (buttons, monogram) and olive
+ *                               #51601f as link 6.45 / 5.85; dark, ink on apricot #f4a582 8.63 and
+ *                               sage #c5d38f as link 10.70 / 8.89.
+ * The line (the top of the header in a store, the top of a store card) is decoration next to
+ * text, never text: cobalt 7.72 / sky 8.51, gold #b8860b 3.04 / yellow 10.45, rust 5.44 / apricot
+ * 8.63 against the surface.
  */
 
 :root {
@@ -26,6 +44,18 @@
   --palette-teal: #138a8a;
   --palette-teal-deep: #0e6b6b;
   --palette-teal-light: #3fc7c7;
+
+  /* The store palettes, raw: see the contrast notes above and their mapping at the end. */
+  --palette-arara-cobalt: #2447a8;
+  --palette-arara-sky: #9db4ff;
+  --palette-bemtevi-yellow: #f5c400;
+  --palette-bemtevi-gold: #b8860b;
+  --palette-bemtevi-bark: #7a4b12;
+  --palette-bemtevi-light: #f5d24a;
+  --palette-sabia-rust: #a9471f;
+  --palette-sabia-apricot: #f4a582;
+  --palette-sabia-olive: #51601f;
+  --palette-sabia-sage: #c5d38f;
 
   /* Semantic tokens: light theme is the default. */
   --color-surface: var(--palette-paper);
@@ -43,6 +73,10 @@
   --color-info-text: var(--palette-teal-deep);
   --color-success-bg: var(--palette-teal-deep);
   --color-success-text: var(--palette-paper);
+  /* The brand: the look of the platform, unless the palette of a store says otherwise. */
+  --color-brand-bg: var(--palette-beak);
+  --color-brand-text: var(--palette-ink);
+  --color-brand-line: var(--palette-beak);
 
   --font-family-base: "Nunito Variable", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -105,4 +139,80 @@
   --color-focus-ring: var(--palette-paper);
   --color-danger-text: var(--palette-coral);
   --color-info-text: var(--palette-teal-light);
+}
+
+/*
+ * Store palettes. The page wears the one of the store on show through <html data-palette>, and a
+ * store card wears its own through its own data-palette. Each palette names its colors for both
+ * themes, and the mapping below picks the ones of the theme on show: a custom property takes its
+ * value where it is declared, so the mapping sits on the same element as the palette.
+ */
+[data-palette="arara"] {
+  --store-fill: var(--palette-arara-cobalt);
+  --store-on-fill: var(--palette-paper);
+  --store-link: var(--palette-arara-cobalt);
+  --store-line: var(--palette-arara-cobalt);
+  --store-fill-dark: var(--palette-arara-sky);
+  --store-on-fill-dark: var(--palette-ink);
+  --store-link-dark: var(--palette-arara-sky);
+  --store-line-dark: var(--palette-arara-sky);
+}
+
+[data-palette="bemtevi"] {
+  --store-fill: var(--palette-bemtevi-yellow);
+  --store-on-fill: var(--palette-ink);
+  --store-link: var(--palette-bemtevi-bark);
+  --store-line: var(--palette-bemtevi-gold);
+  --store-fill-dark: var(--palette-bemtevi-yellow);
+  --store-on-fill-dark: var(--palette-ink);
+  --store-link-dark: var(--palette-bemtevi-light);
+  --store-line-dark: var(--palette-bemtevi-yellow);
+}
+
+[data-palette="sabia"] {
+  --store-fill: var(--palette-sabia-rust);
+  --store-on-fill: var(--palette-paper);
+  --store-link: var(--palette-sabia-olive);
+  --store-line: var(--palette-sabia-rust);
+  --store-fill-dark: var(--palette-sabia-apricot);
+  --store-on-fill-dark: var(--palette-ink);
+  --store-link-dark: var(--palette-sabia-sage);
+  --store-line-dark: var(--palette-sabia-apricot);
+}
+
+/* Light, the default. Only the known palettes: a name the web does not know keeps the platform's. */
+:is([data-palette="arara"], [data-palette="bemtevi"], [data-palette="sabia"]) {
+  --color-primary-bg: var(--store-fill);
+  --color-primary-text: var(--store-on-fill);
+  --color-link: var(--store-link);
+  --color-brand-bg: var(--store-fill);
+  --color-brand-text: var(--store-on-fill);
+  --color-brand-line: var(--store-line);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):is(
+    [data-palette="arara"],
+    [data-palette="bemtevi"],
+    [data-palette="sabia"]
+  ),
+  :root:not([data-theme="light"])
+    :is([data-palette="arara"], [data-palette="bemtevi"], [data-palette="sabia"]) {
+    --color-primary-bg: var(--store-fill-dark);
+    --color-primary-text: var(--store-on-fill-dark);
+    --color-link: var(--store-link-dark);
+    --color-brand-bg: var(--store-fill-dark);
+    --color-brand-text: var(--store-on-fill-dark);
+    --color-brand-line: var(--store-line-dark);
+  }
+}
+
+[data-theme="dark"]:is([data-palette="arara"], [data-palette="bemtevi"], [data-palette="sabia"]),
+[data-theme="dark"] :is([data-palette="arara"], [data-palette="bemtevi"], [data-palette="sabia"]) {
+  --color-primary-bg: var(--store-fill-dark);
+  --color-primary-text: var(--store-on-fill-dark);
+  --color-link: var(--store-link-dark);
+  --color-brand-bg: var(--store-fill-dark);
+  --color-brand-text: var(--store-on-fill-dark);
+  --color-brand-line: var(--store-line-dark);
 }

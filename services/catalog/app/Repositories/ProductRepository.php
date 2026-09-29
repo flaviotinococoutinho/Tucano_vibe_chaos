@@ -22,12 +22,15 @@ use stdClass;
 use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
 
-/** Products in MySQL: the id is BINARY(16) in the table and text everywhere else. */
+/**
+ * Products in MySQL: the id is BINARY(16) in the table and text everywhere else. The store
+ * and the category are slugs outside the table and ids inside it.
+ */
 final readonly class ProductRepository
 {
     private const int DUPLICATE_ENTRY = 1062;
     private const string DATETIME_FORMAT = 'Y-m-d H:i:s.u';
-    private const string COLUMNS = 'BIN_TO_UUID(p.id) AS id, p.sku, p.name, p.status, c.slug AS category, '
+    private const string COLUMNS = 'BIN_TO_UUID(p.id) AS id, p.sku, p.name, p.status, s.slug AS store, c.slug AS category, '
         . 'p.price_cents, p.currency, p.weight_grams, p.length_mm, p.width_mm, p.height_mm, p.version, p.updated_at';
 
     public function __construct(private DatabaseManager $database, private int $pageSize) {}
@@ -39,9 +42,13 @@ final readonly class ProductRepository
         return $row instanceof stdClass ? self::product($row) : null;
     }
 
-    public function activePage(?string $category, int $page): ProductPage
+    /** @param string|null $store null for every store of the platform */
+    public function activePage(?string $store, ?string $category, int $page): ProductPage
     {
         $query = $this->products()->where('p.status', ProductStatus::Active->value);
+        if ($store !== null) {
+            $query->where('s.slug', $store);
+        }
         if ($category !== null) {
             $query->where('c.slug', $category);
         }
@@ -56,13 +63,15 @@ final readonly class ProductRepository
     {
         try {
             $this->connection()->insert(<<<'SQL'
-                INSERT INTO products (id, sku, name, category_id, status, price_cents, currency,
+                INSERT INTO products (id, sku, name, store_id, category_id, status, price_cents, currency,
                                       weight_grams, length_mm, width_mm, height_mm, version, created_at, updated_at)
-                VALUES (UUID_TO_BIN(?), ?, ?, (SELECT id FROM categories WHERE slug = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (UUID_TO_BIN(?), ?, ?, (SELECT id FROM stores WHERE slug = ?), (SELECT id FROM categories WHERE slug = ?),
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 SQL, [
                 $product->id->toString(),
                 $product->sku,
                 $product->name,
+                $product->store,
                 $product->category,
                 $product->status->value,
                 $product->price->cents(),
@@ -87,6 +96,7 @@ final readonly class ProductRepository
     /**
      * Writes the new state only while the row still holds the version that was read
      * (optimistic concurrency). False means someone changed the product in between.
+     * The store is not among the columns: a product never leaves it.
      */
     public function update(Product $product, int $readVersion): bool
     {
@@ -146,6 +156,7 @@ final readonly class ProductRepository
     private function products(): Builder
     {
         return $this->connection()->table('products AS p')
+            ->join('stores AS s', 's.id', '=', 'p.store_id')
             ->join('categories AS c', 'c.id', '=', 'p.category_id')
             ->selectRaw(self::COLUMNS);
     }
@@ -171,6 +182,7 @@ final readonly class ProductRepository
             (string) $row->sku,
             (string) $row->name,
             ProductStatus::from((string) $row->status),
+            (string) $row->store,
             (string) $row->category,
             Money::of((int) $row->price_cents, Currency::fromCode((string) $row->currency)),
             (int) $row->weight_grams,

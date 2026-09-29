@@ -32,6 +32,20 @@ final class RepublishProductsTest extends IntegrationTestCase
     }
 
     #[Test]
+    public function every_snapshot_names_the_store_of_its_product(): void
+    {
+        $this->artisan('catalog:republish');
+
+        $stores = [];
+        foreach ($this->events() as $event) {
+            $stores[(string) $event->data['sku']] = (string) ($event->data['store'] ?? 'none');
+        }
+        self::assertSame('sabia', $stores['HOME-MUG-001']);
+        // The five books, the electronics with the discontinued MP3 player, and home and sports without the draft lamp.
+        self::assertEquals(['arara' => 5, 'bemtevi' => 6, 'sabia' => 6], array_count_values($stores));
+    }
+
+    #[Test]
     public function it_can_republish_a_single_product(): void
     {
         $exitCode = $this->artisan('catalog:republish', ['--sku' => 'ELEC-MP3-001']);

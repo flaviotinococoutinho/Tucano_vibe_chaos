@@ -16,6 +16,12 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - A tela do pedido conta a história dele: uma frase sobre onde ele está, as cinco etapas (pedido feito, pagamento, preparo, a caminho, entregue, ou onde parou), e um histórico que junta as transições do pedido, que o commerce agora devolve em `history`, às etapas da remessa na logistics. O entregador ao vivo (ADR 0028) aparece também na tela do pedido. A busca na logistics tem um prazo curto só dela (`ENRICHMENT_TIMEOUT_MS`, 1,5 s): sem a logistics, o pedido abre com o que o commerce sabe e um aviso.
 - Variáveis novas no BFF: `SESSION_SECRET`, que fora do ambiente local precisa ser exportada antes do `make up` (o compose não traz segredo nenhum), e `ENRICHMENT_TIMEOUT_MS`.
 - A borda do commerce: o Kong o alcança pela porta 8182 do nginx, que só serve as rotas públicas (pedidos, pagamentos, o webhook do PSP e o health) e confere o caminho já decodificado. Uma regra de caminho no próprio Kong deixava passar `/api/commerce/v1%2Fcustomers`.
+- As lojas (ADR 0031): a Tucano vira uma plataforma que hospeda três lojas, a Arara Livros, a Bem-te-vi Eletrônicos e a Sabiá Casa e Esporte, cada uma com a sua marca. O catálogo é o dono do cadastro (`GET /v1/stores`, `/v1/stores/{store}`, `/v1/stores/{store}/products` e `/v1/stores/{store}/products/{sku}`, UC-CAT-05), e todo produto é de uma loja só. A web ganhou a página da plataforma, com as lojas, e cada loja aparece na sua paleta do design system, com o contraste conferido nos dois temas.
+- O isolamento entre lojas, cobrado por cada serviço no próprio dado: um produto, um pedido ou uma página de rastreio de outra loja respondem o mesmo 404 de um recurso que não existe. O commerce recusa um item de outra loja com `422`, as leituras de pedidos passam a ser por loja e cliente (`/v1/stores/{store}/customers/{id}/orders`), e a logistics ganhou `/v1/stores/{store}/tracking/{code}`. A busca de um código na plataforma responde `303` para a página da loja dele.
+- Os eventos levam a loja: `store` opcional em todo schema de `catalog.product.snapshot`, `commerce.order.*` e `logistics.shipment.*`, uma mudança aditiva no mesmo tópico (ADR 0010). As cópias do catálogo no commerce e na logistics guardam a loja de cada produto, e a remessa herda a loja do pedido.
+- Um serviço e um limite de requests por loja no Kong (ADR 0032): 20 por segundo, contados para a loja inteira. Quem passa do limite recebe `429` com `Retry-After`, e as vizinhas seguem.
+- Experimento `a-store-in-a-rush`: quarenta compradores abrem o catálogo da Arara por 15 s, como numa promoção, e a hipótese é que a Sabiá continue abrindo, 95 vezes em 100, em até 0,3 s. Sem o limite por loja, o p95 dela foi a 0,40 s e o experimento desviou; com ele, ficou em 0,08 s.
+- O ADR 0032, que fecha a lacuna "um ADR para o Kong" do mapa de falhas: a borda só com o que é público, um limite por loja e o ponto único aceito no ambiente local.
 
 ### Changed
 
@@ -24,10 +30,15 @@ Todas as mudanças relevantes ficam registradas aqui. O formato segue o [Keep a 
 - O consumidor Kafka do pacote `packages/php/messaging` pode pausar: enquanto uma pergunta diz que sim, ele sai do grupo entre duas mensagens, com tudo confirmado, e volta dos offsets confirmados. Os workers que não pedem pausa seguem iguais.
 - O cabeçalho da web desenha a navegação que vem em cada tela e a mantém numa página de erro, para um 404 que diz "troque de perfil" deixar o caminho à vista.
 - Os probes do caos guardam, com cada pedido que acompanham, a sessão que o comprou, porque só ela o abre.
+- Toda tela de loja mora em `/bff/v1/stores/{loja}/...`, e a navegação diz em que loja a pessoa está; as telas da plataforma (as lojas, os perfis e a busca de um código) ficam acima dela. O BFF guarda cada loja em memória por 60 s e, com o catálogo fora, continua servindo a loja que já conhece.
+- O `POST /v1/orders` do commerce exige `store`, e um item que não é produto da loja recebe `422` no campo dele. Pedidos, remessas e páginas de rastreio de antes das lojas ficam sem loja, e nenhuma loja os mostra.
+- O `POST /v1/products` do catálogo exige `store`, e o `PATCH` nunca muda a loja. A migração pôs os produtos antigos na loja da categoria e subiu a versão de cada um, para a republicação levar a loja às cópias.
+- Os probes do caos compram na Sabiá, entrando pela loja como a web entra.
 
 ### Removed
 
 - O cookie `tucano_guest`. O BFF o expira quando o vê e não aproveita o id dele, que nunca foi assinado. Os pedidos feitos com ele continuam no commerce, sem perfil que os liste.
+- As rotas do BFF sem loja (`/v1/products`, `/v1/checkout`, `/v1/orders` e `/v1/tracking/{code}`), e as rotas por cliente do commerce da etapa anterior (`/v1/customers/...`), que viraram rotas por loja antes de qualquer release.
 
 ## [0.10.0] - 2026-09-28
 

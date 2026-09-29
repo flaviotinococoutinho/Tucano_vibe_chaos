@@ -11,9 +11,10 @@ use Tucano\SharedKernel\Domain\DomainEvent;
 use Tucano\SharedKernel\Identity\EventId;
 
 /**
- * What every shipment event carries. The type comes from the status the
- * transition reached, so the names on logistics.shipments.v2 are exactly the
- * states of the machine; subclasses add their own facts.
+ * What every shipment event carries, the store included (ADR 0031). The type
+ * comes from the status the transition reached, so the names on
+ * logistics.shipments.v2 are exactly the states of the machine; subclasses add
+ * their own facts.
  */
 abstract readonly class ShipmentEvent implements DomainEvent
 {
@@ -44,9 +45,13 @@ abstract readonly class ShipmentEvent implements DomainEvent
         return $this->transition->at;
     }
 
+    /** A shipment without a store leaves the field out: the contracts have no null for it. */
     final public function payload(): array
     {
+        $store = $this->shipment->store;
+
         return [
+            ...($store === null ? [] : ['store' => (string) $store]),
             'shipmentId' => $this->shipment->id->toString(),
             'trackingCode' => (string) $this->shipment->trackingCode,
             'orderId' => $this->shipment->orderId->toString(),

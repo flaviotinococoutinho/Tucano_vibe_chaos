@@ -34,6 +34,8 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0028](0028-live-delivery-by-tracking-code.md) | Entrega ao vivo pelo código de rastreio | aceito |
 | [0029](0029-no-release-without-the-experiments.md) | Nenhuma release sem os experimentos num runner limpo | aceito |
 | [0030](0030-each-customer-sees-only-its-orders.md) | Cada cliente só vê os próprios pedidos | aceito |
+| [0031](0031-a-store-is-a-tenant.md) | Uma loja é um tenant da plataforma | aceito |
+| [0032](0032-the-edge-per-store-limits-and-its-single-point.md) | O Kong: a borda só com o que é público, um limite por loja e o ponto único que eu aceito | aceito |
 
 ## Modelo
 

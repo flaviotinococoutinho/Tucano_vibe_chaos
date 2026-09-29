@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 import { buildApp } from '../src/app.ts';
 import { seal, unseal } from '../src/session/index.ts';
+import { bffOver } from './support/bff.ts';
 import { TEST_SESSION_SECRET, testConfig } from './support/config.ts';
-import { ids } from './support/fake-services.ts';
+import { type FakeServices, fakeServices, ids, serveStores } from './support/fake-services.ts';
 import { sessionCookie, sessionCookieSet, sessionSet, setCookies } from './support/sessions.ts';
 import { ana, anaShopping, bruno, visitor } from './support/upstream-data.ts';
 
@@ -95,11 +96,24 @@ describe('the sealed session', () => {
 });
 
 describe('the session cookie', () => {
+  let services: FakeServices;
+
+  before(async () => {
+    services = await fakeServices((app) => serveStores(app));
+  });
+
+  after(() => services.close());
+
   const app = (env: Record<string, string> = {}, newId = ids(visitor.id)) =>
-    buildApp({ config: testConfig(env), newId });
+    bffOver(services, { env, newId });
 
   it('is never started by a plain read', async () => {
-    for (const url of ['/v1', '/v1/orders', '/v1/profiles']) {
+    for (const url of [
+      '/v1',
+      '/v1/stores/arara',
+      '/v1/stores/arara/orders',
+      '/v1/profiles?store=arara',
+    ]) {
       const response = await app().inject({ method: 'GET', url });
 
       assert.equal(response.statusCode, 200, url);
@@ -110,7 +124,7 @@ describe('the session cookie', () => {
   it('expires the old guest cookie on sight, and never adopts its id', async () => {
     const read = await app().inject({
       method: 'GET',
-      url: '/v1',
+      url: '/v1/profiles',
       headers: { cookie: `tucano_guest=${GUEST}` },
     });
     const created = await app().inject({
@@ -176,7 +190,7 @@ describe('the session cookie', () => {
     const carla = '0199a2b4-5d41-7f60-b172-d4e5f6071829';
     const response = await app({}, ids(carla)).inject({
       method: 'POST',
-      url: '/v1/orders',
+      url: '/v1/stores/arara/orders',
       payload: {},
       headers: { cookie: `tucano_guest=${GUEST}` },
     });

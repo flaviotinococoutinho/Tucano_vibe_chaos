@@ -16,6 +16,7 @@ use Logistics\Shipping\Domain\Shipment\CarrierCode;
 use Logistics\Shipping\Domain\Shipment\DeliveryAttempts;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\Recipient;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\Hub;
@@ -45,7 +46,7 @@ final class ShippingValuesTest extends TestCase
     #[Test]
     public function a_parcel_holds_every_unit_of_a_line_stacked(): void
     {
-        $product = new CatalogProduct(Sku::of('BOOK-DDD-001'), Weight::ofGrams(1100), Dimensions::ofMillimetres(240, 170, 40));
+        $product = new CatalogProduct(Sku::of('BOOK-DDD-001'), StoreSlug::of('arara'), Weight::ofGrams(1100), Dimensions::ofMillimetres(240, 170, 40));
 
         $parcel = $product->packed(Quantity::of(3));
 
@@ -84,6 +85,20 @@ final class ShippingValuesTest extends TestCase
     }
 
     #[Test]
+    public function the_store_of_many_facts_is_the_one_they_all_name(): void
+    {
+        $sabia = StoreSlug::of('sabia');
+
+        self::assertEquals($sabia, StoreSlug::sharedBy($sabia, StoreSlug::of('sabia')));
+        self::assertNull(StoreSlug::sharedBy($sabia, StoreSlug::of('arara')), 'Two stores: no answer is better than the wrong one.');
+        self::assertNull(StoreSlug::sharedBy($sabia, null), 'One of them does not know its store yet.');
+        self::assertNull(StoreSlug::sharedBy(null, null));
+        self::assertNull(StoreSlug::sharedBy());
+        self::assertTrue($sabia->equals(StoreSlug::of('sabia')));
+        self::assertFalse($sabia->equals(StoreSlug::of('arara')));
+    }
+
+    #[Test]
     public function who_receives_shows_only_a_mask_when_printed_by_accident(): void
     {
         $recipient = Recipient::of('Ana Souza', 'ana@example.com');
@@ -108,6 +123,11 @@ final class ShippingValuesTest extends TestCase
         yield 'a carrier in capitals' => [static fn() => CarrierCode::of('Tucano-Express')];
         yield 'a warehouse in lowercase' => [static fn() => FulfillmentCenterCode::of('gru1')];
         yield 'a SKU with spaces' => [static fn() => Sku::of('BOOK DDD')];
+        yield 'a store in capitals' => [static fn() => StoreSlug::of('Sabia')];
+        yield 'a store of one letter' => [static fn() => StoreSlug::of('s')];
+        yield 'a store that starts with a digit' => [static fn() => StoreSlug::of('9sabia')];
+        yield 'a store longer than the column' => [static fn() => StoreSlug::of('s' . str_repeat('a', 31))];
+        yield 'a store with spaces' => [static fn() => StoreSlug::of(' sabia')];
         yield 'a recipient without a name' => [static fn() => Recipient::of(' ', 'ana@example.com')];
         yield 'a recipient without an e-mail' => [static fn() => Recipient::of('Ana Souza', '')];
         yield 'a label without a key' => [static fn() => ShippingLabel::storedAt('')];

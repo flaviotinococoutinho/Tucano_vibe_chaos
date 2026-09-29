@@ -21,6 +21,7 @@ use Commerce\Ordering\Domain\Order\OrderNumber;
 use Commerce\Ordering\Domain\Order\OrderStatus;
 use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\Int64;
 use MongoDB\BSON\UTCDateTime;
@@ -34,11 +35,13 @@ use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
 
 /**
- * commerce_read.order_views: one document per order, the customer's list. The projection
- * opens a view with order.placed and moves it with every later event, and a move applies
- * only to a view at an older version: a redelivery, a replay or an event late matches
- * nothing. The collection validator wants 64-bit integers where PHP writes a small number
- * as a 32-bit one, hence the Int64.
+ * commerce_read.order_views: one document per order, the customer's list in a store. The
+ * projection opens a view with order.placed and moves it with every later event, and a move
+ * applies only to a view at an older version: a redelivery, a replay or an event late matches
+ * nothing. A page reads the views of one store and one customer (ADR 0031), by the index
+ * store_customer_history; a view from before the stores has no store and no page has it. The
+ * collection validator wants 64-bit integers where PHP writes a small number as a 32-bit one,
+ * hence the Int64.
  */
 final readonly class MongoOrderViews implements ForStoringOrderViews, ForReadingOrderViews
 {
@@ -62,6 +65,8 @@ final readonly class MongoOrderViews implements ForStoringOrderViews, ForReading
             $this->views->insertOne([
                 '_id' => self::uuid($order->orderId),
                 'orderNumber' => new Int64($order->orderNumber->snowflake->toInt()),
+                // Null for an order.placed from before the stores: the view then belongs to no list.
+                'store' => $order->store === null ? null : (string) $order->store,
                 'customerId' => self::uuid($order->customerId),
                 'status' => $order->status->value,
                 'cancellationReason' => $order->cancellationReason?->value,
@@ -109,9 +114,9 @@ final readonly class MongoOrderViews implements ForStoringOrderViews, ForReading
         return $this->views->countDocuments(['_id' => $id], ['limit' => 1]) > 0 ? ProjectionOutcome::Duplicate : ProjectionOutcome::Missing;
     }
 
-    public function page(CustomerId $customer, Page $page): CustomerOrders
+    public function page(StoreSlug $store, CustomerId $customer, Page $page): CustomerOrders
     {
-        $theirs = ['customerId' => self::uuid($customer)];
+        $theirs = ['store' => (string) $store, 'customerId' => self::uuid($customer)];
         try {
             $total = $this->views->countDocuments($theirs);
             $views = $page->offset() >= $total ? [] : $this->views->find($theirs, [
@@ -131,12 +136,13 @@ final readonly class MongoOrderViews implements ForStoringOrderViews, ForReading
     /** @param array<mixed> $view */
     private static function summaryOf(array $view): OrderSummary
     {
-        /** @var array{_id: Binary, orderNumber: Int64|int, customerId: Binary, status: string, cancellationReason?: ?string, total: array{currency: string}, lines: list<array{sku: string, name: string, quantity: int, unitPrice: Int64|int}>, placedAt: UTCDateTime, updatedAt: UTCDateTime} $view */
+        /** @var array{_id: Binary, orderNumber: Int64|int, store?: ?string, customerId: Binary, status: string, cancellationReason?: ?string, total: array{currency: string}, lines: list<array{sku: string, name: string, quantity: int, unitPrice: Int64|int}>, placedAt: UTCDateTime, updatedAt: UTCDateTime} $view */
         $currency = Currency::fromCode($view['total']['currency']);
 
         return OrderSummary::of(
             OrderId::fromBytes($view['_id']->getData()),
             OrderNumber::fromSnowflake(Snowflake::fromInt(self::integer($view['orderNumber']))),
+            isset($view['store']) ? StoreSlug::of($view['store']) : null,
             CustomerId::fromBytes($view['customerId']->getData()),
             OrderStatus::from($view['status']),
             CancellationReason::tryFrom($view['cancellationReason'] ?? ''),

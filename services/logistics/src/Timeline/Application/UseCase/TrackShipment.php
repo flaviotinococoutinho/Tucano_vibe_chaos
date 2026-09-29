@@ -20,4 +20,16 @@ final readonly class TrackShipment implements ForTrackingShipments
     {
         return $this->pages->find(strtoupper(trim($trackingCode))) ?? throw TrackingCodeUnknown::code($trackingCode);
     }
+
+    /**
+     * A store sees only its own pages, and the page itself says whose it is. The page of
+     * another store, or of a shipment from before the stores, gets the very answer of a code
+     * nobody knows, so asking through one store never tells that a code exists in another.
+     */
+    public function trackInStore(string $store, string $trackingCode): TrackingView
+    {
+        $page = $this->track($trackingCode);
+
+        return $page->belongsTo($store) ? $page : throw TrackingCodeUnknown::code($trackingCode);
+    }
 }

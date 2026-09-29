@@ -26,15 +26,16 @@ final class ProductTest extends TestCase
     }
 
     #[Test]
-    public function a_new_product_is_a_draft_at_version_one(): void
+    public function a_new_product_is_a_draft_at_version_one_in_its_store(): void
     {
-        $input = new NewProduct('BOOK-REF-001', 'Refactoring', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30));
+        $input = new NewProduct('BOOK-REF-001', 'Refactoring', 'arara', 'books', Money::of(15990, Currency::brl()), 900, Dimensions::ofMillimetres(235, 180, 30));
 
         $product = Product::draft($input, $this->now);
 
         self::assertSame(ProductStatus::Draft, $product->status);
         self::assertSame(1, $product->version);
         self::assertSame('BOOK-REF-001', $product->sku);
+        self::assertSame('arara', $product->store);
         self::assertEquals($this->now, $product->updatedAt);
     }
 
@@ -47,6 +48,7 @@ final class ProductTest extends TestCase
 
         self::assertSame(17990, $revised->price->cents());
         self::assertSame($book->name, $revised->name);
+        self::assertSame($book->store, $revised->store);
         self::assertSame($book->category, $revised->category);
         self::assertSame($book->weightGrams, $revised->weightGrams);
         self::assertTrue($revised->dimensions->equals($book->dimensions));
@@ -61,6 +63,7 @@ final class ProductTest extends TestCase
         $moved = Products::book()->movedTo(ProductStatus::Discontinued, $this->now);
 
         self::assertSame(ProductStatus::Discontinued, $moved->status);
+        self::assertSame('arara', $moved->store);
         self::assertSame(4, $moved->version);
         self::assertEquals($this->now, $moved->updatedAt);
     }
@@ -85,6 +88,7 @@ final class ProductTest extends TestCase
             'sku' => 'BOOK-DDD-001',
             'name' => 'Domain-Driven Design',
             'status' => 'active',
+            'store' => 'arara',
             'category' => 'books',
             'price' => ['amount' => 18990, 'currency' => 'BRL'],
             'weightGrams' => 1100,

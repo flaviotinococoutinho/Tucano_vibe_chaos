@@ -5,6 +5,7 @@ import type {
   OrderSummary,
   OrderTransition,
   Product,
+  Store,
   Tracking,
 } from '../../src/upstream/index.ts';
 
@@ -12,6 +13,32 @@ import type {
  * What the services answer, already read by the upstream module: the inputs of the
  * screens behind each example in contracts/http/bff/examples.
  */
+
+/** The stores the catalog seeds (ADR 0031): the examples shop in Arara Livros. */
+export const arara: Store = {
+  slug: 'arara',
+  name: 'Arara Livros',
+  tagline: 'Livros para quem constrói sistemas.',
+  palette: 'arara',
+};
+
+export const bemtevi: Store = {
+  slug: 'bemtevi',
+  name: 'Bem-te-vi Eletrônicos',
+  tagline: 'Eletrônicos para a mesa de trabalho.',
+  palette: 'bemtevi',
+};
+
+export const sabia: Store = {
+  slug: 'sabia',
+  name: 'Sabiá Casa e Esporte',
+  tagline: 'Da cozinha ao treino, o que o dia pede.',
+  palette: 'sabia',
+};
+
+/** Every store of the platform, sorted by name, as the catalog lists them. */
+export const everyStore: readonly Store[] = [arara, bemtevi, sabia];
+
 export const dddBook: Product = {
   sku: 'BOOK-DDD-001',
   name: 'Domain-Driven Design',
@@ -22,14 +49,25 @@ export const dddBook: Product = {
   dimensions: { lengthMm: 240, widthMm: 170, heightMm: 40 },
 };
 
-export const coffeeMaker: Product = {
-  sku: 'HOME-COFFEE-001',
-  name: 'Cafeteira elétrica',
+export const releaseIt: Product = {
+  sku: 'BOOK-REL-001',
+  name: 'Release It!',
+  status: 'active',
+  category: 'books',
+  price: { amount: 21990, currency: 'BRL' },
+  weightGrams: 700,
+  dimensions: { lengthMm: 230, widthMm: 190, heightMm: 25 },
+};
+
+/** A product of Sabiá: the other store a shopper of the tests buys in. */
+export const mug: Product = {
+  sku: 'HOME-MUG-001',
+  name: 'Caneca de cerâmica',
   status: 'active',
   category: 'home',
-  price: { amount: 34990, currency: 'BRL' },
-  weightGrams: 2300,
-  dimensions: { lengthMm: 300, widthMm: 200, heightMm: 350 },
+  price: { amount: 4990, currency: 'BRL' },
+  weightGrams: 400,
+  dimensions: { lengthMm: 120, widthMm: 100, heightMm: 100 },
 };
 
 /** The shoppers of one browser: Ana and Bruno named, and a visitor the checkout started. */
@@ -182,14 +220,14 @@ export const outForDeliveryOwnFleet: Tracking = {
   ],
 };
 
-/** Two older orders of Ana, on the second page of her list: one delivered, one that expired. */
-export const mugsDelivered: OrderSummary = {
+/** Two older orders of Ana in Arara, on the second page of her list: one delivered, one that expired. */
+export const booksDelivered: OrderSummary = {
   orderId: '0199a1f0-3c2d-7b4e-8a5f-6d7e8f9a0b1c',
   orderNumber: '97856101234567168',
   status: 'delivered',
   cancellationReason: null,
-  total: { amount: 9980, currency: 'BRL' },
-  lines: [{ sku: 'HOME-MUG-001', name: 'Caneca de cerâmica', quantity: 2 }],
+  total: { amount: 43980, currency: 'BRL' },
+  lines: [{ sku: 'BOOK-REL-001', name: 'Release It!', quantity: 2 }],
   placedAt: '2026-09-27T14:02:31.000Z',
   updatedAt: '2026-09-27T14:03:05.000Z',
 };
@@ -199,13 +237,25 @@ export const booksExpired: OrderSummary = {
   orderNumber: '97856089876543488',
   status: 'cancelled',
   cancellationReason: 'reservation_expired',
-  total: { amount: 28980, currency: 'BRL' },
+  total: { amount: 31980, currency: 'BRL' },
   lines: [
     { sku: 'BOOK-DDD-001', name: 'Domain-Driven Design', quantity: 1 },
-    { sku: 'ELEC-MOUSE-001', name: 'Mouse sem fio', quantity: 1 },
+    { sku: 'BOOK-CLEAN-001', name: 'Clean Architecture', quantity: 1 },
   ],
   placedAt: '2026-09-27T13:40:02.000Z',
   updatedAt: '2026-09-27T13:55:02.000Z',
+};
+
+/** An order of Ana in Sabiá: the same shopper, in the other store. */
+export const mugsInSabia: OrderSummary = {
+  orderId: '0199a2b0-1d2e-7f30-8a41-b2c3d4e5f607',
+  orderNumber: '97856555555555328',
+  status: 'paid',
+  cancellationReason: null,
+  total: { amount: 9980, currency: 'BRL' },
+  lines: [{ sku: 'HOME-MUG-001', name: 'Caneca de cerâmica', quantity: 2 }],
+  placedAt: '2026-09-28T03:12:40.000Z',
+  updatedAt: '2026-09-28T03:12:44.000Z',
 };
 
 function step(status: Tracking['steps'][number]['status'], at: string): Tracking['steps'][number] {
@@ -264,11 +314,12 @@ export function trackingJson(tracking: Tracking): Record<string, unknown> {
   };
 }
 
-/** A product as the catalog sends it over HTTP. */
-export function productJson(product: Product): Record<string, unknown> {
+/** A product as the catalog sends it over HTTP, with the store it belongs to. */
+export function productJson(product: Product, store: Store = arara): Record<string, unknown> {
   return {
     id: '01a0e282-e072-702a-93aa-0d5606613eb8',
     ...product,
+    store: store.slug,
     version: 2,
     updatedAt: '2026-09-27T12:14:25.467Z',
   };

@@ -6,6 +6,11 @@
   "type": "object",
   "required": ["orderId", "orderNumber", "reason", "previousStatus"],
   "properties": {
+    "store": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$",
+      "description": "The slug of the store the fact belongs to (ADR 0031). Optional: a fact from before the stores has none."
+    },
     "orderId": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"

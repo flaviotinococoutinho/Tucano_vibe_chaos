@@ -41,6 +41,7 @@ function loadProblem(name: string): ProblemBody {
 
 export const fixtures = {
   home: loadScreen('home'),
+  store: loadScreen('store'),
   catalog: loadScreen('catalog'),
   product: loadScreen('product'),
   checkout: loadScreen('checkout'),

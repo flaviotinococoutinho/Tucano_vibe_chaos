@@ -152,5 +152,7 @@ final class PaymentWebhookTest extends TestCase
         $validator = new Validator();
         $validator->resolver()?->registerFile('urn:tucano:paid', dirname(__DIR__, 5) . '/contracts/events/commerce.order.paid.schema.json');
         self::assertTrue($validator->validate($event->data, 'urn:tucano:paid')->isValid(), (string) json_encode($event->data));
+        // Logistics takes the store of the shipment from here (ADR 0031).
+        self::assertSame('bemtevi', $event->data->store);
     }
 }

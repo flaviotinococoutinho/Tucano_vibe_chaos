@@ -16,10 +16,15 @@ final class ShipmentEvents
 
     public const string TRACKING_CODE = 'TX02PWW6JFR5G00';
 
+    public const string STORE = 'sabia';
+
     private function __construct() {}
 
-    /** @param array<string, mixed> $details what the step adds to the data */
-    public static function of(string $step, array $details = [], string $time = '2026-09-27T15:00:00.000Z', ?string $eventId = null): string
+    /**
+     * @param array<string, mixed> $details what the step adds to the data
+     * @param ?string $store null for a shipment from before the stores, whose events have no store
+     */
+    public static function of(string $step, array $details = [], string $time = '2026-09-27T15:00:00.000Z', ?string $eventId = null, ?string $store = self::STORE): string
     {
         return (string) json_encode([
             'specversion' => '1.0',
@@ -30,7 +35,13 @@ final class ShipmentEvents
             'time' => $time,
             'datacontenttype' => 'application/json',
             'correlationid' => 'req-12#4',
-            'data' => ['shipmentId' => self::SHIPMENT, 'trackingCode' => self::TRACKING_CODE, 'orderId' => self::ORDER, ...$details],
+            'data' => [
+                ...($store === null ? [] : ['store' => $store]),
+                'shipmentId' => self::SHIPMENT,
+                'trackingCode' => self::TRACKING_CODE,
+                'orderId' => self::ORDER,
+                ...$details,
+            ],
         ], JSON_THROW_ON_ERROR);
     }
 

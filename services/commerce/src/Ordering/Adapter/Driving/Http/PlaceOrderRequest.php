@@ -12,6 +12,7 @@ use Commerce\Ordering\Domain\Customer\EmailAddress;
 use Commerce\Ordering\Domain\Customer\PersonName;
 use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Commerce\Shared\Application\Idempotency\IdempotencyKey;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,10 +30,14 @@ final class PlaceOrderRequest extends FormRequest
 {
     private const string UUID_V7 = '/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
 
+    private const string STORE_SLUG = '/^[a-z][a-z0-9-]{1,30}$/';
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
+            // The store the order is placed in (ADR 0031); whether each item is one of its products is for the use case to say.
+            'store' => ['required', 'string', 'regex:' . self::STORE_SLUG],
             'customer' => ['required', 'array'],
             'customer.id' => ['required', 'string', 'regex:' . self::UUID_V7],
             'customer.name' => ['required', 'string', 'max:120'],
@@ -60,11 +65,12 @@ final class PlaceOrderRequest extends FormRequest
 
     public function toCommand(): PlaceOrderCommand
     {
-        /** @var array{customer: array{id: string, name: string, email: string}, shippingAddress: array<mixed>, items: non-empty-list<array{sku: string, quantity: int|string}>} $data */
+        /** @var array{store: string, customer: array{id: string, name: string, email: string}, shippingAddress: array<mixed>, items: non-empty-list<array{sku: string, quantity: int|string}>} $data */
         $data = $this->validated();
 
         return new PlaceOrderCommand(
             IdempotencyKey::of((string) $this->header('Idempotency-Key')),
+            StoreSlug::of($data['store']),
             Customer::of(
                 CustomerId::fromString($data['customer']['id']),
                 PersonName::of($data['customer']['name']),

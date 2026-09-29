@@ -11,10 +11,56 @@ final class CatalogEvents
 {
     public const string PRODUCT = '01999a1f-0a1b-7c2d-8e3f-4a5b6c7d8e9f';
 
+    /** The store of the books. */
+    public const string STORE = 'arara';
+
     private function __construct() {}
 
     /** @param array<string, mixed> $data fields to change in the data of the event */
     public static function snapshot(array $data = [], string $type = 'tucano.catalog.product.snapshot'): string
+    {
+        return self::event($type, [...self::product(), ...$data]);
+    }
+
+    /**
+     * A snapshot published before the stores, the last one the compacted topic kept of a
+     * product until the catalog republishes it: the same product, without the store.
+     *
+     * @param array<string, mixed> $data fields to change in the data of the event
+     */
+    public static function snapshotBeforeTheStores(array $data = []): string
+    {
+        $product = [...self::product(), ...$data];
+        unset($product['store']);
+
+        return self::event('tucano.catalog.product.snapshot', $product);
+    }
+
+    public static function message(string $payload): ReceivedMessage
+    {
+        return new ReceivedMessage('catalog.products.v1', 1, 42, self::PRODUCT, $payload);
+    }
+
+    /** @return array<string, mixed> */
+    private static function product(): array
+    {
+        return [
+            'store' => self::STORE,
+            'productId' => self::PRODUCT,
+            'sku' => 'BOOK-DDD-001',
+            'name' => 'Domain-Driven Design',
+            'status' => 'active',
+            'category' => 'books',
+            'price' => ['amount' => 18990, 'currency' => 'BRL'],
+            'weightGrams' => 1100,
+            'dimensions' => ['lengthMm' => 240, 'widthMm' => 170, 'heightMm' => 40],
+            'version' => 3,
+            'updatedAt' => '2026-09-27T12:00:00.000Z',
+        ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private static function event(string $type, array $data): string
     {
         return json_encode([
             'specversion' => '1.0',
@@ -25,24 +71,7 @@ final class CatalogEvents
             'time' => '2026-09-27T12:00:00.000Z',
             'datacontenttype' => 'application/json',
             'correlationid' => 'req-9#1',
-            'data' => [
-                'productId' => self::PRODUCT,
-                'sku' => 'BOOK-DDD-001',
-                'name' => 'Domain-Driven Design',
-                'status' => 'active',
-                'category' => 'books',
-                'price' => ['amount' => 18990, 'currency' => 'BRL'],
-                'weightGrams' => 1100,
-                'dimensions' => ['lengthMm' => 240, 'widthMm' => 170, 'heightMm' => 40],
-                'version' => 3,
-                'updatedAt' => '2026-09-27T12:00:00.000Z',
-                ...$data,
-            ],
+            'data' => $data,
         ], JSON_THROW_ON_ERROR);
-    }
-
-    public static function message(string $payload): ReceivedMessage
-    {
-        return new ReceivedMessage('catalog.products.v1', 1, 42, self::PRODUCT, $payload);
     }
 }

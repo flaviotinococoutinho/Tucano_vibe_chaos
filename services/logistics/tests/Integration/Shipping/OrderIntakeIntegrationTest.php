@@ -13,6 +13,7 @@ use Logistics\Shipping\Application\Port\Driven\ForStoringShipments;
 use Logistics\Shipping\Domain\Error\ProductNotSyncedYet;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Ramsey\Uuid\Uuid;
@@ -44,8 +45,9 @@ final class OrderIntakeIntegrationTest extends TestCase
         $this->app->instance(FeatureFlags::class, new InMemoryFlags(['logistics.own-fleet-dispatch' => true]));
         $this->seed([FulfillmentCenterSeeder::class, CarrierSeeder::class]);
         DB::table('product_snapshots')->insert([
-            self::snapshot('BOOK-DDD-001', 1100, 240, 170, 40),
-            self::snapshot('HOME-MUG-001', 350, 120, 90, 100),
+            self::snapshot('HOME-MUG-001', 'sabia', 400, 120, 100, 100),
+            self::snapshot('SPORT-BOTTLE-001', 'sabia', 350, 260, 80, 80),
+            self::snapshot('BOOK-DDD-001', 'arara', 1100, 240, 170, 40),
         ]);
     }
 
@@ -56,16 +58,16 @@ final class OrderIntakeIntegrationTest extends TestCase
 
         $shipment = DB::table('shipments')->sole();
         self::assertSame(
-            ['created', 'tucano-express', 'GRU1', 'Ana Souza', 'Avenida', 'Paulista', 'SP', '01310100', 2550, 0, 1],
+            ['created', 'sabia', 'tucano-express', 'GRU1', 'Ana Souza', 'Avenida', 'Paulista', 'SP', '01310100', 1150, 0, 1],
             [
-                $shipment->status, $shipment->carrier_code, $shipment->origin, $shipment->recipient_name,
+                $shipment->status, $shipment->store, $shipment->carrier_code, $shipment->origin, $shipment->recipient_name,
                 $shipment->dest_thoroughfare_type, $shipment->dest_thoroughfare_name, Divisions::fromJson((string) $shipment->dest_divisions)->state()->value,
                 $shipment->dest_postal_code, $shipment->total_weight_grams, $shipment->delivery_attempts, $shipment->version,
             ],
         );
         self::assertEquals(new NodeId(1, 11), Snowflake::fromInt((int) $shipment->tracking_code)->node(), 'The tracking code comes from the Snowflake node configured for the process.');
         self::assertEquals(
-            [(object) ['parcel_number' => 1, 'weight_grams' => 2200, 'height_mm' => 80], (object) ['parcel_number' => 2, 'weight_grams' => 350, 'height_mm' => 100]],
+            [(object) ['parcel_number' => 1, 'weight_grams' => 800, 'height_mm' => 200], (object) ['parcel_number' => 2, 'weight_grams' => 350, 'height_mm' => 80]],
             DB::table('parcels')->where('shipment_id', $shipment->id)->orderBy('parcel_number')->get(['parcel_number', 'weight_grams', 'height_mm'])->all(),
         );
         self::assertEquals(
@@ -86,7 +88,51 @@ final class OrderIntakeIntegrationTest extends TestCase
 
         $event = self::decode((string) $message->payload);
         self::assertSame(['/logistics', 'req-42#3', OrderEvents::PAID_EVENT], [$event->source, $event->correlationid, $event->causationid]);
+        self::assertSame(OrderEvents::STORE, $event->data->store ?? null);
         self::assertMatchesContract('cloudevent.schema.json', $event);
+        self::assertMatchesContract('logistics.shipment.created.schema.json', $event->data);
+    }
+
+    #[Test]
+    public function an_order_paid_before_the_stores_takes_the_store_its_products_name(): void
+    {
+        $this->handle(OrderEvents::paidBeforeTheStores());
+
+        self::assertSame('sabia', DB::table('shipments')->value('store'));
+        $event = self::decode((string) DB::table('outbox_messages')->value('payload'));
+        self::assertSame('sabia', $event->data->store ?? null);
+        self::assertMatchesContract('logistics.shipment.created.schema.json', $event->data);
+    }
+
+    /** @return iterable<string, array{list<string>, list<array{sku: string, name: string, quantity: int}>}> */
+    public static function nothingThatSaysTheStore(): iterable
+    {
+        yield 'a product the copy has no store for yet' => [
+            ['HOME-MUG-001'],
+            [['sku' => 'HOME-MUG-001', 'name' => 'Caneca de cerâmica', 'quantity' => 1], ['sku' => 'SPORT-BOTTLE-001', 'name' => 'Garrafa térmica', 'quantity' => 1]],
+        ];
+        yield 'products the stores split between them afterwards' => [
+            [],
+            [['sku' => 'BOOK-DDD-001', 'name' => 'Domain-Driven Design', 'quantity' => 1], ['sku' => 'HOME-MUG-001', 'name' => 'Caneca de cerâmica', 'quantity' => 1]],
+        ];
+    }
+
+    /**
+     * @param list<string> $copyWithoutStore SKUs whose snapshot with the store has not arrived yet
+     * @param list<array{sku: string, name: string, quantity: int}> $lines
+     */
+    #[Test]
+    #[DataProvider('nothingThatSaysTheStore')]
+    public function without_anything_that_says_the_store_the_shipment_goes_without_one(array $copyWithoutStore, array $lines): void
+    {
+        DB::table('product_snapshots')->whereIn('sku', $copyWithoutStore)->update(['store' => null]);
+
+        $this->handle(OrderEvents::paidBeforeTheStores(['lines' => $lines]));
+
+        $shipment = DB::table('shipments')->sole();
+        self::assertSame(['created', null], [$shipment->status, $shipment->store]);
+        $event = self::decode((string) DB::table('outbox_messages')->value('payload'));
+        self::assertObjectNotHasProperty('store', $event->data);
         self::assertMatchesContract('logistics.shipment.created.schema.json', $event->data);
     }
 
@@ -142,6 +188,7 @@ final class OrderIntakeIntegrationTest extends TestCase
         );
         $event = self::decode((string) DB::table('outbox_messages')->where('event_type', 'tucano.logistics.shipment.cancelled')->value('payload'));
         self::assertSame(OrderEvents::CANCELLED_EVENT, $event->causationid);
+        self::assertSame(OrderEvents::STORE, $event->data->store ?? null, 'The shipment read back from the database still says its store.');
         self::assertMatchesContract('cloudevent.schema.json', $event);
         self::assertMatchesContract('logistics.shipment.cancelled.schema.json', $event->data);
     }
@@ -199,11 +246,12 @@ final class OrderIntakeIntegrationTest extends TestCase
     }
 
     /** @return array<string, int|string> */
-    private static function snapshot(string $sku, int $grams, int $lengthMm, int $widthMm, int $heightMm): array
+    private static function snapshot(string $sku, string $store, int $grams, int $lengthMm, int $widthMm, int $heightMm): array
     {
         return [
             'product_id' => Uuid::uuid7()->toString(),
             'sku' => $sku,
+            'store' => $store,
             'name' => $sku,
             'weight_grams' => $grams,
             'length_mm' => $lengthMm,

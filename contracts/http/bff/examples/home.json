@@ -6,9 +6,81 @@
   "title": "Tucano",
   "properties": {
     "headline": "Tudo o que você pede, entregue por quem cuida do caminho.",
-    "tagline": "Compre, pague e acompanhe a entrega do começo ao fim."
+    "tagline": "Escolha uma loja, compre e acompanhe a entrega do começo ao fim."
   },
   "entities": [
+    {
+      "class": [
+        "store-card"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "slug": "arara",
+        "name": "Arara Livros",
+        "tagline": "Livros para quem constrói sistemas.",
+        "palette": "arara",
+        "initial": "A"
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/stores/arara",
+          "title": "Entrar na loja"
+        }
+      ]
+    },
+    {
+      "class": [
+        "store-card"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "slug": "bemtevi",
+        "name": "Bem-te-vi Eletrônicos",
+        "tagline": "Eletrônicos para a mesa de trabalho.",
+        "palette": "bemtevi",
+        "initial": "B"
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/stores/bemtevi",
+          "title": "Entrar na loja"
+        }
+      ]
+    },
+    {
+      "class": [
+        "store-card"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "slug": "sabia",
+        "name": "Sabiá Casa e Esporte",
+        "tagline": "Da cozinha ao treino, o que o dia pede.",
+        "palette": "sabia",
+        "initial": "S"
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/stores/sabia",
+          "title": "Entrar na loja"
+        }
+      ]
+    },
     {
       "class": [
         "navigation"
@@ -17,22 +89,16 @@
         "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
       ],
       "properties": {
+        "store": null,
         "shopper": null
       },
       "links": [
         {
           "rel": [
-            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-stores"
           ],
-          "href": "/bff/v1/products",
-          "title": "Catálogo"
-        },
-        {
-          "rel": [
-            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
-          ],
-          "href": "/bff/v1/orders",
-          "title": "Meus pedidos"
+          "href": "/bff/v1",
+          "title": "Todas as lojas"
         },
         {
           "rel": [
@@ -70,13 +136,6 @@
         "self"
       ],
       "href": "/bff/v1"
-    },
-    {
-      "rel": [
-        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
-      ],
-      "href": "/bff/v1/products",
-      "title": "Ver o catálogo"
     }
   ]
 }

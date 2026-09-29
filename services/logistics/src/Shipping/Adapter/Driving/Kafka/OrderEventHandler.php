@@ -79,6 +79,7 @@ final readonly class OrderEventHandler implements MessageHandler
             'trackingCode' => (string) $created->shipment->trackingCode,
             'orderId' => $created->shipment->orderId->toString(),
             'carrier' => (string) $created->carrier,
+            'store' => $created->shipment->store === null ? null : (string) $created->shipment->store,
         ]);
     }
 

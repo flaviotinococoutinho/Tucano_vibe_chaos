@@ -15,10 +15,12 @@ use Commerce\Ordering\Domain\Error\OrderListUnavailable;
 use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\TrackingCode;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Database\Seeders\FulfillmentCenterSeeder;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use MongoDB\Database;
 use MongoDB\Driver\Exception\ConnectionTimeoutException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,7 +33,11 @@ use Tests\Builders\OrderEvents;
 use Tests\Doubles\RecordingLogger;
 use Tests\TestCase;
 
-/** UC-ORD-05 for a customer: its order with the history, from PostgreSQL, and its list, from the read model. */
+/**
+ * UC-ORD-05 for a customer in a store: its order with the history, from PostgreSQL, and its
+ * list, from the read model. A store shows only its own orders (ADR 0031), and a customer only
+ * the orders it placed (ADR 0030): anything else answers like an order that does not exist.
+ */
 #[Group('integration')]
 final class CustomerOrdersHttpTest extends TestCase
 {
@@ -55,15 +61,16 @@ final class CustomerOrdersHttpTest extends TestCase
     #[Test]
     public function the_customer_sees_its_order_with_the_history_oldest_first(): void
     {
-        $order = OrderBuilder::anOrder()->by(CustomerId::fromString(self::ANA))->placedAt('2026-09-27T12:00:00Z')->place();
+        $order = OrderBuilder::anOrder()->in('arara')->by(CustomerId::fromString(self::ANA))->placedAt('2026-09-27T12:00:00Z')->place();
         $this->orders->add($order);
         $order->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00.500Z'));
         $this->orders->save($order);
         $order->markAsShipped(TrackingCode::of('TX02PWW6JFR5G00'), new DateTimeImmutable('2026-09-27T13:00:00Z'));
         $this->orders->save($order);
 
-        $response = $this->getJson(sprintf('/v1/customers/%s/orders/%s', self::ANA, $order->id()->toString()))
+        $response = $this->getJson(self::orderIn('arara', self::ANA, $order))
             ->assertOk()
+            ->assertJsonPath('store', 'arara')
             ->assertJsonPath('status', 'shipped')
             ->assertJsonPath('trackingCode', 'TX02PWW6JFR5G00')
             ->assertJsonPath('history', [
@@ -72,18 +79,19 @@ final class CustomerOrdersHttpTest extends TestCase
                 ['status' => 'shipped', 'at' => '2026-09-27T13:00:00.000+00:00', 'reason' => null],
             ]);
 
+        // The route of the labs, with no store and no customer, answers the same order, store included.
         $this->getJson('/v1/orders/' . $order->id()->toString())->assertOk()->assertExactJson($response->json());
     }
 
     #[Test]
     public function a_cancelled_order_tells_why_in_its_history(): void
     {
-        $order = OrderBuilder::anOrder()->by(CustomerId::fromString(self::ANA))->placedAt('2026-09-27T12:00:00Z')->place();
+        $order = OrderBuilder::anOrder()->in('arara')->by(CustomerId::fromString(self::ANA))->placedAt('2026-09-27T12:00:00Z')->place();
         $this->orders->add($order);
         $order->cancel(CancellationReason::PaymentDeclined, new DateTimeImmutable('2026-09-27T12:06:00Z'));
         $this->orders->save($order);
 
-        $this->getJson(sprintf('/v1/customers/%s/orders/%s', self::ANA, $order->id()->toString()))
+        $this->getJson(self::orderIn('arara', self::ANA, $order))
             ->assertOk()
             ->assertJsonPath('cancellationReason', 'payment_declined')
             ->assertJsonPath('history.1', ['status' => 'cancelled', 'at' => '2026-09-27T12:06:00.000+00:00', 'reason' => 'payment_declined']);
@@ -92,42 +100,56 @@ final class CustomerOrdersHttpTest extends TestCase
     #[Test]
     public function another_customers_order_answers_like_an_order_that_does_not_exist(): void
     {
-        $theirs = OrderBuilder::anOrder()->by(CustomerId::fromString(self::BIA))->place();
+        $theirs = OrderBuilder::anOrder()->in('arara')->by(CustomerId::fromString(self::BIA))->place();
         $this->orders->add($theirs);
-        $id = $theirs->id()->toString();
 
-        $refused = $this->getJson(sprintf('/v1/customers/%s/orders/%s', self::ANA, $id))
-            ->assertNotFound()
-            ->assertHeader('Content-Type', 'application/problem+json');
-
-        self::assertSame(
-            ['type' => 'about:blank', 'title' => 'Not Found', 'status' => 404, 'detail' => sprintf('Order %s does not exist.', $id)],
-            array_intersect_key((array) $refused->json(), array_flip(['type', 'title', 'status', 'detail'])),
-        );
-        $unknown = Uuid::uuid7()->toString();
-        self::assertSame(
-            str_replace($unknown, $id, (string) json_encode(self::problemOf($this->getJson(sprintf('/v1/customers/%s/orders/%s', self::ANA, $unknown))->assertNotFound()->json()))),
-            (string) json_encode(self::problemOf($refused->json())),
-            'the same problem, word for word, as an order nobody placed',
-        );
+        $this->assertAnswersLikeAnUnknownOrder(self::orderIn('arara', self::ANA, $theirs), $theirs);
     }
 
-    /** @return iterable<string, array{string, string}> */
+    #[Test]
+    public function the_order_of_another_store_answers_like_an_order_that_does_not_exist(): void
+    {
+        $ana = CustomerId::fromString(self::ANA);
+        $mug = OrderBuilder::anOrder()->in('sabia')->by($ana)->withLines(OrderBuilder::line('HOME-MUG-001', 'Caneca de cerâmica', 1, 4990))->place();
+        $this->orders->add($mug);
+
+        // Her own order, through the route of a store she also buys in: still not there.
+        $this->assertAnswersLikeAnUnknownOrder(self::orderIn('arara', self::ANA, $mug), $mug);
+        $this->getJson(self::orderIn('sabia', self::ANA, $mug))->assertOk()->assertJsonPath('store', 'sabia');
+    }
+
+    #[Test]
+    public function an_order_from_before_the_stores_is_in_no_store(): void
+    {
+        $order = OrderBuilder::anOrder()->by(CustomerId::fromString(self::ANA))->place();
+        $this->orders->add($order);
+        // A row written before the column existed.
+        DB::table('orders')->where('id', $order->id()->toString())->update(['store' => null]);
+
+        foreach (['arara', 'sabia', 'bemtevi'] as $store) {
+            $this->assertAnswersLikeAnUnknownOrder(self::orderIn($store, self::ANA, $order), $order);
+        }
+        $this->getJson('/v1/orders/' . $order->id()->toString())->assertOk()->assertJsonPath('store', null);
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
     public static function idsThatCannotExist(): iterable
     {
         $order = '01999a2b-0000-7000-8000-000000000001';
 
-        yield 'a customer id that is not a UUID' => ['not-a-customer', $order];
-        yield 'a customer id that is a UUIDv4' => ['5f0c7a8e-1b2c-4d3e-8f4a-5b6c7d8e9f00', $order];
-        yield 'an order id that is not a UUID' => [self::ANA, 'not-an-order'];
-        yield 'an order id that is a UUIDv4' => [self::ANA, '5f0c7a8e-1b2c-4d3e-8f4a-5b6c7d8e9f00'];
+        yield 'a store that is not a slug' => ['Sabiá', self::ANA, $order];
+        yield 'a store of one letter' => ['s', self::ANA, $order];
+        yield 'a customer id that is not a UUID' => ['arara', 'not-a-customer', $order];
+        yield 'a customer id that is a UUIDv4' => ['arara', '5f0c7a8e-1b2c-4d3e-8f4a-5b6c7d8e9f00', $order];
+        yield 'an order id that is not a UUID' => ['arara', self::ANA, 'not-an-order'];
+        yield 'an order id that is a UUIDv4' => ['arara', self::ANA, '5f0c7a8e-1b2c-4d3e-8f4a-5b6c7d8e9f00'];
     }
 
     #[Test]
     #[DataProvider('idsThatCannotExist')]
-    public function ids_that_cannot_exist_are_not_found(string $customerId, string $orderId): void
+    public function ids_that_cannot_exist_are_not_found(string $store, string $customerId, string $orderId): void
     {
-        $this->getJson(sprintf('/v1/customers/%s/orders/%s', $customerId, $orderId))
+        $this->getJson(sprintf('/v1/stores/%s/customers/%s/orders/%s', rawurlencode($store), $customerId, $orderId))
             ->assertNotFound()
             ->assertHeader('Content-Type', 'application/problem+json')
             ->assertJsonPath('detail', sprintf('Order %s does not exist.', $orderId));
@@ -137,14 +159,14 @@ final class CustomerOrdersHttpTest extends TestCase
     public function the_list_is_newest_first_one_page_at_a_time(): void
     {
         $ana = CustomerId::fromString(self::ANA);
-        $first = $this->projected(OrderBuilder::anOrder()->by($ana)->placedAt('2026-09-27T12:00:00Z')->place());
-        $second = $this->projected(OrderBuilder::anOrder()->by($ana)->placedAt('2026-09-27T13:00:00Z')->place());
-        $third = $this->projected(OrderBuilder::anOrder()->by($ana)->placedAt('2026-09-27T14:00:00Z')->place());
-        $this->projected(OrderBuilder::anOrder()->by(CustomerId::fromString(self::BIA))->placedAt('2026-09-27T15:00:00Z')->place());
+        $first = $this->projected(OrderBuilder::anOrder()->in('arara')->by($ana)->placedAt('2026-09-27T12:00:00Z')->place());
+        $second = $this->projected(OrderBuilder::anOrder()->in('arara')->by($ana)->placedAt('2026-09-27T13:00:00Z')->place());
+        $third = $this->projected(OrderBuilder::anOrder()->in('arara')->by($ana)->placedAt('2026-09-27T14:00:00Z')->place());
+        $this->projected(OrderBuilder::anOrder()->in('arara')->by(CustomerId::fromString(self::BIA))->placedAt('2026-09-27T15:00:00Z')->place());
         $second->markAsPaid(new DateTimeImmutable('2026-09-27T13:05:00Z'));
         $this->project($second);
 
-        $this->getJson(sprintf('/v1/customers/%s/orders?page=1&perPage=2', self::ANA))
+        $this->getJson(self::listIn('arara', self::ANA, 'page=1&perPage=2'))
             ->assertOk()
             ->assertJsonPath('page', 1)
             ->assertJsonPath('perPage', 2)
@@ -153,6 +175,7 @@ final class CustomerOrdersHttpTest extends TestCase
             ->assertJsonPath('orders.1', [
                 'orderId' => $second->id()->toString(),
                 'orderNumber' => (string) $second->toSnapshot()->number,
+                'store' => 'arara',
                 'status' => 'paid',
                 'cancellationReason' => null,
                 'total' => ['amount' => 18990, 'currency' => 'BRL'],
@@ -160,34 +183,90 @@ final class CustomerOrdersHttpTest extends TestCase
                 'placedAt' => '2026-09-27T13:00:00.000+00:00',
                 'updatedAt' => '2026-09-27T13:05:00.000+00:00',
             ]);
-        $this->getJson(sprintf('/v1/customers/%s/orders?page=2&perPage=2', self::ANA))
+        $this->getJson(self::listIn('arara', self::ANA, 'page=2&perPage=2'))
             ->assertOk()
             ->assertJsonPath('total', 3)
             ->assertJsonPath('orders.*.orderId', [$first->id()->toString()]);
-        $this->getJson(sprintf('/v1/customers/%s/orders', self::ANA))
+        $this->getJson(self::listIn('arara', self::ANA))
             ->assertOk()
             ->assertJsonPath('page', 1)
             ->assertJsonPath('perPage', 10)
             ->assertJsonCount(3, 'orders');
-        $this->getJson(sprintf('/v1/customers/%s/orders?page=3&perPage=2', self::ANA))
+        $this->getJson(self::listIn('arara', self::ANA, 'page=3&perPage=2'))
             ->assertOk()
             ->assertExactJson(['page' => 3, 'perPage' => 2, 'total' => 3, 'orders' => []]);
     }
 
     #[Test]
-    public function a_customer_with_no_orders_has_an_empty_list(): void
+    public function the_same_customer_in_two_stores_sees_in_each_only_the_orders_of_that_store(): void
     {
-        $this->getJson(sprintf('/v1/customers/%s/orders', Uuid::uuid7()->toString()))
+        $ana = CustomerId::fromString(self::ANA);
+        $book = $this->projected(OrderBuilder::anOrder()->in('arara')->by($ana)->placedAt('2026-09-27T12:00:00Z')->place());
+        $mug = $this->projected(OrderBuilder::anOrder()->in('sabia')->by($ana)->withLines(OrderBuilder::line('HOME-MUG-001', 'Caneca de cerâmica', 1, 4990))->placedAt('2026-09-27T13:00:00Z')->place());
+        $bottle = $this->projected(OrderBuilder::anOrder()->in('sabia')->by($ana)->withLines(OrderBuilder::line('SPORT-BOTTLE-001', 'Garrafa térmica', 2, 8990))->placedAt('2026-09-27T14:00:00Z')->place());
+
+        $this->getJson(self::listIn('arara', self::ANA))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('orders.*.orderId', [$book->id()->toString()])
+            ->assertJsonPath('orders.*.store', ['arara']);
+        $this->getJson(self::listIn('sabia', self::ANA))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('orders.*.orderId', [$bottle->id()->toString(), $mug->id()->toString()])
+            ->assertJsonPath('orders.*.store', ['sabia', 'sabia']);
+        $this->getJson(self::listIn('bemtevi', self::ANA))
             ->assertOk()
             ->assertExactJson(['page' => 1, 'perPage' => 10, 'total' => 0, 'orders' => []]);
     }
 
     #[Test]
-    public function an_id_that_cannot_be_a_customer_has_no_list(): void
+    public function the_views_from_before_the_stores_are_in_no_list(): void
     {
-        $this->getJson('/v1/customers/not-a-customer/orders')
+        $ana = CustomerId::fromString(self::ANA);
+        $old = OrderBuilder::anOrder()->by($ana)->placedAt('2026-09-26T12:00:00Z')->place();
+        $this->projectAsBeforeTheStores($old);
+        $new = $this->projected(OrderBuilder::anOrder()->in('arara')->by($ana)->placedAt('2026-09-27T12:00:00Z')->place());
+
+        $this->getJson(self::listIn('arara', self::ANA))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('orders.*.orderId', [$new->id()->toString()]);
+        self::assertSame(2, $this->app->make(Database::class)->selectCollection('order_views')->countDocuments(), 'the old view is still there, in no list');
+    }
+
+    #[Test]
+    public function a_customer_with_no_orders_in_the_store_has_an_empty_list(): void
+    {
+        $this->getJson(self::listIn('arara', Uuid::uuid7()->toString()))
+            ->assertOk()
+            ->assertExactJson(['page' => 1, 'perPage' => 10, 'total' => 0, 'orders' => []]);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function listsThatCannotExist(): iterable
+    {
+        yield 'a customer id that is not a UUID' => ['arara', 'not-a-customer'];
+        yield 'a store that is not a slug' => ['Sabiá', self::ANA];
+    }
+
+    #[Test]
+    #[DataProvider('listsThatCannotExist')]
+    public function an_id_that_cannot_exist_has_no_list(string $store, string $customerId): void
+    {
+        $this->getJson(self::listIn(rawurlencode($store), $customerId))
             ->assertNotFound()
             ->assertHeader('Content-Type', 'application/problem+json');
+    }
+
+    #[Test]
+    public function the_customer_routes_without_a_store_are_gone(): void
+    {
+        $order = OrderBuilder::anOrder()->in('arara')->by(CustomerId::fromString(self::ANA))->place();
+        $this->orders->add($order);
+
+        $this->getJson(sprintf('/v1/customers/%s/orders', self::ANA))->assertNotFound();
+        $this->getJson(sprintf('/v1/customers/%s/orders/%s', self::ANA, $order->id()->toString()))->assertNotFound();
     }
 
     /** @return iterable<string, array{string, list<string>}> */
@@ -207,7 +286,7 @@ final class CustomerOrdersHttpTest extends TestCase
     #[DataProvider('pagesOutOfBounds')]
     public function a_page_out_of_bounds_is_refused_field_by_field(string $query, array $fields): void
     {
-        $this->getJson(sprintf('/v1/customers/%s/orders?%s', self::ANA, $query))
+        $this->getJson(self::listIn('arara', self::ANA, $query))
             ->assertUnprocessable()
             ->assertHeader('Content-Type', 'application/problem+json')
             ->assertJsonStructure(['errors' => $fields]);
@@ -219,13 +298,13 @@ final class CustomerOrdersHttpTest extends TestCase
         $logger = new RecordingLogger();
         $this->app->instance(LoggerInterface::class, $logger);
         $this->app->instance(ForReadingOrderViews::class, new class implements ForReadingOrderViews {
-            public function page(CustomerId $customer, Page $page): CustomerOrders
+            public function page(StoreSlug $store, CustomerId $customer, Page $page): CustomerOrders
             {
                 throw OrderListUnavailable::forSeconds(5, new ConnectionTimeoutException('No suitable servers found'));
             }
         });
 
-        $this->getJson(sprintf('/v1/customers/%s/orders', self::ANA))
+        $this->getJson(self::listIn('arara', self::ANA))
             ->assertServiceUnavailable()
             ->assertHeader('Retry-After', '5')
             ->assertHeader('Content-Type', 'application/problem+json')
@@ -243,12 +322,41 @@ final class CustomerOrdersHttpTest extends TestCase
 
         $started = microtime(true);
         try {
-            $views->page(CustomerId::fromString(self::ANA), Page::of(1));
+            $views->page(StoreSlug::of('arara'), CustomerId::fromString(self::ANA), Page::of(1));
             self::fail('A list came back with MongoDB out of reach.');
         } catch (OrderListUnavailable $unavailable) {
             self::assertSame(5, $unavailable->retryAfterSeconds);
         }
         self::assertLessThan(2.5, microtime(true) - $started, 'one short try, never the 30 s the driver would wait by default');
+    }
+
+    /** The same problem, word for word, as an order nobody placed: nothing tells the two apart. */
+    private function assertAnswersLikeAnUnknownOrder(string $url, Order $order): void
+    {
+        $id = $order->id()->toString();
+        $refused = $this->getJson($url)
+            ->assertNotFound()
+            ->assertHeader('Content-Type', 'application/problem+json');
+
+        self::assertSame(
+            ['type' => 'about:blank', 'title' => 'Not Found', 'status' => 404, 'detail' => sprintf('Order %s does not exist.', $id)],
+            array_intersect_key((array) $refused->json(), array_flip(['type', 'title', 'status', 'detail'])),
+        );
+        $unknown = Uuid::uuid7()->toString();
+        self::assertSame(
+            str_replace($unknown, $id, (string) json_encode(self::problemOf($this->getJson(str_replace($id, $unknown, $url))->assertNotFound()->json()))),
+            (string) json_encode(self::problemOf($refused->json())),
+        );
+    }
+
+    private static function orderIn(string $store, string $customerId, Order $order): string
+    {
+        return sprintf('/v1/stores/%s/customers/%s/orders/%s', $store, $customerId, $order->id()->toString());
+    }
+
+    private static function listIn(string $store, string $customerId, string $query = ''): string
+    {
+        return sprintf('/v1/stores/%s/customers/%s/orders', $store, $customerId) . ($query === '' ? '' : '?' . $query);
     }
 
     private function projected(Order $order): Order
@@ -264,6 +372,15 @@ final class CustomerOrdersHttpTest extends TestCase
         $projector = $this->app->make(OrderViewProjector::class);
         foreach ($order->releaseEvents() as $event) {
             $projector->handle(OrderEvents::message(OrderEvents::of($event)));
+        }
+    }
+
+    /** The events of the order as they were published before the stores: without one. */
+    private function projectAsBeforeTheStores(Order $order): void
+    {
+        $projector = $this->app->make(OrderViewProjector::class);
+        foreach ($order->releaseEvents() as $event) {
+            $projector->handle(OrderEvents::message(OrderEvents::withoutStore(OrderEvents::of($event))));
         }
     }
 

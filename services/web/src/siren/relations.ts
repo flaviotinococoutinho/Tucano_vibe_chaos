@@ -7,6 +7,8 @@ const CONTRACT =
   'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md';
 
 export const REL = {
+  stores: `${CONTRACT}#rel-stores`,
+  store: `${CONTRACT}#rel-store`,
   catalog: `${CONTRACT}#rel-catalog`,
   track: `${CONTRACT}#rel-track`,
   live: `${CONTRACT}#rel-live`,

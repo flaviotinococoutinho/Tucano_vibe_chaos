@@ -52,6 +52,16 @@ final class OrderEvents
         return json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
+    /** The same event without the store, as the events of commerce were published before the stores (ADR 0031). */
+    public static function withoutStore(string $event): string
+    {
+        /** @var array{data: array<string, mixed>} $decoded */
+        $decoded = json_decode($event, true, flags: JSON_THROW_ON_ERROR);
+        unset($decoded['data']['store']);
+
+        return json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
     /** @param array<string, mixed> $changes merged into the data of the event */
     public static function changed(string $event, array $changes): string
     {

@@ -6,6 +6,11 @@
   "type": "object",
   "required": ["shipmentId", "trackingCode", "orderId", "carrier", "origin", "destination", "parcels", "totalWeightGrams"],
   "properties": {
+    "store": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$",
+      "description": "The slug of the store the fact belongs to (ADR 0031). Optional: a fact from before the stores has none."
+    },
     "shipmentId": { "$ref": "#/$defs/uuidv7" },
     "trackingCode": { "$ref": "#/$defs/trackingCode" },
     "orderId": { "$ref": "#/$defs/uuidv7" },

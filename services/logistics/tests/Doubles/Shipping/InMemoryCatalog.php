@@ -9,15 +9,22 @@ use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Weight;
 use Logistics\Shipping\Domain\Product\CatalogProduct;
 use Logistics\Shipping\Domain\Product\Sku;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 
 final class InMemoryCatalog implements ForFindingProducts
 {
     /** @var array<string, CatalogProduct> */
     private array $products = [];
 
-    public function add(string $sku, int $grams, int $lengthMm, int $widthMm, int $heightMm): self
+    /** @param ?string $store null for a product whose store the copy does not know yet */
+    public function add(string $sku, int $grams, int $lengthMm, int $widthMm, int $heightMm, ?string $store = null): self
     {
-        $this->products[$sku] = new CatalogProduct(Sku::of($sku), Weight::ofGrams($grams), Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm));
+        $this->products[$sku] = new CatalogProduct(
+            Sku::of($sku),
+            $store === null ? null : StoreSlug::of($store),
+            Weight::ofGrams($grams),
+            Dimensions::ofMillimetres($lengthMm, $widthMm, $heightMm),
+        );
 
         return $this;
     }

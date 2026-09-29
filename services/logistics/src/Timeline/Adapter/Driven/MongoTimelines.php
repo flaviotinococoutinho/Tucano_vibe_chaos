@@ -16,9 +16,10 @@ use Ramsey\Uuid\Uuid;
 
 /**
  * logistics_read.shipment_timelines: one document per shipment, with every step
- * in the order Logistics published them. The filter leaves out a document that
- * already has the event, so a redelivery turns into an upsert of an _id that
- * exists, and the duplicate key says "already there".
+ * in the order Logistics published them, and the store when the events say it.
+ * The filter leaves out a document that already has the event, so a redelivery
+ * turns into an upsert of an _id that exists, and the duplicate key says
+ * "already there".
  */
 final readonly class MongoTimelines implements ForStoringTimelines
 {
@@ -43,13 +44,14 @@ final readonly class MongoTimelines implements ForStoringTimelines
             $event['attempt'] = $step->attempt;
         }
         $carrier = $news->carrier === null ? [] : ['carrier' => $news->carrier];
+        $store = $news->store === null ? [] : ['store' => $news->store];
 
         try {
             $result = $this->timelines->updateOne(
                 ['_id' => self::uuid($news->shipmentId), 'events.eventId' => ['$ne' => $news->eventId]],
                 [
                     '$push' => ['events' => $event],
-                    '$set' => ['status' => $step->status->value, 'updatedAt' => $at, ...$carrier],
+                    '$set' => ['status' => $step->status->value, 'updatedAt' => $at, ...$carrier, ...$store],
                     '$setOnInsert' => ['trackingCode' => $news->trackingCode, 'orderId' => self::uuid($news->orderId), ...($carrier === [] ? ['carrier' => self::CARRIER_NOT_SEEN_YET] : [])],
                     '$inc' => ['version' => new Int64(1)],
                 ],

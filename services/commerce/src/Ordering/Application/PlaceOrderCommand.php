@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Commerce\Ordering\Application;
 
 use Commerce\Ordering\Domain\Customer\Customer;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Commerce\Shared\Application\Idempotency\IdempotencyKey;
 use Tucano\SharedKernel\Address\Address;
 
@@ -13,6 +14,8 @@ final readonly class PlaceOrderCommand
     /** @param non-empty-list<RequestedItem> $items */
     public function __construct(
         public IdempotencyKey $idempotencyKey,
+        /** The store the order is placed in: every item has to be one of its products (ADR 0031). */
+        public StoreSlug $store,
         public Customer $customer,
         public Address $address,
         public array $items,
@@ -25,6 +28,8 @@ final readonly class PlaceOrderCommand
     public function fingerprint(): string
     {
         return hash('sha256', json_encode([
+            // The same items in another store are another order.
+            'store' => (string) $this->store,
             // The real values: two masks can match (A*** S*** is Ana Souza and Ana Silva) where the people do not.
             'customer' => [(string) $this->customer->id, $this->customer->name->reveal(), $this->customer->email->reveal()],
             'address' => $this->address->toArray(),

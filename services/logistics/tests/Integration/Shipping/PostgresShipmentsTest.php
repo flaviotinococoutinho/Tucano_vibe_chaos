@@ -57,6 +57,39 @@ final class PostgresShipmentsTest extends TestCase
     }
 
     #[Test]
+    public function the_store_goes_in_and_comes_back_with_the_shipment(): void
+    {
+        $shipment = ShipmentBuilder::aShipment()->inStore('bemtevi')->in(ShipmentStatus::InTransit);
+
+        $this->shipments->add($shipment);
+
+        self::assertSame('bemtevi', DB::table('shipments')->value('store'));
+        self::assertEquals($shipment->toSnapshot(), $this->stored($shipment)->toSnapshot());
+    }
+
+    #[Test]
+    public function a_shipment_from_before_the_stores_comes_back_without_one(): void
+    {
+        $shipment = ShipmentBuilder::aShipment()->withoutStore()->in(ShipmentStatus::InTransit);
+
+        $this->shipments->add($shipment);
+
+        self::assertNull(DB::table('shipments')->value('store'));
+        self::assertEquals($shipment->toSnapshot(), $this->stored($shipment)->toSnapshot());
+    }
+
+    #[Test]
+    public function the_quiet_shipment_it_claims_comes_with_its_whole_reference(): void
+    {
+        $shipment = ShipmentBuilder::aShipment()->inStore('bemtevi')->in(ShipmentStatus::PickedUp);
+        $this->shipments->add($shipment);
+
+        $claimed = $this->shipments->claimQuiet(new DateTimeImmutable('2026-09-28T00:00:00Z'), new DateTimeImmutable('2026-09-28T00:00:01Z'));
+
+        self::assertEquals($shipment->toSnapshot()->reference, $claimed);
+    }
+
+    #[Test]
     public function a_refusal_at_the_door_survives_the_round_trip_so_the_return_is_still_allowed(): void
     {
         $shipment = ShipmentBuilder::aShipment()->refused();

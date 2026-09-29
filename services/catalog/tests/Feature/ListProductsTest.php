@@ -42,6 +42,18 @@ final class ListProductsTest extends IntegrationTestCase
     }
 
     #[Test]
+    public function every_product_says_which_store_sells_it(): void
+    {
+        $this->json('GET', '/v1/products');
+
+        $stores = array_combine((array) $this->response->json('data.*.sku'), (array) $this->response->json('data.*.store'));
+        self::assertSame('arara', $stores['BOOK-DDD-001']);
+        self::assertSame('bemtevi', $stores['ELEC-KBD-001']);
+        self::assertSame('sabia', $stores['HOME-MUG-001']);
+        self::assertSame('sabia', $stores['SPORT-BIKE-029']);
+    }
+
+    #[Test]
     public function it_filters_by_category(): void
     {
         $this->json('GET', '/v1/products?category=books');
@@ -90,7 +102,8 @@ final class ListProductsTest extends IntegrationTestCase
 
         $this->response->assertUnprocessable()
             ->assertHeader('Content-Type', 'application/problem+json')
-            ->assertJsonPath('detail', 'Category "toys" does not exist.');
+            ->assertJsonPath('detail', 'Category "toys" does not exist.')
+            ->assertJsonPath('errors', ['category' => ['Category "toys" does not exist.']]);
     }
 
     #[Test]

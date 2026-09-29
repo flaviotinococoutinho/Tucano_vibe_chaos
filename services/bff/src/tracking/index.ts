@@ -1,4 +1,9 @@
-export { type TrackingOptions, trackingRoutes } from './routes.ts';
+export {
+  type LookupOptions,
+  lookupRoutes,
+  type TrackingOptions,
+  trackingRoutes,
+} from './routes.ts';
 export {
   liveLinks,
   shipmentStep,

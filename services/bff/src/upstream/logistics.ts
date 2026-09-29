@@ -43,14 +43,22 @@ export type Tracking = {
 
 /** The logistics service (Laravel): the public tracking page of a shipment (UC-SHP-10). */
 export type Logistics = {
-  /** The page, or null while no news of the code reached it. */
-  tracking(code: string, trace: Trace): Promise<Tracking | null>;
+  /**
+   * The page of a parcel of the store, or null while no news of the code reached it: a parcel
+   * of another store reads exactly like a code that does not exist.
+   */
+  tracking(store: string, code: string, trace: Trace): Promise<Tracking | null>;
+  /**
+   * The slug of the store a parcel belongs to, looked up across the platform: null when no
+   * news of the code reached logistics yet, and for a parcel from before the stores.
+   */
+  storeOfParcel(code: string, trace: Trace): Promise<string | null>;
 };
 
 export function logisticsAt(upstream: Upstream): Logistics {
   return {
-    async tracking(code, trace) {
-      const path = `/v1/tracking/${encodeURIComponent(code)}`;
+    async tracking(store, code, trace) {
+      const path = `/v1/stores/${encodeURIComponent(store)}/tracking/${encodeURIComponent(code)}`;
       const answer = await call(upstream, { method: 'GET', path }, trace);
       if (answer.status === 404) {
         return null;
@@ -78,6 +86,19 @@ export function logisticsAt(upstream: Upstream): Logistics {
           reason: step.optionalOneOf('reason', DELIVERY_FAILURES),
         })),
       };
+    },
+
+    async storeOfParcel(code, trace) {
+      const path = `/v1/tracking/${encodeURIComponent(code)}`;
+      const answer = await call(upstream, { method: 'GET', path }, trace);
+      if (answer.status === 404) {
+        return null;
+      }
+      if (answer.status !== 200) {
+        throw answer.unexpected();
+      }
+
+      return answer.fields().optionalText('store');
     },
   };
 }

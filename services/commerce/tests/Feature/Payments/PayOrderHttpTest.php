@@ -39,9 +39,11 @@ final class PayOrderHttpTest extends TestCase
             'price_cents' => 18990,
             'currency' => 'BRL',
             'status' => 'active',
+            'store' => 'arara',
             'catalog_version' => 1,
         ]);
         $this->orderId = (string) $this->postJson('/v1/orders', [
+            'store' => 'arara',
             'customer' => ['id' => (string) Str::uuid7(), 'name' => 'Ana Souza', 'email' => 'ana@example.com'],
             'shippingAddress' => Addresses::paulista()->toArray(),
             'items' => [['sku' => 'BOOK-DDD-001', 'quantity' => 1]],

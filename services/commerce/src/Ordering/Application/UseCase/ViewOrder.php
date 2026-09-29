@@ -11,6 +11,7 @@ use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Error\OrderNotFound;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderId;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Commerce\Shared\Application\Isolation;
 use Commerce\Shared\Application\Port\Driven\ForRunningTransactions;
 use Tucano\SharedKernel\Documentation\UseCase;
@@ -31,12 +32,12 @@ final readonly class ViewOrder implements ForViewingOrders
         return $this->transactions->run(fn(): OrderDetails => $this->detailsOf($this->orders->get($id)), Isolation::RepeatableRead);
     }
 
-    public function viewCustomerOrder(CustomerId $customer, OrderId $id): OrderDetails
+    public function viewCustomerOrder(StoreSlug $store, CustomerId $customer, OrderId $id): OrderDetails
     {
-        return $this->transactions->run(function () use ($customer, $id): OrderDetails {
+        return $this->transactions->run(function () use ($store, $customer, $id): OrderDetails {
             $order = $this->orders->get($id);
-            if (!$order->isPlacedBy($customer)) {
-                // The same answer as an order that does not exist: nothing tells another customer's order apart.
+            if (!$order->isPlacedIn($store) || !$order->isPlacedBy($customer)) {
+                // The same answer as an order that does not exist: nothing tells the order of another store or of another customer apart.
                 throw OrderNotFound::withId($id->toString());
             }
 

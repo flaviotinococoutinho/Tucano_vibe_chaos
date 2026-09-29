@@ -17,6 +17,7 @@ use Commerce\Ordering\Domain\Order\OrderNumber;
 use Commerce\Ordering\Domain\Order\OrderStatus;
 use Commerce\Ordering\Domain\Order\Quantity;
 use Commerce\Ordering\Domain\Product\Sku;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use Illuminate\Support\Facades\Context;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -32,9 +33,10 @@ use ValueError;
 
 /**
  * Reads commerce.orders.v2 for the consumer group commerce.order-projector (UC-ORD-08):
- * order.placed opens the view of the order in the customer's list, and paid, cancelled,
- * shipped, delivered and returned move it on. The events of one order share a partition,
- * so they come in the order they happened; the version in the view covers a replay too.
+ * order.placed opens the view of the order in the customer's list, with the store the order
+ * was placed in, and paid, cancelled, shipped, delivered and returned move it on. The events
+ * of one order share a partition, so they come in the order they happened; the version in
+ * the view covers a replay too.
  */
 final readonly class OrderViewProjector implements MessageHandler
 {
@@ -76,15 +78,17 @@ final readonly class OrderViewProjector implements MessageHandler
         };
     }
 
-    /** The placement time is the time of the event. */
+    /** The placement time is the time of the event. An order.placed from before the stores has no store (ADR 0031). */
     private static function summaryOf(CloudEvent $event, ReceivedMessage $message): OrderSummary
     {
         try {
             $data = new EventFields($event->data);
+            $store = $data->optionalText('store');
 
             return OrderSummary::placed(
                 OrderId::fromString($data->uuid('orderId')),
                 OrderNumber::fromString($data->text('orderNumber')),
+                $store === null ? null : StoreSlug::of($store),
                 CustomerId::fromString($data->uuid('customerId')),
                 OrderLines::of(...array_map(self::lineOf(...), $data->objects('lines'))),
                 $event->time,

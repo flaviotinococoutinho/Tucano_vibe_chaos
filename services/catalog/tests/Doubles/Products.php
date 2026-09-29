@@ -24,6 +24,7 @@ final class Products
             'BOOK-DDD-001',
             'Domain-Driven Design',
             $status,
+            'arara',
             'books',
             Money::of(18990, Currency::brl()),
             1100,

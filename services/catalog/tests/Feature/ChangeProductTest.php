@@ -130,13 +130,42 @@ final class ChangeProductTest extends IntegrationTestCase
     {
         $this->json('PATCH', '/v1/products/BOOK-DDD-001', ['category' => 'toys']);
 
-        $this->response->assertUnprocessable()->assertJsonPath('detail', 'Category "toys" does not exist.');
+        $this->response->assertUnprocessable()
+            ->assertJsonPath('detail', 'Category "toys" does not exist.')
+            ->assertJsonPath('errors', ['category' => ['Category "toys" does not exist.']]);
+    }
+
+    #[Test]
+    public function a_product_never_moves_to_another_store(): void
+    {
+        $this->json('PATCH', '/v1/products/BOOK-DDD-001', ['store' => 'sabia', 'name' => 'DDD']);
+
+        $this->response->assertUnprocessable()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('errors', ['store' => ['Product BOOK-DDD-001 belongs to store arara and cannot move to sabia.']]);
+        self::assertSame('arara', $this->storeOf('BOOK-DDD-001'));
+        self::assertSame('Domain-Driven Design', $this->productRow('BOOK-DDD-001')->name);
+        self::assertSame(1, (int) $this->productRow('BOOK-DDD-001')->version);
+        self::assertSame([], $this->kafka->delivered());
+    }
+
+    #[Test]
+    public function naming_the_store_it_is_in_changes_nothing(): void
+    {
+        $this->json('PATCH', '/v1/products/BOOK-DDD-001', ['store' => 'arara']);
+        $this->response->assertOk()->assertHeader('ETag', '"1"')->assertJsonPath('store', 'arara');
+
+        // A client can send back what it read, the store included, with the change it wants.
+        $this->json('PATCH', '/v1/products/BOOK-DDD-001', ['store' => 'arara', 'price' => ['amount' => 17990, 'currency' => 'BRL']]);
+        $this->response->assertOk()->assertHeader('ETag', '"2"')->assertJsonPath('store', 'arara');
+        self::assertSame('arara', $this->storeOf('BOOK-DDD-001'));
     }
 
     /** @return iterable<string, array{string, array<string, mixed>}> */
     public static function invalidChanges(): iterable
     {
         yield 'blank name' => ['name', ['name' => '']];
+        yield 'store by its name' => ['store', ['store' => 'Arara Livros']];
         yield 'null price' => ['price', ['price' => null]];
         yield 'price without currency' => ['price.currency', ['price' => ['amount' => 100]]];
         yield 'weight as text' => ['weightGrams', ['weightGrams' => 'heavy']];

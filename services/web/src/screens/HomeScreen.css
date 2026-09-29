@@ -10,7 +10,7 @@
 }
 
 .home-hero__text {
-  padding: var(--space-5) var(--space-5) 0;
+  padding: var(--space-5) var(--space-5) var(--space-2);
 }
 
 /* Narrow screens crop the banner around the tucano, so it does not shrink into the scenery:
@@ -37,10 +37,6 @@
   max-width: 36ch;
 }
 
-.home-hero__cta {
-  margin-top: var(--space-3);
-}
-
 /* Wide enough: the text sits on the empty left third of the banner, both in the same cell. */
 @media (min-width: 56rem) {
   .home-hero > * {
@@ -61,6 +57,25 @@
   .home-hero__headline {
     font-size: 1.75rem;
   }
+}
+
+/* The stores, each card in its own palette: one column on a phone, as many as fit after that. */
+.home-screen__stores {
+  margin-bottom: var(--space-6);
+}
+
+.home-screen__stores h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 1.375rem;
+}
+
+.home-screen__store-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .home-screen__tracking {

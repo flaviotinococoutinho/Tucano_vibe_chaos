@@ -14,6 +14,7 @@ use Logistics\Shipping\Domain\Error\ProductNotSyncedYet;
 use Logistics\Shipping\Domain\Error\TransitionNotAllowed;
 use Logistics\Shipping\Domain\Product\Sku;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -50,12 +51,22 @@ final class OrderEventHandlerTest extends TestCase
         self::assertCount(1, $this->shipments->paid);
         $order = $this->shipments->paid[0];
         self::assertSame([OrderEvents::PAID_EVENT, OrderEvents::ORDER, 'GRU1'], [$order->eventId, $order->orderId->toString(), (string) $order->origin]);
+        self::assertEquals(StoreSlug::of(OrderEvents::STORE), $order->store);
         self::assertSame(['Ana Souza', 'ana@example.com'], [$order->recipient->name->reveal(), $order->recipient->email->reveal()]);
         self::assertEquals(self::paulista(), $order->destination);
-        self::assertSame([['BOOK-DDD-001', 2], ['HOME-MUG-001', 1]], array_map(
+        self::assertSame([['HOME-MUG-001', 2], ['SPORT-BOTTLE-001', 1]], array_map(
             static fn(OrderLine $line): array => [(string) $line->sku, $line->quantity->value],
             $order->lines,
         ));
+    }
+
+    #[Test]
+    public function an_order_paid_before_the_stores_asks_for_a_shipment_without_saying_its_store(): void
+    {
+        $this->handler->handle(OrderEvents::message(OrderEvents::paidBeforeTheStores()));
+
+        self::assertCount(1, $this->shipments->paid);
+        self::assertNull($this->shipments->paid[0]->store, 'The shipment looks for the store in its products.');
     }
 
     #[Test]
@@ -108,6 +119,8 @@ final class OrderEventHandlerTest extends TestCase
         yield 'not json' => ['{"specversion":'];
         yield 'not a CloudEvent' => ['{"orderId": "01999a1e-3c4d-7a2b-8c9d-0e1f2a3b4c5d"}'];
         yield 'an order id that is not a UUIDv7' => [OrderEvents::paid(['orderId' => 'order-1'])];
+        yield 'a store by its name instead of its slug' => [OrderEvents::paid(['store' => 'Sabiá Casa e Esporte'])];
+        yield 'a store that is not text' => [OrderEvents::paid(['store' => 7])];
         yield 'no customer' => [OrderEvents::paid(['customer' => null])];
         yield 'a state that does not exist' => [OrderEvents::paid(['shippingAddress' => ['divisions' => [['kind' => 'state', 'code' => 'XX', 'name' => 'Lugar'], ['kind' => 'municipality', 'code' => null, 'name' => 'Lugar']]] + OrderEvents::plainAddress()])];
         yield 'a municipality of São Paulo in Minas Gerais' => [OrderEvents::paid(['shippingAddress' => ['divisions' => [['kind' => 'state', 'code' => 'MG', 'name' => 'Minas Gerais'], ['kind' => 'municipality', 'code' => '3550308', 'name' => 'São Paulo']]] + OrderEvents::plainAddress()])];

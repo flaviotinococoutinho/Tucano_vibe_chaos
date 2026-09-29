@@ -55,6 +55,22 @@ final class ShipmentLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function every_event_says_the_store_of_the_shipment_and_one_from_before_the_stores_says_none(): void
+    {
+        $ofAStore = ShipmentBuilder::aShipment()->inStore('arara')->in(ShipmentStatus::Delivered)->releaseEvents();
+        $beforeTheStores = ShipmentBuilder::aShipment()->withoutStore()->in(ShipmentStatus::Delivered)->releaseEvents();
+
+        self::assertSame(
+            ['arara', 'arara', 'arara', 'arara', 'arara', 'arara'],
+            array_map(static fn(DomainEvent $event): mixed => $event->payload()['store'] ?? null, $ofAStore),
+        );
+        self::assertCount(6, $beforeTheStores);
+        foreach ($beforeTheStores as $event) {
+            self::assertArrayNotHasKey('store', $event->payload(), 'The contracts have no null for the store: the field stays out.');
+        }
+    }
+
+    #[Test]
     public function the_shipment_event_leaves_the_thoroughfare_the_neighborhood_and_the_recipient_out(): void
     {
         $payload = ShipmentBuilder::aShipment()->create()->releaseEvents()[0]->payload();

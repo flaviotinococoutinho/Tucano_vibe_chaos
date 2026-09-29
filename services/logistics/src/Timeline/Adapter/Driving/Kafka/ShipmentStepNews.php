@@ -18,7 +18,7 @@ use ValueError;
 /**
  * Reads an event of logistics.shipments.v2 as a step of the journey, the same way for the
  * internal timeline and for the public page. The events of one shipment share a partition,
- * so the steps come in the order they happened.
+ * so the steps come in the order they happened. An event from before the stores has no store.
  */
 final class ShipmentStepNews
 {
@@ -47,6 +47,7 @@ final class ShipmentStepNews
                 $data->uuid('shipmentId'),
                 $data->uuid('orderId'),
                 $data->text('trackingCode'),
+                $data->optionalText('store'),
                 $event->id,
                 $step,
                 $created ? $data->text('carrier') : null,

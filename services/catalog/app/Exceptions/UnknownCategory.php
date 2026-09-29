@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
-use Tucano\SharedKernel\Domain\DomainError;
-use Tucano\SharedKernel\Domain\ErrorCategory;
-
-final class UnknownCategory extends DomainError
+final class UnknownCategory extends InvalidField
 {
     public static function withSlug(string $slug): self
     {
         return new self(sprintf('Category "%s" does not exist.', $slug));
     }
 
-    public function category(): ErrorCategory
+    public function field(): string
     {
-        return ErrorCategory::InvalidInput;
+        return 'category';
     }
 }

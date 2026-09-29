@@ -29,6 +29,7 @@ final class ShowProductTest extends IntegrationTestCase
                 'sku' => 'BOOK-DDD-001',
                 'name' => 'Domain-Driven Design',
                 'status' => 'active',
+                'store' => 'arara',
                 'category' => 'books',
                 'price' => ['amount' => 18990, 'currency' => 'BRL'],
                 'weightGrams' => 1100,

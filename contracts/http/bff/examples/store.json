@@ -1,0 +1,105 @@
+{
+  "class": [
+    "screen",
+    "store"
+  ],
+  "title": "Arara Livros",
+  "properties": {
+    "slug": "arara",
+    "name": "Arara Livros",
+    "tagline": "Livros para quem constrói sistemas.",
+    "palette": "arara",
+    "initial": "A"
+  },
+  "entities": [
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "store": {
+          "slug": "arara",
+          "name": "Arara Livros",
+          "palette": "arara",
+          "initial": "A"
+        },
+        "shopper": null
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-stores"
+          ],
+          "href": "/bff/v1",
+          "title": "Todas as lojas"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-store"
+          ],
+          "href": "/bff/v1/stores/arara",
+          "title": "Arara Livros"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/stores/arara/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/stores/arara/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles?store=arara",
+          "title": "Entrar"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "name": "track-by-code",
+      "title": "Acompanhar",
+      "method": "GET",
+      "href": "/bff/v1/stores/arara/tracking",
+      "fields": [
+        {
+          "name": "code",
+          "type": "text",
+          "title": "Código de rastreio",
+          "required": true,
+          "placeholder": "TX02PX83Y5M5G00",
+          "pattern": "^\\s*[Tt][Xx][0-9A-Za-z]{13}\\s*$",
+          "maxlength": 20,
+          "autocomplete": "off"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/stores/arara"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/stores/arara/products",
+      "title": "Ver o catálogo"
+    }
+  ]
+}

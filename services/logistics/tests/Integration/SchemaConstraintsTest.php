@@ -78,6 +78,19 @@ final class SchemaConstraintsTest extends TestCase
     }
 
     #[Test]
+    public function a_store_is_a_slug_or_nothing_at_all(): void
+    {
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['store' => 'Sabiá']));
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['store' => '']));
+        $this->assertViolates(self::CHECK_VIOLATION, fn() => DB::table('product_snapshots')->insert([
+            'product_id' => Uuid::uuid7()->toString(), 'sku' => 'HOME-MUG-001', 'store' => 'Sabia', 'name' => 'Caneca de cerâmica',
+            'weight_grams' => 400, 'length_mm' => 120, 'width_mm' => 100, 'height_mm' => 100, 'catalog_version' => 1,
+        ]));
+        self::assertNotSame('', $this->insertShipment(['store' => 'sabia']));
+        self::assertNotSame('', $this->insertShipment(['store' => null]), 'A shipment from before the stores has none.');
+    }
+
+    #[Test]
     public function the_thoroughfare_and_the_number_are_never_blank(): void
     {
         $this->assertViolates(self::CHECK_VIOLATION, fn() => $this->insertShipment(['dest_thoroughfare_name' => ' ']));

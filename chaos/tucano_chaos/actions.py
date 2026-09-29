@@ -3,6 +3,12 @@ experiment files: a toxic on Toxiproxy, a control on the partners simulator."""
 
 from __future__ import annotations
 
+import threading
+import time
+from collections import Counter
+
+import requests
+
 from . import probes
 from .store import Shopper, logger
 
@@ -34,3 +40,56 @@ def buy_a_parcel() -> str:
     logger.info("bought a parcel to follow: %s", order)
     return order
 
+
+
+def rush_a_store(store: str = "arara", neighbor: str = "sabia", seconds: float = 15.0, shoppers: int = 40) -> dict[str, int]:
+    """A store on sale: many shoppers open its catalog at once, for a while, without a pause.
+
+    Meanwhile one shopper of a neighbor store keeps opening that store's catalog, four times a
+    second, and the probe after the method reads how fast it answered. The crowd behaves like
+    browsers: told 429, a shopper waits what Retry-After says. Returns how the crowded store
+    answered, by status, for the journal: a 429 there is the store's own limit at work.
+    """
+    crowded = f"/bff/v1/stores/{store}/products"
+    calm = f"/bff/v1/stores/{neighbor}/products"
+    deadline = time.monotonic() + seconds
+    answered: Counter[int] = Counter()
+    lock = threading.Lock()
+
+    def shop() -> None:
+        shopper = Shopper(timeout_seconds=10)
+        while time.monotonic() < deadline:
+            wait = 0.0
+            try:
+                answer = shopper.open(crowded)
+                status = answer.status
+                # A browser told 429 waits before asking again, as Retry-After says.
+                if status == 429:
+                    wait = float(answer.retry_after or 1)
+            except requests.RequestException:
+                status = 0
+            with lock:
+                answered[status] += 1
+            if wait > 0:
+                time.sleep(min(wait, max(0.0, deadline - time.monotonic())))
+
+    def watch() -> None:
+        shopper = Shopper(timeout_seconds=10)
+        while time.monotonic() < deadline:
+            started = time.monotonic()
+            try:
+                answer = shopper.open(calm)
+                probes._neighbor_during_the_rush.append((answer.status, answer.seconds))
+            except requests.RequestException:
+                probes._neighbor_during_the_rush.append((0, time.monotonic() - started))
+            time.sleep(0.25)
+
+    probes._neighbor_during_the_rush.clear()
+    crowd = [threading.Thread(target=shop) for _ in range(shoppers)] + [threading.Thread(target=watch)]
+    for thread in crowd:
+        thread.start()
+    for thread in crowd:
+        thread.join()
+    summary = {str(code): count for code, count in sorted(answered.items())}
+    logger.info("the rush on %s answered %s", store, summary)
+    return summary

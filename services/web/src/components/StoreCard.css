@@ -1,0 +1,63 @@
+/* Each card wears the palette of its store (data-palette on the card): the line on top, the
+ * monogram and the call to enter. The text keeps the colors of the page, measured once for all. */
+.store-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-top: 4px solid var(--color-brand-line);
+  transition: transform var(--motion-fast) ease;
+}
+
+.store-card:hover {
+  transform: translateY(-2px);
+}
+
+.store-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.store-card__name {
+  margin: 0;
+  font-size: 1.1875rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.store-card__link {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.store-card:hover .store-card__link {
+  text-decoration: underline;
+}
+
+/* The name stretches over the card: the whole card takes the click, and only the name is the
+ * link a screen reader lists. */
+.store-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.store-card__tagline {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* Looks like a button and is the card's call, but the click goes to the name's link below it. */
+.store-card__call {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}

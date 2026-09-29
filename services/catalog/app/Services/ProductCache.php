@@ -43,7 +43,8 @@ final readonly class ProductCache
     public static function key(string $sku): string
     {
         // Bump the version when the cached record changes shape, so a deploy never reads the old one.
-        return 'product:v1:' . $sku;
+        // v2 carries the store, which the reads of a store check.
+        return 'product:v2:' . $sku;
     }
 
     public static function lockKey(string $sku): string

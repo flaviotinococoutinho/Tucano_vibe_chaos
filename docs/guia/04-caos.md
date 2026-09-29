@@ -45,7 +45,19 @@ As sondas compram na loja pela mesma porta que a web, seguindo os links e as aç
 | [Fila de etiquetas](../labs/label-queue.md) | o bucket do S3 falha durante a geração das etiquetas | cada peça tenta de novo do seu jeito: o job com backoff, o `failed_jobs` com o que desistiu, e o replay do Kafka para o que sumiu antes da fila ([ADR 0018](../adr/0018-async-work-starts-from-the-event.md)) |
 | [Webhooks perdidos](../labs/lost-carrier-events.md) | a transportadora derruba parte dos avisos | entrega em ordem mais perda de mensagem trava a jornada inteira, não só o passo perdido. Nasceu a conciliação com o histórico da transportadora e a vigia das jornadas paradas, que alerta sem repetir a mesma notícia |
 
-## O caos mais recente: a porta da web
+## O caos mais recente: uma loja em promoção
+
+Com as lojas dividindo o BFF, o catálogo e os bancos, apareceu a pergunta de todo sistema multi-tenant: e se uma loja fizer uma promoção? Antes de decidir qualquer coisa, medi. Quarenta compradores abrindo o catálogo da Arara sem parar, uns 250 requests por segundo, levaram o p95 da vizinha Sabiá de menos de 0,1 s, parada, para 0,40 s. O experimento `a-store-in-a-rush` virou essa pergunta, e a resposta foi dar a cada loja um serviço e um limite de requests no Kong ([ADR 0032](../adr/0032-the-edge-per-store-limits-and-its-single-point.md)). Com o limite, a Arara recebe 429 quando passa dele, e a Sabiá fica em 0,08 s.
+
+A medição ensinou mais uma coisa. Na primeira versão, os compradores repetiam na hora depois de um 429: o Kong recusou 24 mil requests em 15 s, e a vizinha ainda sentiu. O limite protege o que está atrás da borda, não a própria borda. Um navegador espera o que o `Retry-After` manda, e é assim que os compradores do experimento se comportam agora.
+
+```bash
+make experiment e=a-store-in-a-rush   # a Sabiá em 0,08 s enquanto a Arara lota
+```
+
+E o experimento me mostrou um furo no próprio portão. Numa rodada, a Sabiá já começou lenta, a hipótese falhou antes mesmo da falha, e o Chaos Toolkit terminou dizendo `completed`, com código de saída 0. Com os rollbacks sempre ligados, é isso que a versão 1.21.1 faz, e o portão de estabilidade confiava no código de saída. Agora o veredito vem do diário: a execução tem que chegar ao fim, com a hipótese valendo antes e depois da falha.
+
+## A porta da web
 
 O BFF fala com cada serviço pelo seu próprio proxy. Com o commerce cortado, a tela do pedido responde 503 em 0,02 s, com `Retry-After` e uma frase em português, enquanto o catálogo continua abrindo. Com sete segundos de latência no catálogo, o BFF desiste em cinco e diz a mesma coisa. Cada queda deixa uma linha `warn` com o correlation id, o serviço, a chamada e o tempo gasto.
 

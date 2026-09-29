@@ -8,6 +8,7 @@ use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\OrderId;
 use Commerce\Ordering\Domain\Order\OrderNumber;
 use Commerce\Ordering\Domain\Order\OrderStatus;
+use Commerce\Ordering\Domain\Store\StoreSlug;
 use DateTimeImmutable;
 
 final readonly class OrderCancelled extends OrderEvent
@@ -15,11 +16,12 @@ final readonly class OrderCancelled extends OrderEvent
     public function __construct(
         OrderId $orderId,
         OrderNumber $orderNumber,
+        ?StoreSlug $store,
         private CancellationReason $reason,
         private OrderStatus $previousStatus,
         DateTimeImmutable $cancelledAt,
     ) {
-        parent::__construct($orderId, $orderNumber, $cancelledAt);
+        parent::__construct($orderId, $orderNumber, $store, $cancelledAt);
     }
 
     protected function fact(): string

@@ -23,7 +23,7 @@
 
 ## Cenário principal de sucesso
 
-1. O cliente consulta o catálogo (UC-CAT-01).
+1. O cliente escolhe uma loja (UC-CAT-05) e consulta o catálogo dela (UC-CAT-01).
 2. O cliente faz o pedido (UC-ORD-01).
 3. O cliente paga (UC-PAY-01) e o PSP confirma (UC-PAY-02).
 4. A logística cria a remessa (UC-SHP-01), escolhe a transportadora (UC-SHP-02) e gera a etiqueta (UC-SHP-03).

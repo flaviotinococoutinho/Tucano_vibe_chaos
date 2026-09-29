@@ -33,7 +33,7 @@
           "func": "screen_answers",
           "arguments": {
             "within_seconds": 6,
-            "screen": "/bff/v1/products"
+            "screen": "/bff/v1/stores/sabia/products"
           }
         }
       },
