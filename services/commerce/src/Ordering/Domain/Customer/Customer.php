@@ -17,4 +17,9 @@ final readonly class Customer
     {
         return new self($id, $name, $email);
     }
+
+    public function is(CustomerId $id): bool
+    {
+        return $this->id->equals($id);
+    }
 }

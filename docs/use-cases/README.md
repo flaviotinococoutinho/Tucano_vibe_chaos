@@ -32,6 +32,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-ORD-05](UC-ORD-05-view-orders.md) | usuário | Cliente | consultar os próprios pedidos | Ordering |
 | [UC-ORD-06](UC-ORD-06-sync-catalog.md) | subfunção | Catalog | manter a cópia local do catálogo | Ordering |
 | [UC-ORD-07](UC-ORD-07-settle-order-payment.md) | subfunção | Payments | registrar o resultado do pagamento no pedido | Ordering |
+| [UC-ORD-08](UC-ORD-08-project-order-views.md) | subfunção | Commerce | manter a lista de pedidos do cliente | Ordering |
 | [UC-INV-01](UC-INV-01-reserve-stock.md) | subfunção | Commerce | reservar estoque | Inventory |
 | UC-INV-02 | usuário | Operador logístico | repor estoque | Inventory |
 | [UC-INV-03](UC-INV-03-release-stock.md) | subfunção | Commerce | liberar a reserva de um pedido | Inventory |

@@ -8,6 +8,7 @@ use Commerce\Ordering\Domain\Error\OrderChangedMeanwhile;
 use Commerce\Ordering\Domain\Error\OrderNotFound;
 use Commerce\Ordering\Domain\Order\Order;
 use Commerce\Ordering\Domain\Order\OrderId;
+use Commerce\Ordering\Domain\Order\StatusTransition;
 use DateTimeImmutable;
 
 interface ForStoringOrders
@@ -16,6 +17,13 @@ interface ForStoringOrders
 
     /** @throws OrderNotFound */
     public function get(OrderId $id): Order;
+
+    /**
+     * Every move of the order's state machine, oldest first, from the append-only history.
+     *
+     * @return list<StatusTransition>
+     */
+    public function history(OrderId $id): array;
 
     /**
      * Like get(), with the row locked until the transaction ends.

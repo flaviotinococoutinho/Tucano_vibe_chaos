@@ -8,6 +8,8 @@ use Commerce\Ordering\Application\Port\Driven\ForStoringOrders;
 use Commerce\Ordering\Domain\Error\OrderNotFound;
 use Commerce\Ordering\Domain\Order\CancellationReason;
 use Commerce\Ordering\Domain\Order\OrderId;
+use Commerce\Ordering\Domain\Order\OrderStatus;
+use Commerce\Ordering\Domain\Order\StatusTransition;
 use Commerce\Ordering\Domain\Order\TrackingCode;
 use Database\Seeders\FulfillmentCenterSeeder;
 use DateTimeImmutable;
@@ -81,6 +83,24 @@ final class PostgresOrdersTest extends TestCase
 
         $history = DB::table('order_status_transitions')->where('order_id', $order->id()->toString())->get(['from_status', 'to_status']);
         self::assertEquals([(object) ['from_status' => null, 'to_status' => 'pending_payment']], $history->all());
+    }
+
+    #[Test]
+    public function the_history_comes_back_oldest_first_with_the_reason_of_a_cancellation(): void
+    {
+        $order = OrderBuilder::anOrder()->placedAt('2026-09-27T12:00:00Z')->place();
+        $this->orders->add($order);
+        $order->markAsPaid(new DateTimeImmutable('2026-09-27T12:05:00.250Z'));
+        $this->orders->save($order);
+        $order->cancel(CancellationReason::CustomerRequest, new DateTimeImmutable('2026-09-27T12:30:00Z'));
+        $this->orders->save($order);
+
+        self::assertEquals([
+            StatusTransition::initial(OrderStatus::PendingPayment, new DateTimeImmutable('2026-09-27T12:00:00Z')),
+            StatusTransition::between(OrderStatus::PendingPayment, OrderStatus::Paid, new DateTimeImmutable('2026-09-27T12:05:00.250Z')),
+            StatusTransition::between(OrderStatus::Paid, OrderStatus::Cancelled, new DateTimeImmutable('2026-09-27T12:30:00Z'), 'customer_request'),
+        ], $this->orders->history($order->id()));
+        self::assertSame([], $this->orders->history(OrderId::generate()));
     }
 
     #[Test]

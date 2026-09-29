@@ -61,7 +61,11 @@ final class PlaceOrderHttpTest extends TestCase
 
         // The deferred foreign key of stock_reservations is satisfied: the order exists.
         DB::statement('SET CONSTRAINTS ALL IMMEDIATE');
-        $this->getJson('/v1/orders/' . $orderId)->assertOk()->assertExactJson($response->json());
+        // The read is the answer of the POST plus the history, which a new order starts.
+        $this->getJson('/v1/orders/' . $orderId)->assertOk()->assertExactJson([
+            ...(array) $response->json(),
+            'history' => [['status' => 'pending_payment', 'at' => $response->json('placedAt'), 'reason' => null]],
+        ]);
     }
 
     #[Test]
@@ -77,6 +81,8 @@ final class PlaceOrderHttpTest extends TestCase
         self::assertSame('req-7#1', $event->correlationid);
         self::assertMatchesContract('cloudevent.schema.json', $event);
         self::assertMatchesContract('commerce.order.placed.schema.json', $event->data);
+        // The customer's list shows what was bought, and the event is all the list reads.
+        self::assertSame('Domain-Driven Design', $event->data->lines[0]->name);
     }
 
     #[Test]
@@ -87,7 +93,8 @@ final class PlaceOrderHttpTest extends TestCase
         $this->place('key-1', ['BOOK-DDD-001' => 1])
             ->assertCreated()
             ->assertHeader('Idempotent-Replayed', 'true')
-            ->assertExactJson($first->json());
+            ->assertExactJson($first->json())
+            ->assertJsonMissingPath('history');
 
         self::assertSame(1, DB::table('orders')->count());
         self::assertSame(1, DB::table('outbox_messages')->count());

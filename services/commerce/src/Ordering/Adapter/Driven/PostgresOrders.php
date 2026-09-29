@@ -169,6 +169,24 @@ final readonly class PostgresOrders implements ForStoringOrders
         ));
     }
 
+    public function history(OrderId $id): array
+    {
+        return array_values($this->connection->table('order_status_transitions')
+            ->where('order_id', $id->toString())
+            // The id is a UUIDv7 as well: two moves in the same instant keep the order they were written in.
+            ->orderBy('occurred_at')->orderBy('id')
+            ->get(['from_status', 'to_status', 'reason', 'occurred_at'])
+            ->map(static function (stdClass $row): StatusTransition {
+                $to = OrderStatus::from((string) $row->to_status);
+                $at = self::instant((string) $row->occurred_at);
+
+                return $row->from_status === null
+                    ? StatusTransition::initial($to, $at)
+                    : StatusTransition::between(OrderStatus::from((string) $row->from_status), $to, $at, $row->reason === null ? null : (string) $row->reason);
+            })
+            ->all());
+    }
+
     /** @param list<StatusTransition> $transitions */
     private function recordTransitions(OrderId $id, array $transitions): void
     {

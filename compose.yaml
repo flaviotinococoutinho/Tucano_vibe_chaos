@@ -516,6 +516,24 @@ services:
         condition: service_completed_successfully
     mem_limit: 128m
 
+  # UC-ORD-08: the customer's order list (order_views, MongoDB) from commerce.orders.v2, in a
+  # consumer group of its own (ADR 0027). It waits for MongoDB without a limit, and the flag
+  # chaos.commerce.order-projector-paused takes it out of its group until the flag is off.
+  commerce-order-projector:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:project-order-views"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
   commerce-order-expiry:
     <<: [*service, *commerce]
     command: ["php", "artisan", "commerce:expire-orders"]

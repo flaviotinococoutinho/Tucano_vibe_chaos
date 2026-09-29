@@ -6,8 +6,9 @@ use MongoDB\Database;
 use Tucano\ReadModels\Migration;
 
 /**
- * Customer order history (CQRS read side). Fed by commerce.orders.v2 and
- * logistics.shipments.v2, so it may lag a few seconds behind PostgreSQL.
+ * Customer order history (CQRS read side). Fed by commerce.orders.v2 (UC-ORD-08,
+ * the consumer group commerce.order-projector), so it may lag a few seconds
+ * behind PostgreSQL.
  */
 return new class implements Migration {
     public function up(Database $database): void

@@ -33,6 +33,8 @@ final class OrderBuilder
 
     private DateTimeImmutable $placedAt;
 
+    private ?CustomerId $customer = null;
+
     private function __construct()
     {
         $this->lines = [self::line('BOOK-DDD-001', 'Domain-Driven Design', 1, 18990)];
@@ -63,6 +65,13 @@ final class OrderBuilder
         return $this;
     }
 
+    public function by(CustomerId $customer): self
+    {
+        $this->customer = $customer;
+
+        return $this;
+    }
+
     /** Placed, and paid a minute later, with what happened so far already handed over. */
     public function paid(): Order
     {
@@ -79,7 +88,7 @@ final class OrderBuilder
         return Order::place(
             OrderId::generate(),
             OrderNumber::fromSnowflake(Snowflake::compose($this->placedAt->getTimestamp() * 1000, new NodeId(1, 1), self::$sequence++ % 4096)),
-            Customer::of(CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
+            Customer::of($this->customer ?? CustomerId::generate(), PersonName::of('Ana Souza'), EmailAddress::of('ana@example.com')),
             Addresses::paulista(),
             OrderLines::of(...$this->lines),
             FulfillmentCenterCode::of('GRU1'),

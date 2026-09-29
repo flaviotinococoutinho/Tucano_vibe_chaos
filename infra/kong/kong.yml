@@ -29,6 +29,18 @@ services:
       - name: commerce-api
         paths: [/api/commerce]
         strip_path: true
+      # The orders of a customer are for the BFF only, which calls commerce on the internal
+      # network with the id of the active profile (ADR 0030). The longer path wins over
+      # /api/commerce, and the request never reaches the service.
+      - name: commerce-customers-internal
+        paths: [/api/commerce/v1/customers]
+        strip_path: true
+        plugins:
+          - name: request-termination
+            config:
+              status_code: 404
+              content_type: application/problem+json
+              body: '{"type":"about:blank","title":"Not Found","status":404,"detail":"The customer routes of commerce are internal: only the BFF calls them."}'
 
   - name: logistics
     url: http://nginx:8083
