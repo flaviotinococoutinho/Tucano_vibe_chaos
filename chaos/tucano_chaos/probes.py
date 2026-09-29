@@ -253,20 +253,25 @@ def _is_honest_refusal(answer: Answer) -> bool:
 def the_neighbor_keeps_its_pace(within_seconds: float = 1.0, store: str = "sabia") -> bool:
     """A store's catalog keeps opening quickly while another store is in a rush.
 
-    Before the rush there is nothing to compare, so it opens the catalog once. After it, it reads
-    what the neighbor measured during the rush: every answer a 200, and 95 in 100 of them within
-    the limit.
+    Before the rush it measures the catalog itself: one read to warm the caches a restart
+    emptied, which does not count, then five. After the rush it reads what the neighbor measured
+    during it. Either way: every answer a 200, and 95 in 100 of them within the limit.
     """
     samples = list(_neighbor_during_the_rush)
+    moment = "during the rush"
     if not samples:
-        answer = Shopper().open(f"/bff/v1/stores/{store}/products")
-        logger.info("the %s catalog answered %s", store, answer.described())
-        return answer.status == 200 and answer.seconds <= within_seconds
+        shopper = Shopper()
+        shopper.open(f"/bff/v1/stores/{store}/products")
+        for _ in range(5):
+            answer = shopper.open(f"/bff/v1/stores/{store}/products")
+            samples.append((answer.status, answer.seconds))
+        moment = "at rest"
     statuses = sorted({status for status, _ in samples})
     seconds = sorted(elapsed for _, elapsed in samples)
     p95 = seconds[math.ceil(len(seconds) * 0.95) - 1]
     logger.info(
-        "during the rush the %s catalog answered %d times with %s, p95 %.2f s, slowest %.2f s",
+        "%s the %s catalog answered %d times with %s, p95 %.2f s, slowest %.2f s",
+        moment,
         store,
         len(samples),
         ", ".join(str(status) for status in statuses),
