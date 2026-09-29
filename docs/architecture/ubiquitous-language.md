@@ -7,9 +7,14 @@ Os termos abaixo valem igualmente na conversa, na documentação e no código. S
 | Termo | No código | Contexto | Significado |
 |---|---|---|---|
 | Produto | `Product` | Catalog | item vendável, identificado por SKU, com preço, peso e dimensões |
-| SKU | `Sku` | Catalog, Commerce | código único de um produto (ex.: `BOOK-DDD-001`) |
+| SKU | `Sku` | Catalog, Commerce | código único de um produto na plataforma inteira (ex.: `BOOK-DDD-001`) |
+| Loja | `Store` (catalog), `StoreSlug` (commerce e logistics) | Catalog, Commerce, Logistics, BFF | um tenant da plataforma, com vitrine, marca e pedidos próprios, identificado por um slug que nunca muda (`arara`, `bemtevi`, `sabia`); todo produto é de uma loja só ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)) |
+| Plataforma | - | todos | a Tucano: o que as lojas dividem, como os centros de distribuição, as transportadoras, a frota, o PSP, o Kafka, o Redis e o Kong |
+| Paleta | `palette` | Catalog, web | as cores de uma loja: uma das paletas que o design system da web define, com o contraste garantido nos dois temas |
 | Snapshot de produto | `ProductSnapshot` | Commerce, Logistics | cópia local do estado do produto, recebida pelo tópico do catálogo |
-| Pedido | `Order` | Ordering | intenção de compra do cliente, com itens e endereço de entrega |
+| Pedido | `Order` | Ordering | intenção de compra do cliente numa loja, com itens e endereço de entrega |
+| Perfil | `Profile` | BFF | um cliente guardado na sessão do navegador; trocar de perfil faz o papel de entrar com outra conta, e cada perfil só vê os próprios pedidos ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)) |
+| Sessão | `Session` | BFF | o cookie `tucano_session`, assinado pelo BFF, com os perfis do navegador e o ativo |
 | Endereço | `Address` | Shared kernel | logradouro, número, complemento, divisões territoriais, CEP e, quando há, coordenadas |
 | Logradouro | `Thoroughfare` | Shared kernel | a via pública, com tipo e nome: `Rua` e `da Bahia`, `Rodovia` e `Fernão Dias` |
 | Tipo de logradouro | `Thoroughfare::$type` | Shared kernel | rua, avenida, rodovia, estrada, travessa, alameda, praça; texto, porque cada país tem sua lista |

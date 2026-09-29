@@ -9,6 +9,7 @@ Antes de escolher banco, fila ou cache, eu pergunto de que tipo é a informaçã
 | Informação | Dono | Cópias | Pode atrasar? |
 |---|---|---|---|
 | produto, preço e medidas | `catalog` (MySQL) | a cópia do commerce (preço para o pedido) e a da logistics (peso e medidas para montar os volumes e escolher quem leva), pelo tópico compactado `catalog.products.v1` | a cópia sim; o pedido usa o preço da cópia, e isso está escrito no caso de uso |
+| loja, com nome, frase e paleta | `catalog` (MySQL) | a loja de cada produto nas cópias do commerce e da logistics, pelo mesmo tópico, e cada loja na memória do BFF por 60 s | sim: a loja de um produto nunca muda, e com o catálogo fora o BFF segue servindo a loja que já conhece |
 | pedido e o seu status | `commerce` (PostgreSQL) | a lista de pedidos no MongoDB (`order_views`) | a lista sim; a tela de um pedido não, e por isso lê o PostgreSQL |
 | estoque e reservas | `commerce` (PostgreSQL) | nenhuma | não: é aqui que o overselling acontece ou não |
 | pagamento | `commerce` (PostgreSQL), com o PSP como fonte da palavra final | nenhuma | o resultado chega por webhook, e a conciliação vai buscar o que não chegou |

@@ -16,7 +16,7 @@ Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados d
 
 ### O que isso faz?
 
-Você abre a loja, escolhe um livro, paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. A tela do pedido conta a história dele, do pagamento à porta, e quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Cada perfil de cliente acha os próprios pedidos em "Meus pedidos", e nenhum perfil vê os pedidos de outro. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
+Você abre a Tucano, escolhe uma das três lojas que ela hospeda (a Arara Livros, a Bem-te-vi Eletrônicos e a Sabiá Casa e Esporte, cada uma com a sua marca), paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. A tela do pedido conta a história dele, do pagamento à porta, e quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Cada perfil de cliente acha os próprios pedidos em "Meus pedidos" de cada loja, e nada atravessa a fronteira: nem um perfil vê os pedidos de outro, nem uma loja os de outra. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
 
 ### Por onde eu começo?
 
@@ -72,11 +72,11 @@ O `commerce-database-out` tem história. Eu ia escrever no guia que, sem o banco
 
 | Serviço | Stack | O que faz |
 |---|---|---|
-| [web](services/web/README.md) | React 19, TypeScript, Vite | a loja: um intérprete das telas do BFF, com tela viva, o entregador ao vivo quando a tela oferece, acessibilidade e tema claro e escuro |
-| [bff](services/bff/README.md) | Node 24, Fastify 5 | a porta da web: cada tela em Siren, com as palavras em português, prazo e 503 com `Retry-After` por serviço |
-| [commerce](services/commerce/README.md) | Laravel 13, PHP 8.4 | pedidos, reserva de estoque, pagamento com circuit breaker e conciliação com o PSP |
-| [logistics](services/logistics/README.md) | Laravel 13, PHP 8.4 | remessas com máquina de estados, etiqueta pela fila, jornada contada pelas transportadoras, conciliação com o histórico delas, alerta de jornadas paradas e página de rastreio |
-| [catalog](services/catalog/README.md) | Lumen 11, PHP 8.3 | produtos com cache-aside, no papel de serviço legado |
+| [web](services/web/README.md) | React 19, TypeScript, Vite | a plataforma e as lojas: um intérprete das telas do BFF, com cada loja na sua paleta, tela viva, o entregador ao vivo quando a tela oferece, acessibilidade e tema claro e escuro |
+| [bff](services/bff/README.md) | Node 24, Fastify 5 | a porta da web: cada tela em Siren, com a loja no endereço, as palavras em português, os perfis numa sessão assinada, prazo e 503 com `Retry-After` por serviço |
+| [commerce](services/commerce/README.md) | Laravel 13, PHP 8.4 | pedidos de cada loja, reserva de estoque, pagamento com circuit breaker, conciliação com o PSP e a lista "Meus pedidos" por loja e cliente |
+| [logistics](services/logistics/README.md) | Laravel 13, PHP 8.4 | remessas com máquina de estados, etiqueta pela fila, jornada contada pelas transportadoras, conciliação com o histórico delas, alerta de jornadas paradas e página de rastreio por loja |
+| [catalog](services/catalog/README.md) | Lumen 11, PHP 8.3 | as lojas da plataforma e os produtos de cada uma, com cache-aside, no papel de serviço legado |
 | [tracking](services/tracking/README.md) | Swoole 6, PHP 8.4 | a entrega ao vivo: recebe a posição assinada do aparelho de cada entregador da frota própria e a empurra, por WebSocket, para quem acompanha aquele código, num processo de longa duração |
 | [partners-sim](services/partners-sim/README.md) | Node 24, Fastify 5 | o mundo lá fora: o PayFake (o PSP), a CarrierFake (as transportadoras) e o aparelho de cada entregador da frota própria, com caos sob comando |
 
@@ -134,6 +134,7 @@ sequenceDiagram
 ORDER=$(curl -s -X POST localhost:8000/api/commerce/v1/orders \
   -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" \
   -d '{
+    "store": "arara",
     "customer": {"id": "0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20", "name": "Ana Souza", "email": "ana@example.com"},
     "shippingAddress": {
       "thoroughfare": {"type": "Rua", "name": "da Bahia"}, "number": "1200", "complement": "apto 42",
@@ -153,7 +154,7 @@ curl -s -X POST "localhost:8000/api/commerce/v1/orders/$ORDER/payments" \
 for i in $(seq 20); do curl -s "localhost:8000/api/commerce/v1/orders/$ORDER" | jq -r '.status + " " + (.trackingCode // "")'; sleep 3; done
 ```
 
-O status passa por `pending_payment`, `paid`, `shipped` e `delivered` em menos de um minuto, e o código de rastreio aparece na coleta. Enquanto isso, `make consume t=logistics.shipments.v2` mostra a remessa andando pelo Kafka.
+O pedido diz de que loja é: o livro é da Arara, e um item de outra loja seria recusado com `422` no campo dele. O status passa por `pending_payment`, `paid`, `shipped` e `delivered` em menos de um minuto, e o código de rastreio aparece na coleta. Enquanto isso, `make consume t=logistics.shipments.v2` mostra a remessa andando pelo Kafka.
 
 </details>
 
@@ -221,4 +222,5 @@ Os endereços de tudo (Kong, bancos, Kafka UI, Mailpit, Toxiproxy) estão no [gu
 
 - **Os próximos experimentos**, na ordem do [mapa de modos de falha](docs/architecture/failure-modes.md#o-que-ainda-não-tem-prova): o Redis junto com o PSP lento, a entrega ao vivo sem o tracking ou sem o Redis, e o BFF sem a logistics.
 - **O despacho da frota** (UC-TRK-02): achar o entregador disponível mais perto de cada remessa, com o Redis GEO que o ADR 0013 previu. Hoje a posição ao vivo segue o código de rastreio, porque ninguém designa um entregador.
-- **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, um provedor de identidade no lugar dos perfis sem senha. A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).
+- **Mais uma camada de isolamento entre as lojas**: o row-level security do PostgreSQL, para um filtro esquecido numa consulta não vazar pedidos de uma loja para outra ([ADR 0031](docs/adr/0031-a-store-is-a-tenant.md)).
+- **O que muda num sistema de verdade**, e quando: OpenTelemetry no lugar do correlation id caseiro, captura de mudanças (CDC) no lugar do relay, um provedor de identidade no lugar dos perfis sem senha, e réplicas do Kong atrás de um balanceador ([ADR 0032](docs/adr/0032-the-edge-per-store-limits-and-its-single-point.md)). A tabela está no [capítulo 0](docs/guia/00-como-eu-penso.md#soluções-para-o-momento).

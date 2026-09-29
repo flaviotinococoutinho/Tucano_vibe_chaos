@@ -52,6 +52,8 @@ curl -si -X POST localhost:8000/api/commerce/v1/orders \
   -d @pedido.json | grep -i preference-applied
 ```
 
+O `pedido.json` é o corpo do exemplo de pedido do README, com o `LAB-CONSOLE-001`, o console de edição limitada, e `"store": "bemtevi"`: desde as lojas ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)), todo pedido diz de que loja é, e o console é da Bem-te-vi.
+
 O `Prefer` é o header do RFC 7240 para exatamente isso: uma dica de como o cliente gostaria que o servidor se comportasse, que o servidor pode seguir ou ignorar. Quando o laboratório segue a dica, a resposta traz `Preference-Applied: reservation-strategy=naive`; fora do laboratório, ou com um nome de estratégia que não existe, a dica é ignorada e a resposta não diz nada. Antes era um header `X-Inventory-Strategy`, e o RFC 6648 desaconselha o prefixo `X-` em nome novo.
 
 A estratégia escolhida entra no contexto do request e aparece em toda linha de log dele (`inventory_strategy`). A carga concorrente de verdade pela API, com k6 e a conferência da invariante, entra junto com o laboratório de caos.

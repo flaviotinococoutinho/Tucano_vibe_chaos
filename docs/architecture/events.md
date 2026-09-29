@@ -74,8 +74,8 @@ O catálogo publica o estado do produto, não a mudança (event-carried state tr
 
 | Consumer group | Lê | Faz |
 |---|---|---|
-| `commerce.catalog-sync` | `catalog.products.v1` | atualiza os snapshots de produto usados no checkout |
-| `logistics.catalog-sync` | `catalog.products.v1` | atualiza peso e dimensões usados na escolha da transportadora |
+| `commerce.catalog-sync` | `catalog.products.v1` | atualiza os snapshots de produto usados no checkout, com a loja de cada um, que o pedido confere |
+| `logistics.catalog-sync` | `catalog.products.v1` | atualiza peso, dimensões e loja, usados na escolha da transportadora e na loja de uma remessa antiga |
 | `logistics.order-intake` | `commerce.orders.v2` | cria a remessa em `order.paid` e a cancela em `order.cancelled` |
 | `logistics.label-requests` | `logistics.shipments.v2` | põe na fila `label-jobs` (SQS) o pedido de etiqueta de cada remessa criada |
 | `logistics.pickup-bookings` | `logistics.shipments.v2` | agenda a coleta na transportadora de cada remessa pronta |
@@ -105,7 +105,7 @@ flowchart LR
 
 ## Evolução de schema
 
-- Dentro de uma versão, só mudanças aditivas (campos novos e opcionais). Consumidores são tolerant readers e ignoram o que não conhecem. O `name` de cada item do `order.placed` entrou assim: o schema ganhou o campo como opcional, o produtor passou a mandá-lo sempre, e o projetor da lista mostra o SKU quando lê um evento antigo, sem ele.
+- Dentro de uma versão, só mudanças aditivas (campos novos e opcionais). Consumidores são tolerant readers e ignoram o que não conhecem. O `name` de cada item do `order.placed` entrou assim: o schema ganhou o campo como opcional, o produtor passou a mandá-lo sempre, e o projetor da lista mostra o SKU quando lê um evento antigo, sem ele. A loja entrou do mesmo jeito, em todos os eventos de uma vez: `store` é opcional em todo schema de `catalog.product.snapshot`, `commerce.order.*` e `logistics.shipment.*`, o produtor o manda sempre que sabe a loja, e um fato de antes das lojas simplesmente não o traz ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)).
 - Mudança que quebra contrato vira tópico novo ([ADR 0010](../adr/0010-cloudevents-contracts.md)). Os consumidores aprendem a ler a versão nova primeiro, os produtores trocam de tópico depois, e a leitura da versão antiga sai quando o lag dela zera em todos os consumer groups.
 
 ### O endereço, do v1 para o v2

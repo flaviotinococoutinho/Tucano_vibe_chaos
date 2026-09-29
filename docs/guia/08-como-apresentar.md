@@ -13,12 +13,13 @@ make up                                   # a stack sobe e espera os health chec
 open http://localhost:8000                # a loja
 ```
 
-1. Compro um livro e pago com o cartão que aprova. A tela do pedido se atualiza sozinha e vai contando a história: as cinco etapas, do pedido feito à entrega, e o histórico que junta o que o commerce e a logística sabem. Na saída para entrega, o entregador aparece ao vivo na própria tela.
+1. Abro a Tucano, mostro as três lojas, cada uma na sua paleta, e entro na Arara. Compro um livro e pago com o cartão que aprova. A tela do pedido se atualiza sozinha e vai contando a história: as cinco etapas, do pedido feito à entrega, e o histórico que junta o que o commerce e a logística sabem. Na saída para entrega, o entregador aparece ao vivo na própria tela.
 2. Compro de novo e pago com o cartão recusado. A tela termina em "Cancelado", dizendo por quê, e o estoque volta para a prateleira.
-3. Troco de perfil no topo e crio o Bruno. "Meus pedidos" dele está vazio, e a URL de um pedido da Ana responde "Não encontrado". Volto para a Ana, e os pedidos dela estão lá.
-4. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
-5. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
-6. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
+3. Troco de perfil no topo e crio o Bruno. "Meus pedidos" dele está vazio, e a URL de um pedido da Ana responde "Não encontrado". Volto para a Ana, e os pedidos dela estão lá. Depois abro o mesmo pedido pelo caminho da Sabiá: "Não encontrado" de novo, porque ele é da Arara.
+4. Rodo `make experiment e=a-store-in-a-rush`: quarenta compradores lotam a Arara, e a Sabiá segue abrindo em menos de 0,1 s, porque cada loja gasta o próprio limite no Kong.
+5. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
+6. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
+7. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
 
 ## Numa conversa técnica longa
 
@@ -47,6 +48,7 @@ Eu escolho o fio pela pessoa do outro lado:
 | E se o webhook do PSP nunca chegar? | a conciliação pergunta ao PSP e aplica a resposta pelo mesmo caminho do webhook | [conciliação](../labs/payment-reconciliation.md) |
 | Por que não um microsserviço por entidade? | fronteira por subdomínio: o que muda junto fica junto | [ADR 0002](../adr/0002-services-per-subdomain.md) |
 | Por que PHP e Node juntos? | cada linguagem onde o trabalho dela faz sentido, com as mesmas convenções nas duas | [stacks](02-stacks.md) |
+| Como você faz multi-tenancy? | modelo de pool: serviços, bancos e tópicos compartilhados, com a loja em todo dado que é dela; cada serviço cobra o isolamento no próprio dado, e o Kong dá a cada loja o seu limite | [ADR 0031](../adr/0031-a-store-is-a-tenant.md) e [ADR 0032](../adr/0032-the-edge-per-store-limits-and-its-single-point.md) |
 | Como um cliente não vê o pedido do outro? | a sessão é assinada pelo BFF, o commerce filtra cada leitura pelo cliente e responde o mesmo 404 para um pedido alheio, e a borda só alcança as rotas públicas do commerce, por uma porta do nginx que não serve as do cliente | [ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md) |
 | Como você muda um contrato de evento sem quebrar ninguém? | mudança compatível no mesmo tópico, incompatível num tópico novo (`v2`) | [ADR 0010](../adr/0010-cloudevents-contracts.md) |
 | Como você impede a arquitetura de apodrecer? | cada regra importante é um teste que quebra o build | [abstrações](05-abstracoes.md) |

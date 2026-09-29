@@ -25,7 +25,15 @@ Cada serviço é dono do seu schema, e as migrations ficam no próprio serviço 
 ```mermaid
 erDiagram
   categories ||--o{ products : "agrupa"
+  stores ||--o{ products : "vende"
 
+  stores {
+    binary(16) id PK "UUIDv7"
+    varchar(31) slug UK "arara, bemtevi, sabia"
+    varchar(80) name
+    varchar(120) tagline
+    enum palette "arara, bemtevi, sabia"
+  }
   categories {
     binary(16) id PK "UUIDv7"
     varchar(64) slug UK
@@ -36,6 +44,7 @@ erDiagram
     char(36) id_text "virtual: BIN_TO_UUID(id)"
     varchar(32) sku UK
     varchar(160) name
+    binary(16) store_id FK "uma loja só"
     binary(16) category_id FK
     enum status "draft, active, discontinued"
     bigint price_cents
@@ -55,8 +64,9 @@ O catálogo fica no MySQL de propósito, para contrastar com o PostgreSQL dos ou
 - **`ENUM` no status**: aqui cabe, pelo motivo da tabela de tipos. Rascunho (`draft`) nunca sai do catálogo.
 - **`CHECK` com `REGEXP_LIKE`**: o MySQL só passou a validar `CHECK` na 8.0.16; antes aceitava a sintaxe e ignorava. O `'c'` no fim força a comparação com maiúsculas, porque a collation `utf8mb4_0900_ai_ci` não diferencia maiúsculas nem acentos.
 - **`DATETIME(6)` em UTC**: a sessão roda com `time_zone = '+00:00'`, então o `CURRENT_TIMESTAMP(6)` grava UTC. `DATETIME` não converte fuso; `TIMESTAMP` converteria, mas só vai até 2038.
-- **`version`**: sobe a cada mudança. Quem copia o produto (os `product_snapshots` do commerce e do logistics) ignora versão mais velha do que a que já tem.
-- **Erro com código do driver**: o MySQL devolve SQLSTATE genérico (`HY000`, `23000`) para quase tudo. Os testes conferem o código: `3819` (CHECK), `1062` (duplicata), `1452` (chave estrangeira) e `1265` (valor fora do `ENUM` em modo strict).
+- **`version`**: sobe a cada mudança. Quem copia o produto (os `product_snapshots` do commerce e do logistics) ignora versão mais velha do que a que já tem. A única exceção é a loja: uma cópia aceita, na mesma versão, a loja que ela ainda não sabia.
+- **A loja de cada produto** ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)): `store_id` aponta para `stores`, e o slug da loja é o que viaja nos eventos e nas rotas. A migração que criou a coluna pôs os produtos antigos na loja da categoria, em três passos (coluna nula, preenchimento, `NOT NULL`), e subiu a versão de cada um, para a republicação levar a loja às cópias. A paleta é um `ENUM` pelo mesmo motivo do status: uma lista fechada, que o design system da web define.
+- **Erro com código do driver**: o MySQL devolve SQLSTATE genérico (`HY000`, `23000`) para quase tudo. Os testes conferem o código: `3819` (CHECK), `1062` (duplicata), `1452` (chave estrangeira), `1265` (valor fora do `ENUM` em modo strict) e, com as lojas, `1048` (coluna `NOT NULL` sem valor) e `1451` (loja que ainda tem produtos).
 
 O catálogo não tem outbox: a publicação no tópico compactado é o dual write consciente do [ADR 0008](../adr/0008-transactional-outbox.md).
 
@@ -81,6 +91,7 @@ erDiagram
     uuid id PK
     bigint order_number UK "Snowflake"
     uuid customer_id
+    varchar(31) store "a loja do pedido; nula nos de antes das lojas"
     varchar(254) customer_email
     varchar(24) status "máquina de estados"
     char(15) tracking_code "da remessa, desde a coleta"
@@ -131,7 +142,7 @@ erDiagram
   }
 ```
 
-Também existem `product_snapshots` (cópia local do catálogo), `outbox_messages`, `inbox_messages` e `idempotency_keys`, sem relação com as tabelas acima.
+Também existem `product_snapshots` (cópia local do catálogo, com a loja de cada produto), `outbox_messages`, `inbox_messages` e `idempotency_keys`, sem relação com as tabelas acima.
 
 ## Logistics (PostgreSQL, banco `logistics`)
 
@@ -160,6 +171,7 @@ erDiagram
     uuid id PK
     bigint tracking_code UK "Snowflake"
     uuid order_id UK "uma remessa por pedido"
+    varchar(31) store "a loja do pedido; nula nas de antes das lojas"
     varchar(24) status "máquina de estados"
     varchar(32) carrier_code FK
     char(4) origin FK
@@ -191,7 +203,7 @@ erDiagram
   }
 ```
 
-Também existem `product_snapshots` (peso e dimensões), `cancelled_orders` (pedidos pagos cancelados antes de ter remessa, para um `order.paid` reprocessado não despachar), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
+Também existem `product_snapshots` (loja, peso e dimensões), `cancelled_orders` (pedidos pagos cancelados antes de ter remessa, para um `order.paid` reprocessado não despachar), `outbox_messages`, `inbox_messages` e `failed_jobs` (dono: a fila do Laravel).
 
 ## Read models (MongoDB)
 
@@ -199,8 +211,8 @@ O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_r
 
 | Coleção | Chave | Índices | Alimentada por |
 |---|---|---|---|
-| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v2`, no grupo `commerce.order-projector` ([UC-ORD-08](../use-cases/UC-ORD-08-project-order-views.md)) |
-| `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário) | `trackingCode` único, `orderId` único | `logistics.shipments.v2` |
+| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `store + customerId + placedAt` (os pedidos do cliente em cada loja), `orderNumber` único | `commerce.orders.v2`, no grupo `commerce.order-projector` ([UC-ORD-08](../use-cases/UC-ORD-08-project-order-views.md)) |
+| `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário), com a loja quando o evento a traz | `trackingCode` único, `orderId` único | `logistics.shipments.v2` |
 
 ```json
 {
@@ -226,7 +238,7 @@ Um Redis só para a stack inteira. Cada serviço usa o próprio nome como prefix
 
 | Chave (depois do prefixo) | Dono | TTL | Para quê |
 |---|---|---|---|
-| `product:v1:<sku>` | catalog | 270 a 330 s; 30 s para `missing` | cache-aside do produto; o `v1` muda quando o formato gravado mudar |
+| `product:v2:<sku>` | catalog | 270 a 330 s; 30 s para `missing` | cache-aside do produto, com a loja dele; o `v2` veio com a loja, porque o formato gravado mudou |
 | `product-rebuild:<sku>` | catalog | 5 s | lock contra stampede: só quem o pega relê o MySQL |
 
 ## DynamoDB (Floci)
@@ -238,7 +250,7 @@ As tabelas nascem na subida do Floci, a partir de `infra/floci/dynamodb/*.json`.
 | `tracking_lookup` | `trackingCode` (partição) | página pública de rastreio: uma leitura por código, sem tocar nos bancos dos serviços |
 | `notification_log` | `pk` (partição) e `sk` (ordenação) | registro das notificações enviadas, para o mesmo evento não gerar dois e-mails |
 
-O item do `tracking_lookup` guarda `status`, `updatedAt`, `carrier`, `destination` (município e UF), `steps` (a lista dos passos, que cresce com `list_append`), `shipmentId`, `seen` (o conjunto dos ids de evento já aplicados, que a condição do `UpdateItem` consulta para não repetir passo) e `expiresAt`, 90 dias depois do último passo.
+O item do `tracking_lookup` guarda `store` (a loja da remessa, que a rota por loja confere), `status`, `updatedAt`, `carrier`, `destination` (município e UF), `steps` (a lista dos passos, que cresce com `list_append`), `shipmentId`, `seen` (o conjunto dos ids de evento já aplicados, que a condição do `UpdateItem` consulta para não repetir passo) e `expiresAt`, 90 dias depois do último passo.
 
 ## Objetos (S3 no Floci)
 

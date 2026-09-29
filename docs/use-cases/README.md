@@ -21,10 +21,11 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | ID | Nível | Ator principal | Objetivo | Contexto |
 |---|---|---|---|---|
 | [UC-000](UC-000-buy-and-receive.md) | resumo | Cliente | comprar e receber um produto | todos |
-| [UC-CAT-01](UC-CAT-01-browse-catalog.md) | usuário | Cliente | consultar o catálogo | Catalog |
+| [UC-CAT-01](UC-CAT-01-browse-catalog.md) | usuário | Cliente | consultar o catálogo de uma loja | Catalog |
 | [UC-CAT-02](UC-CAT-02-publish-product.md) | usuário | Administrador do catálogo | publicar um produto | Catalog |
 | [UC-CAT-03](UC-CAT-03-change-price.md) | usuário | Administrador do catálogo | alterar o preço de um produto | Catalog |
 | [UC-CAT-04](UC-CAT-04-discontinue-product.md) | usuário | Administrador do catálogo | descontinuar um produto | Catalog |
+| [UC-CAT-05](UC-CAT-05-choose-store.md) | subfunção | Cliente | escolher uma loja | Catalog |
 | [UC-ORD-01](UC-ORD-01-place-order.md) | usuário | Cliente | fazer um pedido | Ordering |
 | UC-ORD-02 | usuário | Cliente | cancelar um pedido | Ordering |
 | [UC-ORD-03](UC-ORD-03-expire-unpaid-orders.md) | subfunção | Relógio | expirar pedidos não pagos | Ordering |
@@ -52,7 +53,7 @@ Os casos de uso seguem **Alistair Cockburn**, autor do livro Writing Effective U
 | [UC-SHP-08](UC-SHP-08-return-to-sender.md) | subfunção | Transportadora | devolver ao remetente | Shipping |
 | [UC-SHP-09](UC-SHP-09-cancel-shipment.md) | subfunção | Commerce | cancelar a remessa | Shipping |
 | [UC-SHP-10](UC-SHP-10-track-by-code.md) | usuário | Cliente | rastrear pelo código | Timeline |
-| [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso e dimensões dos produtos | Shipping |
+| [UC-SHP-11](UC-SHP-11-sync-catalog.md) | subfunção | Catalog | manter peso, dimensões e loja dos produtos | Shipping |
 | [UC-SHP-12](UC-SHP-12-reconcile-journeys.md) | subfunção | Relógio | conciliar a jornada com a transportadora | Shipping |
 | [UC-SHP-13](UC-SHP-13-watch-stalled-journeys.md) | subfunção | Relógio | vigiar as jornadas paradas | Shipping |
 | [UC-TRK-01](UC-TRK-01-report-position.md) | subfunção | Aparelho do entregador | informar a posição | Tracking |
