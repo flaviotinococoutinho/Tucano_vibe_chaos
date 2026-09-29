@@ -9,22 +9,31 @@ export type ErrorSummaryProps = {
   readonly fields: readonly SirenField[];
 };
 
-/** `role="alert"`: a submission that failed validation is worth an immediate announcement. */
+/**
+ * `role="alert"`: a submission that failed validation is worth an immediate announcement.
+ * A message about a field the person can see links to it; one about a hidden field (a key,
+ * the profile a button chose) reads as a plain sentence, since there is nothing to go fix.
+ */
 export function ErrorSummary({ detail, errors, fields }: ErrorSummaryProps): ReactElement {
-  const titleOf = (name: string): string =>
-    fields.find((field) => field.name === name)?.title ?? name;
-
   return (
     <div className="error-summary" role="alert">
       <p className="error-summary__detail">{detail}</p>
       <ul className="error-summary__list">
-        {Object.entries(errors).map(([name, messages]) => (
-          <li key={name}>
-            <a href={`#field-${name}`}>
-              {titleOf(name)}: {messages.join(' ')}
-            </a>
-          </li>
-        ))}
+        {Object.entries(errors).map(([name, messages]) => {
+          const field = fields.find((candidate) => candidate.name === name);
+          const text = messages.join(' ');
+          return (
+            <li key={name}>
+              {field !== undefined && field.type !== 'hidden' ? (
+                <a href={`#field-${name}`}>
+                  {field.title ?? name}: {text}
+                </a>
+              ) : (
+                text
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

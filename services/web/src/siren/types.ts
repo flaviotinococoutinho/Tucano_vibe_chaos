@@ -100,6 +100,26 @@ export type Notice = {
   readonly text: string;
 };
 
+/**
+ * Where a milestone of an order stands: reached, being worked on, still ahead, or where the
+ * story stopped (a cancellation, a return). The web gives each one a shape, never only a color.
+ */
+export type MilestoneState = 'done' | 'current' | 'upcoming' | 'stopped';
+
+/** One milestone of an order's `progress`; `at` only once it is done or stopped. */
+export type Milestone = {
+  readonly label: string;
+  readonly state: MilestoneState;
+  readonly at?: Instant;
+};
+
+/** Who is shopping, as the `navigation` component tells it; the label is already the words to show. */
+export type Shopper = {
+  readonly profileId?: string;
+  readonly label: string;
+  readonly initial: string;
+};
+
 /** An RFC 3339 instant in UTC, exactly as the BFF sends it, before the web formats it. */
 export type Instant = string & { readonly __brand: 'Instant' };
 

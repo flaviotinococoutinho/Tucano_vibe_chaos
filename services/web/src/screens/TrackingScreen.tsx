@@ -3,17 +3,13 @@ import { Badge, InstantText, LiveDelivery, TimelineStep } from '../components/in
 import {
   entitiesOf,
   findLink,
+  REL,
   readInstant,
   readString,
   readTone,
   type SirenScreen,
 } from '../siren/index.ts';
 import './TrackingScreen.css';
-
-// The live position of the courier: a WebSocket, offered only while a parcel of the own
-// fleet is out for delivery (contracts/http/bff/README.md#rel-live).
-const REL_LIVE =
-  'https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-live';
 
 type Destination = { readonly municipality: string; readonly state: string };
 
@@ -36,7 +32,9 @@ export function TrackingScreen({ screen }: { readonly screen: SirenScreen }): Re
   const destination = readDestination(screen.properties?.destination);
   const updatedAt = readInstant(screen.properties, 'updatedAt');
   const steps = entitiesOf(screen, 'item');
-  const liveLink = findLink(screen.links, REL_LIVE);
+  // The live position of the courier: a WebSocket, offered only while a parcel of the own
+  // fleet is out for delivery (contracts/http/bff/README.md#rel-live).
+  const liveLink = findLink(screen.links, REL.live);
 
   return (
     <div className="tracking-screen">

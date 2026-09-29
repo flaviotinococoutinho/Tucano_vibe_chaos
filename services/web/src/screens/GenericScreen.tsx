@@ -4,6 +4,7 @@ import {
   findLink,
   isMoney,
   isTone,
+  REL,
   type SirenProperties,
   type SirenScreen,
   type SirenSubEntity,
@@ -21,7 +22,9 @@ const HANDLED_PROPERTY_KEYS = new Set(['notice', 'refreshAfterSeconds']);
  * added to the registry later renders the same data with more care, not different data.
  */
 export function GenericScreen({ screen }: GenericScreenProps): ReactElement {
-  const entities = screen.entities ?? [];
+  // The navigation belongs to the header, which draws it for every screen, this one included.
+  const entities = (screen.entities ?? []).filter((entity) => !entity.rel.includes(REL.navigation));
+  const sentAnEmptyList = screen.entities !== undefined && screen.entities.length === 0;
   const links = (screen.links ?? []).filter((link) => !link.rel.includes('self'));
   const actions = screen.actions ?? [];
 
@@ -37,7 +40,7 @@ export function GenericScreen({ screen }: GenericScreenProps): ReactElement {
             </div>
           ))}
         </div>
-      ) : screen.entities !== undefined ? (
+      ) : sentAnEmptyList ? (
         <EmptyState title="Nada para mostrar aqui ainda." />
       ) : null}
       {links.length > 0 ? (

@@ -1,0 +1,18 @@
+.orders-screen__total {
+  color: var(--color-text-muted);
+}
+
+.orders-screen__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.orders-screen__pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

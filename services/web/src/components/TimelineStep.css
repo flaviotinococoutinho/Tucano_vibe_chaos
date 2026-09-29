@@ -20,14 +20,19 @@
   border: 2px solid var(--color-text-muted);
 }
 
+/* teal-deep on paper, and the lighter teal on ink, where teal-deep would fade into the page. */
 .timeline-step--current .timeline-step__marker {
-  background-color: var(--color-success-bg);
-  border-color: var(--color-success-bg);
+  background-color: var(--color-info-text);
+  border-color: var(--color-info-text);
 }
 
 .timeline-step__label {
   margin: 0;
   font-weight: 700;
+}
+
+.timeline-step__detail {
+  margin: var(--space-1) 0 0;
 }
 
 .timeline-step__at {

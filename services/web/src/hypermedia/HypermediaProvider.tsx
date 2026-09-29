@@ -194,8 +194,9 @@ export function HypermediaProvider({ children }: { readonly children: ReactNode 
           if (nextLabel !== undefined && nextLabel !== previousLabel) {
             setAnnouncement(nextLabel);
           }
+          // The new screen is a new object, so this effect runs again for it and schedules
+          // with its own interval; a tick scheduled here would fire with the old one first.
           dispatch({ type: 'live-update', screen: next });
-          schedule();
         })
         .catch(() => {
           // A live refresh that fails is not the end of the world: it tries again next tick.

@@ -5,7 +5,9 @@ import { CheckoutScreen } from './CheckoutScreen.tsx';
 import { GenericScreen } from './GenericScreen.tsx';
 import { HomeScreen } from './HomeScreen.tsx';
 import { OrderScreen } from './OrderScreen.tsx';
+import { OrdersScreen } from './OrdersScreen.tsx';
 import { ProductScreen } from './ProductScreen.tsx';
+import { ProfilesScreen } from './ProfilesScreen.tsx';
 import { TrackingScreen } from './TrackingScreen.tsx';
 
 export type ScreenComponentProps = { readonly screen: SirenScreen };
@@ -18,6 +20,8 @@ const REGISTRY: Readonly<Record<string, ScreenComponent>> = {
   product: ProductScreen,
   checkout: CheckoutScreen,
   order: OrderScreen,
+  orders: OrdersScreen,
+  profiles: ProfilesScreen,
   tracking: TrackingScreen,
 };
 

@@ -8,6 +8,10 @@ import './ActionForm.css';
 
 export type ActionFormProps = {
   readonly action: SirenAction;
+  /** The weight of the button: one primary action per screen, the others secondary. */
+  readonly variant?: 'primary' | 'secondary';
+  /** A class of the place the form sits in, added to its own. */
+  readonly className?: string;
 };
 
 /**
@@ -17,7 +21,11 @@ export type ActionFormProps = {
  * error summary, focus on the first invalid one); a successful mutation swaps the whole
  * screen, which unmounts this form for us.
  */
-export function ActionForm({ action }: ActionFormProps): ReactElement {
+export function ActionForm({
+  action,
+  variant = 'primary',
+  className,
+}: ActionFormProps): ReactElement {
   const { submitAction } = useHypermedia();
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitOutcome | null>(null);
@@ -47,7 +55,11 @@ export function ActionForm({ action }: ActionFormProps): ReactElement {
     // the BFF answers every field at once, in Portuguese, next to each one (the GOV.UK Design
     // System asks for the same). required, pattern and inputmode stay for the keyboard and
     // for assistive technology.
-    <form className="action-form" onSubmit={handleSubmit} noValidate>
+    <form
+      className={className === undefined ? 'action-form' : `action-form ${className}`}
+      onSubmit={handleSubmit}
+      noValidate
+    >
       {result?.kind === 'validation' ? (
         <ErrorSummary
           detail={result.problem.detail}
@@ -65,7 +77,7 @@ export function ActionForm({ action }: ActionFormProps): ReactElement {
           errors={result?.kind === 'validation' ? result.problem.errors[field.name] : undefined}
         />
       ))}
-      <button type="submit" className="button button--primary" disabled={submitting}>
+      <button type="submit" className={`button button--${variant}`} disabled={submitting}>
         {submitting ? 'Enviando...' : action.title}
       </button>
     </form>

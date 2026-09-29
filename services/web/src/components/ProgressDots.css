@@ -1,0 +1,37 @@
+.progress-dots__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.progress-dots__dot {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.progress-dots__dot--done {
+  background-color: var(--color-info-text);
+}
+
+/* The current one is bigger and hollow, a ring around where the order is. */
+.progress-dots__dot--current {
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--color-info-text);
+}
+
+.progress-dots__dot--upcoming {
+  border: 2px solid var(--color-text-muted);
+}
+
+/* Where the story stopped: a square turned on its corner, not a circle. */
+.progress-dots__dot--stopped {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background-color: var(--color-danger-text);
+  transform: rotate(45deg);
+}
