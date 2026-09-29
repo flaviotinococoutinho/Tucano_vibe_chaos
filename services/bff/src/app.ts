@@ -14,6 +14,8 @@ import { healthRoutes, isProbe } from './platform/health-routes.ts';
 import { type LogStream, logOptions } from './platform/logging.ts';
 import { sendNotFound, sendProblem } from './platform/problem-details.ts';
 import type { HealthCheck } from './platform/readiness.ts';
+import { navigationFor, profilesRoutes } from './profiles/index.ts';
+import { sessionsWith } from './session/index.ts';
 import { storefrontRoutes } from './storefront/index.ts';
 import { trackingRoutes } from './tracking/index.ts';
 import { catalogAt, commerceAt, logisticsAt } from './upstream/index.ts';
@@ -23,7 +25,7 @@ export type AppOptions = {
   /** What /health/ready probes; each dependency adds its check here. */
   readonly checks?: readonly HealthCheck[];
   readonly logStream?: LogStream;
-  /** Makes idempotency keys and guest ids: UUIDv7, unless a test wants them fixed. */
+  /** Makes idempotency keys and profile ids: UUIDv7, unless a test wants them fixed. */
   readonly newId?: KeyMaker;
 };
 
@@ -49,7 +51,17 @@ export function buildApp({
     },
   });
 
+  // The session lives in a signed cookie: every screen leaves with the navigation of the
+  // session as the request ends, and the cookie goes out once, whatever the answer is.
+  const sessions = sessionsWith({
+    secret: config.sessionSecret,
+    secure: config.environment === 'production',
+  });
+
   app.addHook('onRequest', echoCorrelationId);
+  app.addHook('onRequest', sessions.forgetGuest);
+  app.addHook('preSerialization', navigationFor(sessions));
+  app.addHook('onSend', sessions.writeCookie);
   app.setErrorHandler(sendProblem);
   app.setNotFoundHandler(sendNotFound);
   app.register(healthRoutes, { checks });
@@ -75,15 +87,25 @@ export function buildApp({
     baseUrl: config.upstreams.logistics,
     timeoutMs,
   });
+  // The same logistics, asked with the deadline of an enrichment: the order waits for its
+  // delivery news this long at most, and never longer than for anything else.
+  const deliveryNews = logisticsAt({
+    name: 'logistics',
+    called: 'o rastreio',
+    baseUrl: config.upstreams.logistics,
+    timeoutMs: Math.min(config.enrichmentTimeoutMs, timeoutMs),
+  });
 
   app.register(storefrontRoutes, { catalog });
-  app.register(checkoutRoutes, {
-    catalog,
+  app.register(checkoutRoutes, { catalog, commerce, sessions, newId });
+  app.register(ordersRoutes, {
     commerce,
+    deliveryNews,
+    sessions,
     newId,
-    secureCookies: config.environment === 'production',
+    livePath: config.trackingLivePath,
   });
-  app.register(ordersRoutes, { commerce, newId });
+  app.register(profilesRoutes, { sessions, newId });
   app.register(trackingRoutes, { logistics, livePath: config.trackingLivePath });
 
   return app;

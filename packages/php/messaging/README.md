@@ -5,7 +5,7 @@ A mecânica de mensageria que commerce, logistics e catalog compartilham. É inf
 | Peça | O que faz |
 |---|---|
 | `RdKafkaProducer` | producer idempotente (`enable.idempotence`, `acks=all`, `lz4`), que só considera entregue depois do `flush()` |
-| `RdKafkaConsumer` | consumer at-least-once: commit manual do offset depois do handler, retry com backoff e DLQ em `dlq.<grupo>`; um `SIGTERM` no meio das tentativas não confirma nada |
+| `RdKafkaConsumer` | consumer at-least-once: commit manual do offset depois do handler, retry com backoff e DLQ em `dlq.<grupo>`; um `SIGTERM` no meio das tentativas não confirma nada. Quem roda pode pedir uma pausa (uma flag de caos, por exemplo): o consumer sai do grupo entre duas mensagens e, quando a pausa acaba, volta do offset que o grupo confirmou |
 | `IncomingEvent` | o primeiro passo de todo handler: o registro vira `CloudEvent`, ou uma `PermanentFailure` com a posição no tópico quando não é um |
 | `RetryPolicy` | backoff exponencial com full jitter; `PermanentFailure` vai direto para a DLQ, conexão perdida com o banco (`LostConnection`) tenta sem limite, e o resto tem tentativas contadas |
 | `OutboxWriter` | grava o CloudEvent em `outbox_messages` usando a conexão (e a transação) de quem chama |
@@ -22,6 +22,7 @@ O pacote usa PDO puro, e não o Eloquent ou o query builder, para funcionar igua
 - **Consumo**: offset confirmado só depois do processamento. Consumidor que cai reprocessa; por isso todo handler usa a `Inbox`.
 - **Mensagem venenosa**: não trava a partição; depois das tentativas (ou na hora, se for `PermanentFailure`) ela vai para `dlq.<grupo>` com o erro e a origem nos headers.
 - **Banco fora do ar**: aí a partição espera. A mensagem não tem culpa, e desistir dela mandaria para a DLQ uma mensagem boa, seguida de todas as outras que falhariam do mesmo jeito. O log registra cada tentativa em warning, e o consumo segue quando o banco volta.
+- **Pausa**: o consumer pausado fica fora do grupo, sem mensagem na mão e com tudo confirmado, então nenhuma pausa é longa demais para o broker. Pausar as partições e seguir no grupo pouparia o rejoin, mas uma partição que um rebalance entrega no meio de um poll pode trazer uma mensagem antes de ser pausada.
 
 ## Testes
 

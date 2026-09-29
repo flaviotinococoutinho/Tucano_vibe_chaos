@@ -39,8 +39,11 @@ export function screen(name: string, parts: ScreenParts): Entity {
 
 type ComponentParts = {
   readonly rel: readonly string[];
+  /** What a person reads as the heading of the piece, when it has one. */
+  readonly title?: string;
   readonly properties: Properties;
   readonly links?: readonly Link[];
+  readonly actions?: readonly Action[];
 };
 
 /** A piece embedded in a screen, such as a product card: `["<component>"]` with its rel. */
@@ -48,7 +51,9 @@ export function component(name: string, parts: ComponentParts): Entity {
   return {
     class: [name],
     rel: parts.rel,
+    ...(parts.title === undefined ? {} : { title: parts.title }),
     properties: parts.properties,
     ...(parts.links?.length ? { links: parts.links } : {}),
+    ...(parts.actions?.length ? { actions: parts.actions } : {}),
   };
 }

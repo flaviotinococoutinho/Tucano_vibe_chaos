@@ -10,11 +10,12 @@ export type TimelineStepProps = {
 };
 
 /**
- * The `timeline-step` component. `label` already carries whatever the story needs to say
- * (a delivery attempt's reason included), so it is only ever shown as-is, never parsed.
+ * The `timeline-step` component. `label` says what happened and `detail`, when the step has
+ * one, why (a cancellation reason, a visit nobody answered); both are shown as-is, never parsed.
  */
 export function TimelineStep({ entity, isCurrent }: TimelineStepProps): ReactElement | null {
   const label = readString(entity.properties, 'label');
+  const detail = readString(entity.properties, 'detail');
   const at = readInstant(entity.properties, 'at');
   const hub = readString(entity.properties, 'hub');
   const attempt = readNumber(entity.properties, 'attempt');
@@ -27,6 +28,7 @@ export function TimelineStep({ entity, isCurrent }: TimelineStepProps): ReactEle
     <li className={`timeline-step${isCurrent ? ' timeline-step--current' : ''}`}>
       <span className="timeline-step__marker" aria-hidden="true" />
       <p className="timeline-step__label">{label}</p>
+      {detail !== undefined ? <p className="timeline-step__detail">{detail}</p> : null}
       {at !== undefined ? (
         <p className="timeline-step__at">
           <InstantText value={at} />

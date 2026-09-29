@@ -2,15 +2,24 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Narrow first: the brand and the toggle on one row, the navigation below them, wrapping as
+ * it needs so the page never scrolls sideways. Wide enough, all three share one row. */
 .app-header__inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand toggle"
+    "nav nav";
   align-items: center;
-  justify-content: space-between;
+  column-gap: var(--space-4);
+  row-gap: var(--space-2);
   padding-top: var(--space-3);
   padding-bottom: var(--space-3);
 }
 
 .app-header__brand {
+  grid-area: brand;
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -25,4 +34,93 @@
 .app-header__title {
   font-size: 1.25rem;
   font-weight: 800;
+}
+
+.app-header__nav {
+  grid-area: nav;
+  min-width: 0;
+}
+
+.app-header__toggle {
+  grid-area: toggle;
+  display: flex;
+}
+
+@media (min-width: 48rem) {
+  .app-header__inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand nav toggle";
+  }
+
+  .app-header__nav {
+    justify-self: end;
+  }
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-nav__link:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+/* Where the reader is: a filled pill and an underline, so it never rests on color alone. */
+.app-nav__link[aria-current] {
+  background-color: var(--color-surface-elevated);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 16rem;
+  min-height: 40px;
+  padding: 3px var(--space-3) 3px 3px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-chip--nobody {
+  padding: var(--space-1) var(--space-3);
+}
+
+.profile-chip:hover {
+  background-color: var(--color-surface-elevated);
+}
+
+.profile-chip[aria-current] {
+  border-color: var(--color-text);
+  border-width: 2px;
+}
+
+.profile-chip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

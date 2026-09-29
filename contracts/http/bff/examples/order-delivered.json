@@ -1,0 +1,249 @@
+{
+  "class": [
+    "screen",
+    "order"
+  ],
+  "title": "Pedido 97856663872212992",
+  "properties": {
+    "orderId": "0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20",
+    "orderNumber": "97856663872212992",
+    "status": "delivered",
+    "statusLabel": "Entregue",
+    "tone": "success",
+    "headline": "Seu pedido foi entregue.",
+    "placedAt": "2026-09-28T05:10:11.000Z",
+    "reservationExpiresAt": null,
+    "total": {
+      "amount": 15990,
+      "currency": "BRL",
+      "formatted": "R$ 159,90"
+    },
+    "trackingCode": "TX02PX83TXC5G00",
+    "progress": [
+      {
+        "label": "Pedido feito",
+        "state": "done",
+        "at": "2026-09-28T05:10:11.000Z"
+      },
+      {
+        "label": "Pagamento aprovado",
+        "state": "done",
+        "at": "2026-09-28T05:10:13.482Z"
+      },
+      {
+        "label": "Preparando o envio",
+        "state": "done",
+        "at": "2026-09-28T05:10:14.120Z"
+      },
+      {
+        "label": "A caminho",
+        "state": "done",
+        "at": "2026-09-28T05:10:19.811Z"
+      },
+      {
+        "label": "Entregue",
+        "state": "done",
+        "at": "2026-09-28T05:10:31.702Z"
+      }
+    ]
+  },
+  "entities": [
+    {
+      "class": [
+        "order-line"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "sku": "BOOK-DDD-001",
+        "name": "Domain-Driven Design",
+        "quantity": 1,
+        "unitPrice": {
+          "amount": 15990,
+          "currency": "BRL",
+          "formatted": "R$ 159,90"
+        },
+        "subtotal": {
+          "amount": 15990,
+          "currency": "BRL",
+          "formatted": "R$ 159,90"
+        }
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "pending_payment",
+        "label": "Pedido feito",
+        "at": "2026-09-28T05:10:11.000Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "paid",
+        "label": "Pagamento aprovado",
+        "at": "2026-09-28T05:10:13.482Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "created",
+        "label": "Pedido de envio criado",
+        "at": "2026-09-28T05:10:14.120Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "ready_for_pickup",
+        "label": "Etiqueta pronta",
+        "at": "2026-09-28T05:10:15.903Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "picked_up",
+        "label": "Coletado pela transportadora",
+        "at": "2026-09-28T05:10:19.337Z"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "in_transit",
+        "label": "Em trânsito",
+        "at": "2026-09-28T05:10:23.066Z",
+        "hub": "Hub Contagem (MG)"
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "out_for_delivery",
+        "label": "Saiu para entrega",
+        "at": "2026-09-28T05:10:27.540Z",
+        "attempt": 1
+      }
+    },
+    {
+      "class": [
+        "timeline-step"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-history"
+      ],
+      "properties": {
+        "status": "delivered",
+        "label": "Entregue",
+        "at": "2026-09-28T05:10:31.218Z",
+        "attempt": 1
+      }
+    },
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": {
+          "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
+          "label": "Ana",
+          "initial": "A"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Ana"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/orders/0199a2b4-6f1c-7a3e-9b2d-5c8e1f4a7d20"
+    },
+    {
+      "rel": [
+        "collection"
+      ],
+      "href": "/bff/v1/orders",
+      "title": "Meus pedidos"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-track"
+      ],
+      "href": "/bff/v1/tracking/TX02PX83TXC5G00",
+      "title": "Acompanhar a entrega"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Continuar comprando"
+    }
+  ]
+}

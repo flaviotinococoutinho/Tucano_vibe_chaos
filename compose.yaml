@@ -516,6 +516,24 @@ services:
         condition: service_completed_successfully
     mem_limit: 128m
 
+  # UC-ORD-08: the customer's order list (order_views, MongoDB) from commerce.orders.v2, in a
+  # consumer group of its own (ADR 0027). It waits for MongoDB without a limit, and the flag
+  # chaos.commerce.order-projector-paused takes it out of its group until the flag is off.
+  commerce-order-projector:
+    <<: [*service, *commerce]
+    command: ["php", "artisan", "commerce:project-order-views"]
+    stop_signal: SIGTERM
+    depends_on:
+      commerce-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_started
+      flagd:
+        condition: service_started
+    mem_limit: 128m
+
   commerce-order-expiry:
     <<: [*service, *commerce]
     command: ["php", "artisan", "commerce:expire-orders"]
@@ -761,6 +779,11 @@ services:
       LOGISTICS_URL: http://toxiproxy:18083
       # Above the 2 s Commerce gives the PSP, so the BFF never gives up on a payment Commerce still waits for.
       UPSTREAM_TIMEOUT_MS: "5000"
+      # Empty means the BFF's fixed local secret, which it only accepts with APP_ENV=local. Any
+      # other environment must bring its own (export SESSION_SECRET before make up), or the BFF
+      # refuses to boot: a secret written here would let anyone with the repository sign a
+      # session for any customer (ADR 0030).
+      SESSION_SECRET: ${SESSION_SECRET:-}
     depends_on:
       toxiproxy:
         condition: service_started

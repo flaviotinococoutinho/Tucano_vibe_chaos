@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tucano\Messaging\Kafka;
 
+use Closure;
 use Psr\Log\LoggerInterface;
 use RdKafka\Conf;
 use RdKafka\KafkaConsumer;
@@ -21,7 +22,10 @@ use Tucano\Messaging\Worker\StopSignal;
  */
 final class RdKafkaConsumer
 {
-    private readonly KafkaConsumer $consumer;
+    private readonly Conf $conf;
+
+    /** In the group while it polls; out of it before the run and during a pause. */
+    private ?KafkaConsumer $consumer = null;
 
     /** @param list<string> $topics */
     public function __construct(
@@ -40,25 +44,71 @@ final class RdKafkaConsumer
         $conf->set('enable.auto.commit', 'false');
         $conf->set('auto.offset.reset', 'earliest');
         LibrdkafkaLog::route($conf, $logger);
-        $this->consumer = new KafkaConsumer($conf);
+        $this->conf = $conf;
     }
 
-    public function run(MessageHandler $handler, StopSignal $stop): void
+    /**
+     * @param (Closure(): bool)|null $paused asked before every poll, a chaos flag for example. While it
+     *                                     says yes, the consumer stays out of the group; when it says no
+     *                                     again, the consumer joins and goes on from the committed offsets.
+     */
+    public function run(MessageHandler $handler, StopSignal $stop, ?Closure $paused = null): void
     {
-        $this->consumer->subscribe($this->topics);
         $this->logger->info('consumer started', ['group' => $this->group, 'topics' => $this->topics]);
 
+        $holding = false;
         while (!$stop->requested()) {
-            $this->poll($handler, $stop);
+            $holding = $this->hold($paused !== null && $paused(), $holding);
+            if ($holding) {
+                $stop->pause($this->pollTimeoutMs);
+
+                continue;
+            }
+            $this->poll($this->joined(), $handler, $stop);
         }
 
-        $this->consumer->close();
+        $this->leave();
         $this->logger->info('consumer stopped', ['group' => $this->group]);
     }
 
-    private function poll(MessageHandler $handler, StopSignal $stop): void
+    /**
+     * A pause takes the consumer out of the group between two messages: nothing in hand and
+     * every offset committed, so the broker waits for no poll however long the pause lasts.
+     * Polling on with the partitions paused would keep the membership, but a partition that a
+     * rebalance hands over in the middle of a poll can deliver a message before it is paused.
+     */
+    private function hold(bool $pause, bool $holding): bool
     {
-        $message = $this->consumer->consume($this->pollTimeoutMs);
+        if ($pause && !$holding) {
+            $this->leave();
+            $this->logger->info('consumer paused, out of the group until the pause ends', ['group' => $this->group]);
+        }
+        if (!$pause && $holding) {
+            $this->logger->info('consumer resumed', ['group' => $this->group]);
+        }
+
+        return $pause;
+    }
+
+    private function joined(): KafkaConsumer
+    {
+        if ($this->consumer === null) {
+            $this->consumer = new KafkaConsumer($this->conf);
+            $this->consumer->subscribe($this->topics);
+        }
+
+        return $this->consumer;
+    }
+
+    private function leave(): void
+    {
+        $this->consumer?->close();
+        $this->consumer = null;
+    }
+
+    private function poll(KafkaConsumer $consumer, MessageHandler $handler, StopSignal $stop): void
+    {
+        $message = $consumer->consume($this->pollTimeoutMs);
         if ($message->err === RD_KAFKA_RESP_ERR__TIMED_OUT || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             return;
         }
@@ -66,10 +116,10 @@ final class RdKafkaConsumer
             throw new RuntimeException('Kafka consumer error: ' . $message->errstr());
         }
 
-        $this->process($handler, $message, $stop);
+        $this->process($consumer, $handler, $message, $stop);
     }
 
-    private function process(MessageHandler $handler, RdKafkaMessage $raw, StopSignal $stop): void
+    private function process(KafkaConsumer $consumer, MessageHandler $handler, RdKafkaMessage $raw, StopSignal $stop): void
     {
         $message = ReceivedMessage::fromRdKafka($raw);
         $outcome = $this->retry->run(
@@ -87,7 +137,7 @@ final class RdKafkaConsumer
 
             return;
         }
-        $this->consumer->commit($raw);
+        $consumer->commit($raw);
     }
 
     /** @return array{group: string, topic: string, partition: int, offset: int} */

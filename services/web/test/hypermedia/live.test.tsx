@@ -1,4 +1,4 @@
-import { screen as pageScreen, render, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HypermediaProvider } from '../../src/hypermedia/index.ts';
 import { ScreenRouter } from '../../src/screens/index.ts';
@@ -19,8 +19,8 @@ function setHidden(hidden: boolean): void {
   Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
 }
 
-// The visible status badge and the hidden aria-live announcement can carry the same text at
-// once; reading the badge's own paragraph directly keeps the assertion unambiguous.
+// The status label shows in the badge, in the milestone the order is at and, once it changes,
+// in the hidden aria-live announcement; reading the badge's own paragraph keeps it unambiguous.
 function statusText(): string | null {
   return document.querySelector('.order-screen__status')?.textContent ?? null;
 }
@@ -50,7 +50,7 @@ describe('a live screen', () => {
         <ScreenRouter />
       </HypermediaProvider>,
     );
-    await pageScreen.findByText(firstLabel);
+    await waitFor(() => expect(statusText()).toBe(firstLabel));
 
     await waitFor(() => expect(statusText()).toBe(secondLabel));
 
@@ -77,7 +77,7 @@ describe('a live screen', () => {
         <ScreenRouter />
       </HypermediaProvider>,
     );
-    await pageScreen.findByText(firstLabel);
+    await waitFor(() => expect(statusText()).toBe(firstLabel));
 
     setHidden(true);
     await new Promise((resolve) => setTimeout(resolve, 250));

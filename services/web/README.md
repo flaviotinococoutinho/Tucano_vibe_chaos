@@ -6,7 +6,7 @@ A decisão está no [ADR 0023](../../docs/adr/0023-server-driven-ui-with-siren.m
 
 ## O intérprete, em uma frase
 
-Um registro liga a classe de uma tela (`home`, `catalog`, `product`, `checkout`, `order`, `tracking`) a um componente React. Uma classe que o registro não conhece cai num renderizador genérico, que mostra as `properties`, os `entities`, os `links` e as `actions` do jeito que a Siren já organiza. Por isso uma tela nova do BFF funciona antes mesmo de eu escrever um componente para ela.
+Um registro liga a classe de uma tela (`home`, `catalog`, `product`, `checkout`, `orders`, `order`, `profiles`, `tracking`) a um componente React. Uma classe que o registro não conhece cai num renderizador genérico, que mostra as `properties`, os `entities`, os `links` e as `actions` do jeito que a Siren já organiza. Por isso uma tela nova do BFF funciona antes mesmo de eu escrever um componente para ela.
 
 ## Como está organizado
 
@@ -14,13 +14,27 @@ Cada pasta de `src/` é um módulo com uma única porta de entrada, `index.ts`, 
 
 | Módulo | O que tem |
 |---|---|
-| `siren/` | o vocabulário do contrato: os tipos de tela, link, ação e campo, e funções puras para ler e validar `properties` (`readMoney`, `readTone`, `readNotice`) e formatar um instante RFC 3339 para o leitor |
+| `siren/` | o vocabulário do contrato: os tipos de tela, link, ação e campo, as relações do domínio (`REL`), e funções puras para ler e validar `properties` (`readMoney`, `readTone`, `readNotice`, `readProgress`, `readShopper`) e formatar um instante RFC 3339 para o leitor |
 | `hypermedia/` | o único lugar com efeito colateral: `client.ts` fala com o `fetch`, `history.ts` fala com a History API, `prefix.ts` guarda a única URL fixa do app (`/bff/v1`) e converte entre o caminho do navegador e o endereço do BFF, e `HypermediaProvider` amarra tudo isso a um estado React (`useHypermedia`) que toda tela e todo componente usa para navegar e para enviar ações |
-| `theme/` | os tokens de cor como tabela (`tone.ts`, tom vira estilo de badge) e o hook do tema claro/escuro (`useTheme`) |
-| `components/` | peças de apresentação: `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `ProductCard`, `OrderLine`, `TimelineStep`, `LiveDelivery`, os estados de carregando, vazio e erro |
+| `theme/` | os tokens de cor como tabela (`tone.ts`, tom vira estilo de badge; `avatar.ts`, o id do perfil vira a cor do avatar) e o hook do tema claro/escuro (`useTheme`) |
+| `components/` | peças de apresentação: `Header`, `Link`, `ActionForm`, `Field`, `Badge`, `Notice`, `ProductCard`, `OrderCard`, `OrderLine`, `OrderProgress`, `ProgressDots`, `ProfileCard`, `Avatar`, `TimelineStep`, `LiveDelivery`, os estados de carregando, vazio e erro |
 | `screens/` | o registro de telas, o `ScreenRouter` (cabeçalho, aviso, foco, o corpo trocado por baixo) e um componente por classe conhecida, mais o `GenericScreen` de reserva |
 
 `App.tsx` só junta `HypermediaProvider`, o cabeçalho e o `ScreenRouter`. `main.tsx` monta a árvore.
+
+## O cabeçalho vem da tela
+
+Toda tela do BFF traz um componente `navigation`: quem está comprando e os links do cabeçalho. O `Header` desenha a partir da tela que está na página, então não existe menu escrito na web: "Catálogo", "Meus pedidos" e o chip do perfil (o avatar com a inicial e o nome, ou "Entrar" quando o navegador ainda não tem sessão) são os links e os títulos que chegaram. Um problema não tem navegação, e o cabeçalho fica só com a marca e o botão do tema.
+
+O link da seção onde a pessoa está leva `aria-current`, comparando só endereços que o servidor deu: `page` na própria página (a lista de pedidos) e `true` numa página dentro da seção (um pedido, sob "Meus pedidos"), como o WAI-ARIA pede. O destaque é um fundo e um sublinhado, nunca só cor. No celular, a navegação quebra para baixo da marca, sem rolagem lateral.
+
+## A história do pedido
+
+A tela do pedido começa pelo cartão de situação (o badge, a frase da loja sobre onde o pedido está e os dados: quando foi feito, total, rastreio e o prazo para pagar), segue pelos marcos, pelo entregador ao vivo quando o BFF oferece o `rel-live`, pelo pagamento enquanto ele existe, pelo "Histórico" e termina nos itens e nos links. O caminho de volta, "Meus pedidos", é o link `collection`, que o `ScreenRouter` já desenha acima do título.
+
+Os marcos são uma lista ordenada: na horizontal em tela larga, na vertical no celular. Cada estado tem a sua forma (feito com um check, o atual com um ponto dentro de um anel e `aria-current="step"`, o próximo vazado, o interrompido com um X) e as suas palavras para o leitor de tela, então nenhum depende só de cor; a linha entre dois marcos é cheia quando o pedido já passou por ela e tracejada quando ainda falta. Na lista de pedidos, cada cartão resume os marcos em pontos com o badge ao lado (e, num pedido cancelado, o marco onde ele parou, que diz mais que o badge), e o título do cartão é o único link: o cartão inteiro recebe o clique, mas o leitor de tela ouve um link curto por pedido, e não o cartão lido de ponta a ponta.
+
+Os avatares dos perfis têm a cor tirada do id (FNV-1a sobre o texto do id): o mesmo perfil tem a mesma cor no cabeçalho e na tela de perfis, sem a web guardar nada. As cores são pares da paleta que passam de 4,5:1 nos dois temas.
 
 ## Como adicionar um componente para uma classe nova
 
@@ -38,7 +52,7 @@ O caminho do navegador e o endereço do BFF são só uma soma de prefixo: `toBff
 
 Todo link é uma âncora de verdade (`<a href>`), com o caminho do navegador já no `href`, então clique do meio e abrir em nova aba funcionam sem JavaScript nenhum. Um clique simples do botão esquerdo, sem tecla modificadora, é interceptado para navegar pelo `fetch` em vez de recarregar a página. Um link de classe `external` não passa por nada disso: sai como âncora comum, `target="_blank"` e `rel="noopener"`.
 
-Uma ação GET (`track-by-code`, `buy`) vira consulta na URL da própria ação; o `fetch` segue um 303 sozinho, e o endereço final da resposta é o que entra no histórico. Uma ação POST (`place-order`, `pay`) manda JSON e, num 201 ou 202, o corpo da resposta já é a tela seguinte: o cabeçalho `Location` só diz que endereço mostrar, sem buscar de novo. Um 422 fica na mesma tela: cada mensagem de `errors` aparece ao lado do campo (`aria-invalid`, `aria-describedby`), um resumo lista todos com link para cada campo, e o foco vai para o primeiro campo inválido.
+Uma ação GET (`track-by-code`, `buy`) vira consulta na URL da própria ação; o `fetch` segue um 303 sozinho, e o endereço final da resposta é o que entra no histórico. Uma ação POST (`place-order`, `pay`) manda JSON e, num 201 ou 202, o corpo da resposta já é a tela seguinte: o cabeçalho `Location` só diz que endereço mostrar, sem buscar de novo. As ações de perfil (`use-profile`, `create-profile`) respondem 303, e o `fetch` também segue esse sozinho, com um GET: o que chega já é a lista de pedidos de quem ficou comprando. Um 422 fica na mesma tela: cada mensagem de `errors` aparece ao lado do campo (`aria-invalid`, `aria-describedby`), um resumo lista todos com link para cada campo, e o foco vai para o primeiro campo inválido. Uma mensagem sobre um campo escondido (o perfil que um botão escolheu) aparece no resumo como frase, sem nome de campo e sem link, porque não há o que corrigir ali.
 
 O formulário desliga a validação do navegador (`novalidate`). Ela pararia no primeiro campo errado, num balão e com as palavras do navegador; o BFF responde todos os campos de uma vez, em português, ao lado de cada um. É o que o GOV.UK Design System recomenda pelo mesmo motivo. `required`, `pattern`, `inputmode` e `autocomplete` continuam lá: trazem o teclado certo no celular, o preenchimento automático e o que a tecnologia assistiva anuncia.
 
@@ -59,7 +73,7 @@ Quando a tela de rastreio traz um link `rel-live`, o que o BFF só faz enquanto 
 
 ## Acessibilidade
 
-- Landmarks (`header`, `main`) e um link de pular para o conteúdo, visível ao ganhar foco.
+- Landmarks (`header`, `main`, a navegação "Principal") e um link de pular para o conteúdo, visível ao ganhar foco. O logo do cabeçalho é decorativo (`alt=""`): o nome ao lado já nomeia o link, e o leitor de tela não ouve "Tucano" duas vezes.
 - Depois de toda navegação de verdade, o foco vai para o `h1` da tela (o título já é da tela, um só lugar cuida disso, no `ScreenRouter`); uma atualização de tela viva nunca rouba o foco. A primeira tela deixa o foco onde o navegador põe, porque ninguém navegou ainda. O título recebe o foco sem anel: ele não é algo que se ativa, e o WCAG pede o anel aos controles.
 - O anel de foco é sempre visível e sempre em duas camadas: um anel na cor da superfície, depois um na cor do texto. Assim o contraste do anel nunca depende do que está atrás do elemento focado, nem um botão laranja.
 - `prefers-reduced-motion: reduce` zera a duração de toda animação e transição.
@@ -88,6 +102,11 @@ Vitest, `@testing-library/react` e `user-event`, ambiente `jsdom`. `test/support
 | `screens/registry.test.ts` | a classe certa pega o componente certo, e uma classe desconhecida cai no genérico |
 | `screens/examples.test.tsx` | toda tela de exemplo do contrato renderiza, cada uma com seu título como `h1`, com um WebSocket inerte no lugar do de verdade |
 | `screens/tracking-screen.test.tsx` | o cartão ao vivo aparece só quando a tela oferece o link `rel-live` |
+| `screens/order-screen.test.tsx` | a frase de agora, o histórico com as etapas da entrega e o motivo de cada passo, o entregador ao vivo no pedido, o aviso sem as notícias da entrega e o pagamento só enquanto o pedido espera |
+| `screens/orders-screen.test.tsx` | cada pedido da lista tem o título como único link, a paginação, e a lista vazia com o tucano e o caminho para o catálogo |
+| `screens/profiles-screen.test.tsx` | o perfil que está comprando marcado, a troca nos outros, o formulário de perfil novo, e a troca levando aos pedidos de quem foi escolhido |
+| `components/header.test.tsx` | os links e o chip do perfil vêm da navegação da tela, o `aria-current` da seção, o convite para entrar sem sessão, e só a marca e o tema num problema |
+| `components/order-progress.test.tsx` | cada marco com o seu estado, forma e palavras, `aria-current="step"` só no atual, a hora só do que já aconteceu, e o pedido cancelado parando no marco interrompido |
 | `components/live-delivery.test.tsx` | o endereço sai do href com o esquema certo, a posição vira distância, o fim encerra, a queda reconecta com espera crescente, o aviso de sem sinal aos 30 s e o fechamento ao desmontar |
 | `components/action-form.test.tsx` | um formulário nasce dos campos de uma ação, com rótulo, obrigatoriedade e opções de `select` |
 | `screens/place-order.test.tsx` | o POST de `place-order` leva os campos ocultos e os digitados, segue o `Location` de um 201, e um 422 mostra cada mensagem, o resumo e o foco no primeiro campo inválido |

@@ -39,6 +39,8 @@ final readonly class OrderPlaced extends OrderEvent
             'total' => $this->lines->total()->toArray(),
             'lines' => array_map(static fn(OrderLine $line): array => [
                 'sku' => (string) $line->sku,
+                // The name at order time, as the line keeps it: the customer's list shows what was bought.
+                'name' => $line->productName,
                 'quantity' => $line->quantity->value,
                 'unitPrice' => $line->unitPrice->toArray(),
             ], iterator_to_array($this->lines, false)),

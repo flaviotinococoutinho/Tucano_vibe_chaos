@@ -23,8 +23,12 @@ services:
         paths: [/api/catalog]
         strip_path: true
 
+  # The edge reaches commerce on 8182, the nginx listener that serves only its public routes
+  # (orders, payments, the PSP webhook, health). The customer routes live on 8082, which only the
+  # BFF reaches on the internal network (ADR 0030). A path rule here would not do: Kong matches
+  # the raw path, so /api/commerce/v1%2Fcustomers slipped past one and nginx decoded it.
   - name: commerce
-    url: http://nginx:8082
+    url: http://nginx:8182
     routes:
       - name: commerce-api
         paths: [/api/commerce]

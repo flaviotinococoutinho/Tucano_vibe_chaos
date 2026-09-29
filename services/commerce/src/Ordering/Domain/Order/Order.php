@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Commerce\Ordering\Domain\Order;
 
 use Commerce\Ordering\Domain\Customer\Customer;
+use Commerce\Ordering\Domain\Customer\CustomerId;
 use Commerce\Ordering\Domain\Error\OrderTransitionNotAllowed;
 use Commerce\Ordering\Domain\Event\OrderCancelled;
 use Commerce\Ordering\Domain\Event\OrderDelivered;
@@ -99,6 +100,12 @@ final class Order extends AggregateRoot
     public function id(): OrderId
     {
         return $this->id;
+    }
+
+    /** A customer sees only the orders it placed (ADR 0030). */
+    public function isPlacedBy(CustomerId $customer): bool
+    {
+        return $this->customer->is($customer);
     }
 
     public function amountDue(): Money

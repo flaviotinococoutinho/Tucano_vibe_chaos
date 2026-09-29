@@ -19,6 +19,46 @@
       "formatted": "R$ 159,90"
     }
   },
+  "entities": [
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": {
+          "profileId": "0199a2b4-5c30-7e5f-a061-c3d4e5f60718",
+          "label": "Visitante",
+          "initial": "V"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Visitante"
+        }
+      ]
+    }
+  ],
   "actions": [
     {
       "name": "place-order",

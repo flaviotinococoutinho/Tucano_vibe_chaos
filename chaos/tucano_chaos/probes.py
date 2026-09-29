@@ -7,15 +7,29 @@ hypothesis held and the log says by how much.
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 
 from .store import APPROVED_CARD, TRACK, Answer, Shopper, link_to, logger, self_link
 
+
+@dataclass(frozen=True)
+class Followed:
+    """An order a probe keeps between checks, with the browser that bought it.
+
+    Each shopper profile sees only its own orders (ADR 0030), so the order screen opens
+    for the session that placed the order, and for no other.
+    """
+
+    shopper: Shopper
+    href: str
+
+
 # What a probe keeps between the check before the fault and the one after it, for the
 # screens that must still answer when the service behind them is out.
-_remembered_order: str | None = None
+_remembered_order: Followed | None = None
 _remembered_tracking: str | None = None
 # The order bought while the fault is on, which the probe after the method follows.
-_bought_during_the_fault: str | None = None
+_bought_during_the_fault: Followed | None = None
 
 # The steps every journey of the own fleet goes through, from the shipment to the door.
 JOURNEY = ("created", "ready_for_pickup", "picked_up", "out_for_delivery", "delivered")
@@ -42,14 +56,14 @@ def order_screen_answers(within_seconds: float = 6.0) -> bool:
     on the next one, when it may not be.
     """
     global _remembered_order
-    shopper = Shopper()
     if _remembered_order is None:
+        shopper = Shopper()
         placed = shopper.place_order()
         if placed.status != 201:
             logger.info("could not place the order to watch: %s", placed.described())
             return False
-        _remembered_order = self_link(placed.screen)
-    answer = shopper.open(_remembered_order)
+        _remembered_order = Followed(shopper, self_link(placed.screen))
+    answer = _remembered_order.shopper.open(_remembered_order.href)
     logger.info("the order screen answered %s", answer.described())
     return _content_or_honest_refusal(answer, within_seconds)
 
@@ -116,12 +130,14 @@ def the_page_follows_the_journey(within_seconds: float = 90.0) -> bool:
     otherwise, with the card that approves: a parcel has to ship. The page is read the way
     the web reads it, through the tracking link of the order screen.
     """
-    shopper = Shopper()
-    order = _bought_during_the_fault
-    if order is None:
-        order = _a_paid_order(shopper)
-        if order is None:
+    followed = _bought_during_the_fault
+    if followed is None:
+        shopper = Shopper()
+        paid = _a_paid_order(shopper)
+        if paid is None:
             return False
+        followed = Followed(shopper, paid)
+    shopper, order = followed.shopper, followed.href
 
     started = time.monotonic()
     tracking = None
@@ -134,7 +150,13 @@ def the_page_follows_the_journey(within_seconds: float = 90.0) -> bool:
         else:
             page = shopper.open(tracking)
             if page.status == 200:
-                steps = [step["properties"]["status"] for step in page.screen.get("entities", [])]
+                # The steps by their class, as the web picks components: every screen also embeds
+                # its navigation, which is not a step.
+                steps = [
+                    step["properties"]["status"]
+                    for step in page.screen.get("entities", [])
+                    if "timeline-step" in step.get("class", [])
+                ]
                 if page.screen["properties"]["status"] == "delivered":
                     missing = [step for step in JOURNEY if step not in steps]
                     waited = time.monotonic() - started

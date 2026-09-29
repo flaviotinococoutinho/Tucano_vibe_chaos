@@ -6,6 +6,7 @@ import {
   href,
   type Link,
   money,
+  pageLinks,
   path,
   rel,
   screen,
@@ -43,23 +44,13 @@ export function homeScreen(): Entity {
 }
 
 export function catalogScreen(page: ProductPage): Entity {
-  const lastPage = Math.max(1, Math.ceil(page.total / page.perPage));
   const at = (number: number): string => href('/products', { page: number });
 
   return screen('catalog', {
     title: 'Catálogo',
     properties: { page: page.page, perPage: page.perPage, total: page.total },
     entities: page.products.map(productCard),
-    links: [
-      { rel: [rel.self], href: at(page.page) },
-      ...(page.page < lastPage
-        ? [{ rel: [rel.next], href: at(page.page + 1), title: 'Próxima página' }]
-        : []),
-      ...(page.page > 1
-        ? [{ rel: [rel.prev], href: at(page.page - 1), title: 'Página anterior' }]
-        : []),
-      HOME,
-    ],
+    links: [...pageLinks(page, at), HOME],
   });
 }
 

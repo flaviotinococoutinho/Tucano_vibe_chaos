@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 
-/** The vocabulary and the anticorruption layer know no screen; screens know both. */
-const FOUNDATIONS = ['platform', 'hypermedia', 'upstream'];
-const FEATURES = ['storefront', 'checkout', 'orders', 'tracking'];
+/** The vocabulary, the anticorruption layer and the session know no screen; screens know them all. */
+const FOUNDATIONS = ['platform', 'hypermedia', 'upstream', 'session'];
+const FEATURES = ['storefront', 'checkout', 'orders', 'profiles', 'tracking'];
 
 type Import = { readonly from: string; readonly module: string; readonly target: string };
 
@@ -19,6 +19,15 @@ type Import = { readonly from: string; readonly module: string; readonly target:
  */
 describe('the modules of the BFF', () => {
   const imports = importsBetweenModules();
+
+  it('are each a foundation or a feature, so no new one escapes these rules', () => {
+    const modules = readdirSync(SRC, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+
+    assert.deepStrictEqual(modules, [...FOUNDATIONS, ...FEATURES].sort());
+  });
 
   it('meet only through their barrels', () => {
     const through = imports.filter(

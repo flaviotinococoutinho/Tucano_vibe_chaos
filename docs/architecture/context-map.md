@@ -61,6 +61,7 @@ No diagrama, cada seta vai do upstream para o downstream.
 | Transportadoras para Logistics | **Anticorruption Layer** | cada transportadora tem seu próprio formato; o adapter converte tudo em transições da máquina de estados da remessa |
 | Tracking para App da frota | **Open Host Service** | o protocolo WebSocket da frota é definido e documentado pelo Tracking; o app se adapta a ele |
 | Serviços para o BFF | **Anticorruption Layer** | o BFF não tem domínio próprio, mas não adota o modelo de ninguém de olhos fechados: o `src/upstream/` lê o JSON de cada serviço campo a campo e o traduz para o vocabulário das telas. Um serviço que muda o contrato sem avisar quebra ali, com o nome da chamada e do campo, e não no meio de uma tela |
+| BFF para Commerce, nas rotas do cliente | **Customer/Supplier**, com o BFF como a fronteira da identidade | o BFF sabe quem está comprando, pela sessão assinada, e o commerce confia no id de cliente que ele manda, só pela rede interna: a borda alcança o commerce por uma porta do nginx que só serve as rotas públicas ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)). O commerce cobra o isolamento no próprio dado, e um pedido de outro cliente responde como um que não existe |
 
 ## Shared Kernel
 

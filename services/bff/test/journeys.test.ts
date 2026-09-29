@@ -1,25 +1,44 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
-import { loadConfig } from '../src/config.ts';
+import { rel } from '../src/hypermedia/index.ts';
+import { bffOver } from './support/bff.ts';
+import { testConfig } from './support/config.ts';
+import { FORM_KEY, PAY_KEY } from './support/example-screens.ts';
 import { example } from './support/examples.ts';
 import { type FakeServices, fakeServices, ids } from './support/fake-services.ts';
+import { sessionCookie, sessionSet } from './support/sessions.ts';
 import {
+  ana,
+  anaShopping,
+  customerOrderJson,
   dddBook,
   deliveredParcel,
+  histories,
   orderJson,
   pendingOrder,
   productJson,
+  trackingJson,
+  visitor,
+  visitorShopping,
 } from './support/upstream-data.ts';
 
 const ORDER = pendingOrder.orderId;
-const GUEST = '0199a2b4-1111-7222-8333-444455556666';
-const FORM_KEY = '0199a2b4-8a10-7c51-b0d2-3e4f5a6b7c8d';
-const PAY_KEY = '0199a2b4-9b21-7d62-a1e3-4f5a6b7c8d9e';
 /** The key the fake PSP answers 503 to, as if its circuit breaker were open. */
 const KEY_WHILE_PSP_IS_OUT = '0199a2b4-9b21-7d62-a1e3-000000000503';
 const SIREN = /^application\/vnd\.siren\+json/;
+const ANA = sessionCookie(anaShopping);
+
+/** The customer id of the last order the fake Commerce received. */
+function customerSentTo(services: FakeServices): string | undefined {
+  const body = services.received.at(-1)?.body as { customer?: { id?: string } } | undefined;
+  return body?.customer?.id;
+}
+
+/** Picks the entities of a relation out of a screen as it came over the wire. */
+function isA(relation: string): (entity: { rel: string[] }) => boolean {
+  return (entity) => entity.rel.includes(relation);
+}
 
 const orderForm = {
   idempotencyKey: FORM_KEY,
@@ -36,28 +55,6 @@ const orderForm = {
   municipality: 'Belo Horizonte',
   state: 'MG',
 };
-
-type Setup = {
-  readonly env?: Record<string, string>;
-  /** The ids the BFF makes, in order; by default every form gets the key of the examples. */
-  readonly newId?: () => string;
-};
-
-/** The BFF pointed at the fake services, with ids a test can predict. */
-function bffOver(
-  services: FakeServices,
-  { env = {}, newId = ids(PAY_KEY) }: Setup = {},
-): FastifyInstance {
-  const config = loadConfig({
-    LOG_LEVEL: 'silent',
-    CATALOG_URL: services.url,
-    COMMERCE_URL: services.url,
-    LOGISTICS_URL: services.url,
-    UPSTREAM_TIMEOUT_MS: '1000',
-    ...env,
-  });
-  return buildApp({ config, newId });
-}
 
 describe('shopping', () => {
   let services: FakeServices;
@@ -122,8 +119,23 @@ describe('shopping', () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.equal(response.json().entities.length, 1);
+    assert.equal(response.json().entities.filter(isA(rel.item)).length, 1);
     assert.equal(services.received.at(-1)?.headers['x-correlation-id'], 'req-9#1');
+  });
+
+  it('names the shopper in the navigation of every screen', async () => {
+    const response = await bffOver(services).inject({
+      method: 'GET',
+      url: '/v1/products',
+      headers: { cookie: ANA },
+    });
+    const navigation = response.json().entities.find(isA(rel.navigation));
+
+    assert.deepStrictEqual(navigation.properties.shopper, {
+      profileId: ana.id,
+      label: 'Ana',
+      initial: 'A',
+    });
   });
 
   it('answers a product the catalog does not know with a 404 in Portuguese', async () => {
@@ -147,28 +159,31 @@ describe('shopping', () => {
     assert.equal(services.received.length, received);
   });
 
-  it('opens the checkout and gives the browser its guest cookie', async () => {
-    const response = await bffOver(services, { newId: ids(GUEST, FORM_KEY) }).inject({
-      method: 'GET',
-      url: '/v1/checkout?sku=BOOK-DDD-001&quantity=2',
-    });
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.json().properties.subtotal.formatted, 'R$ 319,80');
-    assert.equal(
-      response.headers['set-cookie'],
-      `tucano_guest=${GUEST}; Path=/bff; Max-Age=31536000; HttpOnly; SameSite=Lax; Secure`,
-    );
-  });
-
-  it('keeps the guest the browser already has', async () => {
-    const response = await bffOver(services).inject({
+  it('opens the checkout and starts the session of a visitor', async () => {
+    const response = await bffOver(services, { newId: ids(visitor.id, FORM_KEY) }).inject({
       method: 'GET',
       url: '/v1/checkout?sku=BOOK-DDD-001&quantity=1',
-      headers: { cookie: `theme=dark; tucano_guest=${GUEST}` },
     });
 
     assert.equal(response.statusCode, 200);
+    assert.deepStrictEqual(response.json(), example('checkout.json'));
+    assert.match(
+      String(response.headers['set-cookie']),
+      /^tucano_session=[\w-]+\.[\w-]+; Path=\/bff; Max-Age=31536000; HttpOnly; SameSite=Lax; Secure$/,
+    );
+    assert.deepStrictEqual(sessionSet(response.headers['set-cookie']), visitorShopping);
+  });
+
+  it('keeps the session the browser already has', async () => {
+    const response = await bffOver(services).inject({
+      method: 'GET',
+      url: '/v1/checkout?sku=BOOK-DDD-001&quantity=2',
+      headers: { cookie: `theme=dark; ${ANA}` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    // Intl keeps a no-break space after the symbol, so R$ never ends a line alone.
+    assert.equal(response.json().properties.subtotal.formatted, 'R$ 319,80');
     assert.equal(response.headers['set-cookie'], undefined);
   });
 
@@ -180,6 +195,7 @@ describe('shopping', () => {
 
     assert.equal(response.statusCode, 422);
     assert.deepStrictEqual(response.json().errors, { quantity: ['Escolha de 1 a 10 unidades.'] });
+    assert.equal(response.headers['set-cookie'], undefined);
   });
 
   it('does not check out a product out of line', async () => {
@@ -195,28 +211,61 @@ describe('shopping', () => {
     );
   });
 
-  it('places the order with the key of the form and the guest of the cookie', async () => {
+  it('places the order as the profile shopping, with the key of the form', async () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: '/v1/orders',
-      headers: { cookie: `tucano_guest=${GUEST}`, 'x-correlation-id': 'req-9#2' },
+      headers: { cookie: ANA, 'x-correlation-id': 'req-9#2' },
       payload: orderForm,
     });
 
     assert.equal(response.statusCode, 201);
     assert.equal(response.headers.location, `/bff/v1/orders/${ORDER}`);
     assert.deepStrictEqual(response.json(), example('order-pending-payment.json'));
+    assert.equal(response.headers['set-cookie'], undefined);
     const placed = services.received.at(-1);
     assert.equal(placed?.headers['idempotency-key'], FORM_KEY);
     assert.equal(placed?.headers['x-correlation-id'], 'req-9#2');
     assert.partialDeepStrictEqual(placed?.body, {
-      customer: { id: GUEST, email: 'ana@example.com' },
+      customer: { id: ana.id, email: 'ana@example.com' },
       shippingAddress: {
         thoroughfare: { type: 'Rua', name: 'da Bahia' },
         divisions: [{ kind: 'state', code: 'MG', name: 'Minas Gerais' }],
       },
       items: [{ sku: 'BOOK-DDD-001', quantity: 1 }],
     });
+  });
+
+  it('names the profile a checkout started after its first order, with the first name only', async () => {
+    const response = await bffOver(services).inject({
+      method: 'POST',
+      url: '/v1/orders',
+      headers: { cookie: sessionCookie(visitorShopping) },
+      payload: { ...orderForm, name: '  Maria   da Silva ' },
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepStrictEqual(sessionSet(response.headers['set-cookie']), {
+      active: visitor.id,
+      profiles: [{ id: visitor.id, name: 'Maria' }],
+    });
+    assert.equal(customerSentTo(services), visitor.id);
+  });
+
+  it('starts a session for an order that comes without one', async () => {
+    const newcomer = '0199a2b4-7d1e-7f20-8a31-b4c5d6e7f809';
+    const response = await bffOver(services, { newId: ids(newcomer, PAY_KEY) }).inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: orderForm,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepStrictEqual(sessionSet(response.headers['set-cookie']), {
+      active: newcomer,
+      profiles: [{ id: newcomer, name: 'Ana' }],
+    });
+    assert.equal(customerSentTo(services), newcomer);
   });
 
   it('gives back every mistake of the form at once, without bothering Commerce', async () => {
@@ -237,12 +286,14 @@ describe('shopping', () => {
     assert.equal(instance, '/v1/orders');
     assert.deepStrictEqual(problem, expected);
     assert.equal(services.received.length, received);
+    assert.equal(response.headers['set-cookie'], undefined);
   });
 
   it('says the stock ran out when Commerce cannot reserve it', async () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: '/v1/orders',
+      headers: { cookie: ANA },
       payload: { ...orderForm, email: 'stock@example.com' },
     });
 
@@ -250,10 +301,27 @@ describe('shopping', () => {
     assert.match(response.json().detail, /estoque/);
   });
 
+  it('keeps the session it started even when Commerce refuses the order', async () => {
+    const newcomer = '0199a2b4-7d1e-7f20-8a31-b4c5d6e7f80a';
+    const response = await bffOver(services, { newId: ids(newcomer) }).inject({
+      method: 'POST',
+      url: '/v1/orders',
+      payload: { ...orderForm, email: 'stock@example.com' },
+    });
+
+    // A retry of the same form goes as the same customer, so the same key meets the same body.
+    assert.equal(response.statusCode, 409);
+    assert.deepStrictEqual(sessionSet(response.headers['set-cookie']), {
+      active: newcomer,
+      profiles: [{ id: newcomer, name: null }],
+    });
+  });
+
   it('tells a product out of line from a stock that ran out, by the type of the problem', async () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: '/v1/orders',
+      headers: { cookie: ANA },
       payload: { ...orderForm, email: 'discontinued@example.com' },
     });
 
@@ -265,6 +333,7 @@ describe('shopping', () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: '/v1/orders',
+      headers: { cookie: ANA },
       payload: { ...orderForm, email: 'refused@example.com' },
     });
 
@@ -278,10 +347,12 @@ describe('paying', () => {
 
   before(async () => {
     services = await fakeServices((app) => {
-      app.get('/v1/orders/:orderId', async (request, reply) =>
-        (request.params as { orderId: string }).orderId === ORDER
-          ? orderJson(pendingOrder)
-          : reply.code(404).send({ status: 404 }),
+      app.get<{ Params: { customerId: string; orderId: string } }>(
+        '/v1/customers/:customerId/orders/:orderId',
+        async (request, reply) =>
+          request.params.customerId === ana.id && request.params.orderId === ORDER
+            ? customerOrderJson(pendingOrder, histories.pending)
+            : reply.code(404).send({ status: 404 }),
       );
       app.post('/v1/orders/:orderId/payments', async (request, reply) => {
         if (request.headers['idempotency-key'] === KEY_WHILE_PSP_IS_OUT) {
@@ -294,27 +365,37 @@ describe('paying', () => {
 
   after(() => services.close());
 
-  it('shows the order with its pay form', async () => {
-    const response = await bffOver(services).inject({ method: 'GET', url: `/v1/orders/${ORDER}` });
+  it('shows the order of the shopper with its pay form', async () => {
+    const response = await bffOver(services).inject({
+      method: 'GET',
+      url: `/v1/orders/${ORDER}`,
+      headers: { cookie: ANA },
+    });
 
     assert.equal(response.statusCode, 200);
     assert.deepStrictEqual(response.json(), example('order-pending-payment.json'));
+    assert.equal(services.received.at(-1)?.url, `/v1/customers/${ana.id}/orders/${ORDER}`);
   });
 
   it('answers an order that does not exist with a 404', async () => {
     const response = await bffOver(services).inject({
       method: 'GET',
       url: '/v1/orders/0199a2b4-0000-7000-8000-000000000000',
+      headers: { cookie: ANA },
     });
 
     assert.equal(response.statusCode, 404);
-    assert.equal(response.json().detail, 'Não encontrei esse pedido.');
+    assert.equal(
+      response.json().detail,
+      'Não encontrei esse pedido. Se ele foi feito com outro perfil, troque de perfil e abra de novo.',
+    );
   });
 
   it('follows the payment until the PSP answers', async () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: `/v1/orders/${ORDER}/payments`,
+      headers: { cookie: ANA },
       payload: { idempotencyKey: PAY_KEY, cardToken: 'tok_visa' },
     });
 
@@ -328,6 +409,7 @@ describe('paying', () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: `/v1/orders/${ORDER}/payments`,
+      headers: { cookie: ANA },
       payload: { idempotencyKey: KEY_WHILE_PSP_IS_OUT, cardToken: 'tok_visa' },
     });
 
@@ -344,6 +426,7 @@ describe('paying', () => {
     const response = await bffOver(services).inject({
       method: 'POST',
       url: `/v1/orders/${ORDER}/payments`,
+      headers: { cookie: ANA },
       payload: { idempotencyKey: PAY_KEY, cardToken: '4111111111111111' },
     });
 
@@ -362,15 +445,7 @@ describe('tracking', () => {
     services = await fakeServices((app) => {
       app.get('/v1/tracking/:code', async (request, reply) =>
         (request.params as { code: string }).code === deliveredParcel.trackingCode
-          ? {
-              ...deliveredParcel,
-              updatedAt: '2026-09-28T00:50:19.827+00:00',
-              steps: deliveredParcel.steps.map(({ hub, attempt, reason: _reason, ...step }) => ({
-                ...step,
-                ...(hub === null ? {} : { hub }),
-                ...(attempt === null ? {} : { attempt }),
-              })),
-            }
+          ? trackingJson(deliveredParcel)
           : reply.code(404).send({ status: 404 }),
       );
     });
@@ -445,7 +520,7 @@ describe('when a service fails', () => {
   });
 
   it('answers 503 when nothing listens where the service should be', async () => {
-    const config = loadConfig({ LOG_LEVEL: 'silent', LOGISTICS_URL: 'http://127.0.0.1:9' });
+    const config = testConfig({ LOGISTICS_URL: 'http://127.0.0.1:9' });
     const response = await buildApp({ config }).inject({
       method: 'GET',
       url: '/v1/tracking/TX02PX83TXC5G00',
@@ -470,8 +545,7 @@ describe('when a service fails', () => {
   });
 
   it('stays ready while the services behind are out', async () => {
-    const config = loadConfig({
-      LOG_LEVEL: 'silent',
+    const config = testConfig({
       CATALOG_URL: 'http://127.0.0.1:9',
       COMMERCE_URL: 'http://127.0.0.1:9',
       LOGISTICS_URL: 'http://127.0.0.1:9',

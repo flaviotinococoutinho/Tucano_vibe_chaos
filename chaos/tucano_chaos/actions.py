@@ -25,10 +25,12 @@ def pay_while_the_psp_is_slow(attempts: int = 5) -> list[int]:
 
 def buy_a_parcel() -> str:
     """Buys a mug while the fault is on, for the probe after the method to follow to the door."""
-    order = probes._a_paid_order(Shopper())
+    shopper = Shopper()
+    order = probes._a_paid_order(shopper)
     if order is None:
         raise RuntimeError("could not buy the parcel to follow")
-    probes._bought_during_the_fault = order
+    # The same browser follows it later: only the session that bought an order can open it.
+    probes._bought_during_the_fault = probes.Followed(shopper, order)
     logger.info("bought a parcel to follow: %s", order)
     return order
 

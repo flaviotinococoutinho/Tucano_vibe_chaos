@@ -46,6 +46,45 @@ export type Order = {
   readonly cancellationReason: CancellationReason | null;
 };
 
+/** One move of the order state machine, from Commerce's append-only history. */
+export type OrderTransition = {
+  readonly status: OrderStatus;
+  readonly at: string;
+  /** Why the order moved, when the move has a reason: payment_declined, for one. */
+  readonly reason: string | null;
+};
+
+/** An order as its customer reads it: the order and every status it went through, oldest first. */
+export type CustomerOrder = {
+  readonly order: Order;
+  readonly history: readonly OrderTransition[];
+};
+
+/** An order in the list of its customer, from the read model: what a card shows, no more. */
+export type OrderSummary = {
+  readonly orderId: string;
+  readonly orderNumber: string;
+  readonly status: OrderStatus;
+  readonly cancellationReason: CancellationReason | null;
+  readonly total: Price;
+  readonly lines: readonly {
+    readonly sku: string;
+    readonly name: string;
+    readonly quantity: number;
+  }[];
+  readonly placedAt: string;
+  /** When the read model last heard of the order: the moment it reached its status. */
+  readonly updatedAt: string;
+};
+
+/** A page of the orders of one customer, newest first. */
+export type CustomerOrderPage = {
+  readonly orders: readonly OrderSummary[];
+  readonly page: number;
+  readonly perPage: number;
+  readonly total: number;
+};
+
 /** A territorial division of the address, from the state down (ADR 0020). */
 export type Division = {
   readonly kind: 'state' | 'municipality' | 'neighborhood';
@@ -84,10 +123,21 @@ export type PaymentRequest =
   | { readonly outcome: 'unknown_order' }
   | Refusal;
 
-/** The commerce service (Laravel): orders and their payments, in the words the BFF uses. */
+/**
+ * The commerce service (Laravel): orders and their payments, in the words the BFF uses.
+ * Every read goes through the routes of one customer, so an order of somebody else reads
+ * exactly like an order that does not exist.
+ */
 export type Commerce = {
-  /** The order, or null when Commerce does not know the id. */
-  order(orderId: string, trace: Trace): Promise<Order | null>;
+  /** The order of that customer, with its history; null when the customer has no such order. */
+  customerOrder(customerId: string, orderId: string, trace: Trace): Promise<CustomerOrder | null>;
+  /** A page of the orders of that customer, newest first, from a read model a few seconds behind. */
+  customerOrders(
+    customerId: string,
+    page: number,
+    perPage: number,
+    trace: Trace,
+  ): Promise<CustomerOrderPage>;
   /** Places the order once per key: the same key and body again get the same order back. */
   placeOrder(key: string, order: NewOrder, trace: Trace): Promise<Placement>;
   /** Sends the charge; the outcome arrives later, and the order tells it. */
@@ -96,8 +146,8 @@ export type Commerce = {
 
 export function commerceAt(upstream: Upstream): Commerce {
   return {
-    async order(orderId, trace) {
-      const path = `/v1/orders/${encodeURIComponent(orderId)}`;
+    async customerOrder(customerId, orderId, trace) {
+      const path = `${customerPath(customerId)}/orders/${encodeURIComponent(orderId)}`;
       const answer = await call(upstream, { method: 'GET', path }, trace);
       if (answer.status === 404) {
         return null;
@@ -105,8 +155,33 @@ export function commerceAt(upstream: Upstream): Commerce {
       if (answer.status !== 200) {
         throw answer.unexpected();
       }
+      const fields = answer.fields();
 
-      return orderOf(answer.fields());
+      return {
+        order: orderOf(fields),
+        history: fields.objects('history').map((transition) => ({
+          status: transition.oneOf('status', ORDER_STATUSES),
+          at: transition.instant('at'),
+          reason: transition.optionalText('reason'),
+        })),
+      };
+    },
+
+    async customerOrders(customerId, page, perPage, trace) {
+      const query = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+      const path = `${customerPath(customerId)}/orders?${query}`;
+      const answer = await call(upstream, { method: 'GET', path }, trace);
+      if (answer.status !== 200) {
+        throw answer.unexpected();
+      }
+      const fields = answer.fields();
+
+      return {
+        orders: fields.objects('orders').map(summaryOf),
+        page: fields.integer('page'),
+        perPage: fields.integer('perPage'),
+        total: fields.integer('total'),
+      };
     },
 
     async placeOrder(key, order, trace) {
@@ -173,5 +248,27 @@ function orderOf(fields: Fields): Order {
     reservationExpiresAt: fields.instant('reservationExpiresAt'),
     trackingCode: fields.optionalText('trackingCode'),
     cancellationReason: fields.optionalOneOf('cancellationReason', CANCELLATION_REASONS),
+  };
+}
+
+/** Only the BFF reaches these routes: Kong closes them at the edge (ADR 0030). */
+function customerPath(customerId: string): string {
+  return `/v1/customers/${encodeURIComponent(customerId)}`;
+}
+
+function summaryOf(fields: Fields): OrderSummary {
+  return {
+    orderId: fields.text('orderId'),
+    orderNumber: fields.text('orderNumber'),
+    status: fields.oneOf('status', ORDER_STATUSES),
+    cancellationReason: fields.optionalOneOf('cancellationReason', CANCELLATION_REASONS),
+    total: fields.price('total'),
+    lines: fields.objects('lines').map((line) => ({
+      sku: line.text('sku'),
+      name: line.text('name'),
+      quantity: line.integer('quantity'),
+    })),
+    placedAt: fields.instant('placedAt'),
+    updatedAt: fields.instant('updatedAt'),
   };
 }

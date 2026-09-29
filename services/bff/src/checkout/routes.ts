@@ -11,6 +11,7 @@ import {
   sendScreen,
 } from '../hypermedia/index.ts';
 import { orderScreen } from '../orders/index.ts';
+import { activeProfile, firstNameOf, type Sessions, withActiveNamed } from '../session/index.ts';
 import { ProductNotFound, SKU } from '../storefront/index.ts';
 import {
   type Catalog,
@@ -20,14 +21,13 @@ import {
   traceOf,
 } from '../upstream/index.ts';
 import { ProductOutOfLine } from './errors.ts';
-import { guestOf } from './guest.ts';
 import { newOrderOf, placeOrderAction, readOrderForm, refusalError } from './order-form.ts';
 
 export type CheckoutOptions = {
   readonly catalog: Catalog;
   readonly commerce: Commerce;
+  readonly sessions: Sessions;
   readonly newId: KeyMaker;
-  readonly secureCookies: boolean;
 };
 
 export function checkoutScreen(product: Product, quantity: number, key: string): Entity {
@@ -51,8 +51,7 @@ export function checkoutScreen(product: Product, quantity: number, key: string):
 }
 
 export const checkoutRoutes: FastifyPluginAsync<CheckoutOptions> = async (app, options) => {
-  const { catalog, commerce, newId } = options;
-  const cookie = { newId, secure: options.secureCookies };
+  const { catalog, commerce, sessions, newId } = options;
 
   // The buy action of a product lands here, a GET with the SKU and the quantity.
   app.get('/v1/checkout', async (request, reply) => {
@@ -73,8 +72,9 @@ export const checkoutRoutes: FastifyPluginAsync<CheckoutOptions> = async (app, o
     if (product.status !== 'active') {
       throw new ProductOutOfLine(product.name);
     }
-    // The guest cookie is set here, before the form, so every submission of it carries the same id.
-    guestOf(request, reply, cookie);
+    // The session starts here, before the form, when the browser has none: every submission
+    // of the form then goes as the same customer, so a retry sends the same body with its key.
+    sessions.started(request, newId);
 
     return sendScreen(reply, checkoutScreen(product, quantity, newId()));
   });
@@ -82,18 +82,30 @@ export const checkoutRoutes: FastifyPluginAsync<CheckoutOptions> = async (app, o
   // 201 Created with the order screen, and Location where the order lives from now on.
   app.post('/v1/orders', async (request, reply) => {
     const form = readOrderForm(request.body);
-    const guestId = guestOf(request, reply, cookie);
+    const session = sessions.started(request, newId);
     const placement = await commerce.placeOrder(
       form.idempotencyKey,
-      newOrderOf(form, guestId),
+      newOrderOf(form, activeProfile(session).id),
       traceOf(request),
     );
     if (placement.outcome === 'refused') {
       throw refusalError(placement);
     }
+    // A profile the checkout started is named by its first order, with the first name only.
+    const named = withActiveNamed(session, firstNameOf(form.name));
+    if (named !== session) {
+      sessions.keep(request, named);
+    }
     const { order } = placement;
     reply.header('location', href(path`/orders/${order.orderId}`));
 
-    return sendScreen(reply, orderScreen(order, { awaitingPayment: false, key: newId() }), 201);
+    return sendScreen(
+      reply,
+      orderScreen(
+        { order, history: [], delivery: { news: 'none' } },
+        { awaitingPayment: false, key: newId() },
+      ),
+      201,
+    );
   });
 };

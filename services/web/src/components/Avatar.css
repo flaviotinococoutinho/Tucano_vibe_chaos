@@ -1,0 +1,54 @@
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar--small {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9375rem;
+}
+
+.avatar--large {
+  width: 56px;
+  height: 56px;
+  font-size: 1.5rem;
+}
+
+/* Each pair keeps its own background and text in both themes; the contrast of each one is
+ * noted in src/styles/tokens.css (the lowest is coral with ink, 4.66:1). */
+.avatar--beak {
+  background-color: var(--palette-beak);
+  color: var(--palette-ink);
+}
+
+.avatar--sun {
+  background-color: var(--palette-sun);
+  color: var(--palette-ink);
+}
+
+.avatar--teal-light {
+  background-color: var(--palette-teal-light);
+  color: var(--palette-ink);
+}
+
+.avatar--coral {
+  background-color: var(--palette-coral);
+  color: var(--palette-ink);
+}
+
+.avatar--teal-deep {
+  background-color: var(--palette-teal-deep);
+  color: var(--palette-paper);
+}
+
+.avatar--coral-deep {
+  background-color: var(--palette-coral-deep);
+  color: var(--palette-paper);
+}

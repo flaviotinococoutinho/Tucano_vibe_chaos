@@ -1,2 +1,8 @@
 export { type TrackingOptions, trackingRoutes } from './routes.ts';
-export { trackByCodeAction, trackingScreen } from './tracking-screen.ts';
+export {
+  liveLinks,
+  shipmentStep,
+  trackByCodeAction,
+  trackingScreen,
+  travelsWith,
+} from './tracking-screen.ts';

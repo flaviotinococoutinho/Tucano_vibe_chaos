@@ -1,0 +1,161 @@
+{
+  "class": [
+    "screen",
+    "profiles"
+  ],
+  "title": "Quem está comprando?",
+  "properties": {
+    "intro": "Cada perfil vê só os próprios pedidos. Isto é um laboratório, então não há senha: é só escolher quem está comprando."
+  },
+  "entities": [
+    {
+      "class": [
+        "profile"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
+        "name": "Ana",
+        "label": "Ana",
+        "initial": "A",
+        "active": true
+      }
+    },
+    {
+      "class": [
+        "profile"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "profileId": "0199a2b4-5b2f-7d4e-9f50-b2c3d4e5f607",
+        "name": "Bruno",
+        "label": "Bruno",
+        "initial": "B",
+        "active": false
+      },
+      "actions": [
+        {
+          "name": "use-profile",
+          "title": "Comprar como Bruno",
+          "method": "POST",
+          "href": "/bff/v1/profiles/active",
+          "type": "application/json",
+          "fields": [
+            {
+              "name": "profileId",
+              "type": "hidden",
+              "value": "0199a2b4-5b2f-7d4e-9f50-b2c3d4e5f607"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "class": [
+        "profile"
+      ],
+      "rel": [
+        "item"
+      ],
+      "properties": {
+        "profileId": "0199a2b4-5c30-7e5f-a061-c3d4e5f60718",
+        "name": null,
+        "label": "Visitante",
+        "initial": "V",
+        "active": false
+      },
+      "actions": [
+        {
+          "name": "use-profile",
+          "title": "Comprar como Visitante",
+          "method": "POST",
+          "href": "/bff/v1/profiles/active",
+          "type": "application/json",
+          "fields": [
+            {
+              "name": "profileId",
+              "type": "hidden",
+              "value": "0199a2b4-5c30-7e5f-a061-c3d4e5f60718"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": {
+          "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
+          "label": "Ana",
+          "initial": "A"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Ana"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "name": "create-profile",
+      "title": "Criar perfil",
+      "method": "POST",
+      "href": "/bff/v1/profiles",
+      "type": "application/json",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "title": "Nome",
+          "required": true,
+          "maxlength": 40,
+          "autocomplete": "given-name"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/profiles"
+    },
+    {
+      "rel": [
+        "up"
+      ],
+      "href": "/bff/v1",
+      "title": "Início"
+    }
+  ]
+}

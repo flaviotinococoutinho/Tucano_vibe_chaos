@@ -48,7 +48,7 @@ Todas as portas escutam só em `127.0.0.1`.
 |---|---|---|
 | Kong (proxy) | http://localhost:8000 | rotas `/bff`, `/api/catalog`, `/api/commerce`, `/api/logistics` e `/api/tracking` |
 | Kong Admin API | http://localhost:8001 | - |
-| nginx (apps PHP) | `localhost:8081` catalog, `8082` commerce, `8083` logistics | - |
+| nginx (apps PHP) | `localhost:8081` catalog, `8082` commerce, `8083` logistics; a `8182`, a borda do commerce, só na rede do compose | - |
 | Kong Manager | http://localhost:8002 | somente leitura, porque o Kong roda em DB-less |
 | PostgreSQL | `localhost:5432` | `postgres`/`postgres`; `commerce`/`commerce`; `logistics`/`logistics` |
 | MySQL | `localhost:3306` | `catalog`/`catalog`; root com senha `root` |

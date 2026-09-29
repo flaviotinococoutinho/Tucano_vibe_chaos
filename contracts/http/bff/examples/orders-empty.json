@@ -1,0 +1,67 @@
+{
+  "class": [
+    "screen",
+    "orders"
+  ],
+  "title": "Meus pedidos",
+  "properties": {
+    "page": 1,
+    "perPage": 10,
+    "total": 0,
+    "notice": {
+      "tone": "info",
+      "text": "Um pedido novo pode levar alguns segundos para aparecer aqui."
+    }
+  },
+  "entities": [
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": null
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Entrar"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/orders?page=1"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Ver o catálogo"
+    }
+  ]
+}

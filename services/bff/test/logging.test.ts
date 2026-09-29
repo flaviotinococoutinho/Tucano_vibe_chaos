@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildApp } from '../src/app.ts';
-import { loadConfig } from '../src/config.ts';
 import type { HealthCheck } from '../src/platform/readiness.ts';
+import { testConfig } from './support/config.ts';
 
 type LogLine = Record<string, unknown>;
 
-const config = loadConfig({ LOG_LEVEL: 'info' });
+const config = testConfig({ LOG_LEVEL: 'info' });
 
 const ISO_8601_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 

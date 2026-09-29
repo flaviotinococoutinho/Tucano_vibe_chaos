@@ -9,6 +9,8 @@
  * Dark-mode-only pair, chosen and verified here because coral-deep and teal-deep themselves
  * fall short of 4.5:1 on ink (2.99 and, once tinted, worse):
  *   teal-light (#3FC7C7) / ink 8.34, coral (not coral-deep) / ink 4.66.
+ * Profile avatars (theme/avatar.ts) bring their own pair in both themes, all from the lists
+ * above: ink on beak, sun, teal-light or coral, and paper on teal-deep (5.88) or coral-deep (5.36).
  */
 
 :root {

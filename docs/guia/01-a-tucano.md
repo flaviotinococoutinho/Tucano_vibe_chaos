@@ -39,6 +39,7 @@ Cada contexto tem a sua linguagem, e as palavras mudam de sentido na fronteira: 
 5. A transportadora coleta, passa por hubs, sai para entrega e entrega, ou tenta três vezes e devolve. Cada passo chega por webhook e vira um evento de `logistics.shipments.v2` ([UC-SHP-04](../use-cases/UC-SHP-04-record-pickup.md) a [UC-SHP-08](../use-cases/UC-SHP-08-return-to-sender.md)).
 6. O pedido acompanha a remessa um passo atrás e aprende o código de rastreio na coleta ([UC-ORD-04](../use-cases/UC-ORD-04-follow-shipment.md)). Numa devolução, o pagamento vai para estorno na mesma transação.
 7. A web mostra tudo isso sem recarregar: a tela do pedido se atualiza sozinha enquanto algo está para acontecer, e a página de rastreio lê uma cópia no DynamoDB, por chave ([UC-SHP-10](../use-cases/UC-SHP-10-track-by-code.md)). Quando a encomenda sai com a frota própria, a página mostra o entregador chegando, ao vivo: o aparelho dele informa a posição a cada segundo, e o tracking a empurra por WebSocket para quem acompanha aquele código ([UC-TRK-03](../use-cases/UC-TRK-03-follow-delivery-live.md)).
+8. Depois, a pessoa acha o pedido em "Meus pedidos", onde cada perfil de cliente vê só os seus ([UC-ORD-05](../use-cases/UC-ORD-05-view-orders.md)). A lista lê uma cópia no MongoDB, que um projetor mantém a partir dos eventos do pedido ([UC-ORD-08](../use-cases/UC-ORD-08-project-order-views.md)), e a tela de cada pedido conta a história inteira: as etapas, do pedido feito à entrega, e um histórico que junta o que o commerce e a logística sabem.
 
 Quando alguma peça falha no meio, os casos de uso "do relógio" põem ordem: a reserva vence e devolve o estoque ([UC-ORD-03](../use-cases/UC-ORD-03-expire-unpaid-orders.md)), a conciliação pergunta ao PSP o que ficou sem resposta ([UC-PAY-03](../use-cases/UC-PAY-03-reconcile-payments.md)), a conciliação da jornada pergunta à transportadora o que se perdeu ([UC-SHP-12](../use-cases/UC-SHP-12-reconcile-journeys.md)), e a vigia avisa uma pessoa quando nenhuma tentativa resolve ([UC-SHP-13](../use-cases/UC-SHP-13-watch-stalled-journeys.md)).
 
@@ -50,7 +51,7 @@ Do documento ao código o caminho é curto e verificado. Cada caso de uso vira u
 
 ## O que ficou de fora, de propósito
 
-- **Login.** O checkout é de convidado: o BFF dá ao navegador um id num cookie. Autenticação é um assunto inteiro, e não é o que este laboratório quer ensinar agora.
+- **Senha.** O navegador guarda perfis de cliente numa sessão que o BFF assina, e trocar de perfil faz o papel de entrar com outra conta. O isolamento é de verdade: um perfil não abre nem lista o pedido de outro ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)). Autenticação, com provedor de identidade e recuperação de conta, é um assunto inteiro, e não é o que este laboratório quer ensinar agora.
 - **Carrinho com vários produtos.** O commerce aceita até 20 itens num pedido; a web compra um produto por vez. O limite é da tela, não do domínio.
 - **Dinheiro de verdade.** O PSP é simulado, e os cartões são tokens de teste. Nenhum número de cartão entra no sistema ([ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md)).
 

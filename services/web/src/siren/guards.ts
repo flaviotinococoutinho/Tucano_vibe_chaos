@@ -1,7 +1,10 @@
 import type {
   Instant,
+  Milestone,
+  MilestoneState,
   Money,
   Notice,
+  Shopper,
   SirenAction,
   SirenClass,
   SirenLink,
@@ -12,6 +15,7 @@ import type {
 } from './types.ts';
 
 const TONES: readonly Tone[] = ['neutral', 'waiting', 'info', 'success', 'danger'];
+const MILESTONE_STATES: readonly MilestoneState[] = ['done', 'current', 'upcoming', 'stopped'];
 
 /** Every screen carries `class: ["screen", "<name>", ...]`; this reads the `<name>`. */
 export function screenClassOf(screen: SirenScreen): string {
@@ -49,6 +53,14 @@ export function entitiesOf(screen: SirenScreen, rel: string = 'item'): readonly 
   return screen.entities?.filter((entity) => entity.rel.includes(rel)) ?? [];
 }
 
+/** The first embedded component of a relation, like the `navigation` every screen carries. */
+export function findEntity(
+  entities: readonly SirenSubEntity[] | undefined,
+  rel: string,
+): SirenSubEntity | undefined {
+  return entities?.find((entity) => entity.rel.includes(rel));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -67,6 +79,53 @@ export function readNumber(
 ): number | undefined {
   const value = properties?.[key];
   return typeof value === 'number' ? value : undefined;
+}
+
+export function readBoolean(
+  properties: SirenProperties | undefined,
+  key: string,
+): boolean | undefined {
+  const value = properties?.[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function isMilestone(value: unknown): value is Milestone {
+  return (
+    isRecord(value) &&
+    typeof value.label === 'string' &&
+    typeof value.state === 'string' &&
+    (MILESTONE_STATES as readonly string[]).includes(value.state) &&
+    (value.at === undefined || typeof value.at === 'string')
+  );
+}
+
+/**
+ * Reads an order's `progress`. A milestone in a shape this web does not know yet is left out,
+ * and the rest still draw: the stepper shows less, never something wrong.
+ */
+export function readProgress(
+  properties: SirenProperties | undefined,
+  key: string = 'progress',
+): readonly Milestone[] | undefined {
+  const value = properties?.[key];
+  return Array.isArray(value) ? value.filter(isMilestone) : undefined;
+}
+
+/**
+ * Reads `properties.shopper` of the navigation: the shopper, `null` when nobody is shopping
+ * yet (a browser with no session), `undefined` when the shape is not one this web knows.
+ */
+export function readShopper(properties: SirenProperties | undefined): Shopper | null | undefined {
+  const value = properties?.shopper;
+  if (value === null) {
+    return null;
+  }
+  if (!isRecord(value) || typeof value.label !== 'string' || typeof value.initial !== 'string') {
+    return undefined;
+  }
+  return typeof value.profileId === 'string'
+    ? { profileId: value.profileId, label: value.label, initial: value.initial }
+    : { label: value.label, initial: value.initial };
 }
 
 export function isMoney(value: unknown): value is Money {

@@ -1,0 +1,74 @@
+.order-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  transition: transform var(--motion-fast) ease;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+}
+
+.order-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.order-card__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-card__link {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.order-card__link:hover {
+  text-decoration: underline;
+}
+
+/* The heading link stretches over the card: the whole card takes the click, and only the
+ * heading is the link a screen reader lists. */
+.order-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.order-card__total {
+  font-size: 1.0625rem;
+  white-space: nowrap;
+}
+
+.order-card__items {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-card__placed {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.order-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.order-card__where {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}

@@ -1,0 +1,41 @@
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 2px solid transparent;
+}
+
+/* The profile shopping now: an outline in the text color, besides its badge. */
+.profile-card--active {
+  border-color: var(--color-text);
+}
+
+.profile-card__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.profile-card__names {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.profile-card__name {
+  margin: 0;
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.profile-card__form {
+  margin: 0;
+}
+
+.profile-card__form .button {
+  width: 100%;
+}

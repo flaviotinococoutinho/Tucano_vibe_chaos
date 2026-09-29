@@ -1,0 +1,176 @@
+{
+  "class": [
+    "screen",
+    "orders"
+  ],
+  "title": "Meus pedidos",
+  "properties": {
+    "page": 2,
+    "perPage": 10,
+    "total": 12,
+    "notice": {
+      "tone": "info",
+      "text": "Um pedido novo pode levar alguns segundos para aparecer aqui."
+    }
+  },
+  "entities": [
+    {
+      "class": [
+        "order-summary"
+      ],
+      "rel": [
+        "item"
+      ],
+      "title": "Pedido 97856101234567168",
+      "properties": {
+        "orderId": "0199a1f0-3c2d-7b4e-8a5f-6d7e8f9a0b1c",
+        "orderNumber": "97856101234567168",
+        "status": "delivered",
+        "statusLabel": "Entregue",
+        "tone": "success",
+        "placedAt": "2026-09-27T14:02:31.000Z",
+        "total": {
+          "amount": 9980,
+          "currency": "BRL",
+          "formatted": "R$ 99,80"
+        },
+        "itemsLabel": "2x Caneca de cerâmica",
+        "progress": [
+          {
+            "label": "Pedido feito",
+            "state": "done",
+            "at": "2026-09-27T14:02:31.000Z"
+          },
+          {
+            "label": "Pagamento aprovado",
+            "state": "done"
+          },
+          {
+            "label": "Preparando o envio",
+            "state": "done"
+          },
+          {
+            "label": "A caminho",
+            "state": "done"
+          },
+          {
+            "label": "Entregue",
+            "state": "done",
+            "at": "2026-09-27T14:03:05.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/orders/0199a1f0-3c2d-7b4e-8a5f-6d7e8f9a0b1c"
+        }
+      ]
+    },
+    {
+      "class": [
+        "order-summary"
+      ],
+      "rel": [
+        "item"
+      ],
+      "title": "Pedido 97856089876543488",
+      "properties": {
+        "orderId": "0199a1e8-0a1b-7c2d-9e3f-4a5b6c7d8e9f",
+        "orderNumber": "97856089876543488",
+        "status": "cancelled",
+        "statusLabel": "Cancelado",
+        "tone": "danger",
+        "placedAt": "2026-09-27T13:40:02.000Z",
+        "total": {
+          "amount": 28980,
+          "currency": "BRL",
+          "formatted": "R$ 289,80"
+        },
+        "itemsLabel": "Domain-Driven Design e mais 1 item",
+        "progress": [
+          {
+            "label": "Pedido feito",
+            "state": "done",
+            "at": "2026-09-27T13:40:02.000Z"
+          },
+          {
+            "label": "Prazo para pagar acabou",
+            "state": "stopped",
+            "at": "2026-09-27T13:55:02.000Z"
+          }
+        ]
+      },
+      "links": [
+        {
+          "rel": [
+            "self"
+          ],
+          "href": "/bff/v1/orders/0199a1e8-0a1b-7c2d-9e3f-4a5b6c7d8e9f"
+        }
+      ]
+    },
+    {
+      "class": [
+        "navigation"
+      ],
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-navigation"
+      ],
+      "properties": {
+        "shopper": {
+          "profileId": "0199a2b4-5a1e-7c3d-8e4f-a1b2c3d4e5f6",
+          "label": "Ana",
+          "initial": "A"
+        }
+      },
+      "links": [
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+          ],
+          "href": "/bff/v1/products",
+          "title": "Catálogo"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-orders"
+          ],
+          "href": "/bff/v1/orders",
+          "title": "Meus pedidos"
+        },
+        {
+          "rel": [
+            "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-profiles"
+          ],
+          "href": "/bff/v1/profiles",
+          "title": "Ana"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": [
+        "self"
+      ],
+      "href": "/bff/v1/orders?page=2"
+    },
+    {
+      "rel": [
+        "prev"
+      ],
+      "href": "/bff/v1/orders?page=1",
+      "title": "Página anterior"
+    },
+    {
+      "rel": [
+        "https://github.com/flaviotinococoutinho/chaos_playground/blob/develop/contracts/http/bff/README.md#rel-catalog"
+      ],
+      "href": "/bff/v1/products",
+      "title": "Ver o catálogo"
+    }
+  ]
+}

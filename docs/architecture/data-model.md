@@ -199,7 +199,7 @@ O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_r
 
 | Coleção | Chave | Índices | Alimentada por |
 |---|---|---|---|
-| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v2` e `logistics.shipments.v2` |
+| `commerce_read.order_views` | `_id` = id do pedido (UUID binário) | `customerId + placedAt` (histórico do cliente), `orderNumber` único | `commerce.orders.v2`, no grupo `commerce.order-projector` ([UC-ORD-08](../use-cases/UC-ORD-08-project-order-views.md)) |
 | `logistics_read.shipment_timelines` | `_id` = id da remessa (UUID binário) | `trackingCode` único, `orderId` único | `logistics.shipments.v2` |
 
 ```json
@@ -208,16 +208,17 @@ O lado de leitura do CQRS mora no MongoDB, em um banco por serviço (`commerce_r
   "orderNumber": "NumberLong(97663530295234560)",
   "customerId": "UUID('01926f38-...')",
   "status": "shipped",
+  "cancellationReason": null,
   "total": { "amount": "NumberLong(18990)", "currency": "BRL" },
   "lines": [{ "sku": "BOOK-DDD-001", "name": "Domain-Driven Design", "quantity": 1, "unitPrice": "NumberLong(18990)" }],
-  "shipment": { "trackingCode": "TX02PQRFBTW5G03", "status": "in_transit", "carrier": "ligeirinho" },
+  "shipment": null,
   "placedAt": "ISODate('2026-09-27T12:00:00Z')",
   "updatedAt": "ISODate('2026-09-27T15:42:10Z')",
-  "version": "NumberLong(4)"
+  "version": "NumberLong(3)"
 }
 ```
 
-O campo `version` guarda a última mudança aplicada. A projeção só escreve se a mudança for mais nova (`VersionedDocuments`), e assim evento repetido ou fora de ordem não volta o documento para trás.
+O campo `version` guarda a versão do pedido que o documento mostra, e cada evento a conhece sozinho, porque cada status tem uma entrada só na máquina de estados: `order.placed` é a 1, `paid` a 2, `shipped` a 3, `delivered` e `returned` a 4, e `cancelled` vem logo depois do status em que o pedido estava. A projeção só escreve uma versão mais nova, e assim um evento repetido, atrasado ou relido não volta o documento para trás. O `shipment` fica `null` por enquanto: a lista mostra o status do pedido, e a tela do pedido conta a entrega.
 
 ## Redis
 

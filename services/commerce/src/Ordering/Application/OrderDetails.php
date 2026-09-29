@@ -6,13 +6,16 @@ namespace Commerce\Ordering\Application;
 
 use Commerce\Ordering\Domain\Order\OrderLine;
 use Commerce\Ordering\Domain\Order\OrderSnapshot;
+use Commerce\Ordering\Domain\Order\StatusTransition;
 use DateTimeImmutable;
+use DateTimeZone;
 use Tucano\SharedKernel\Money\Currency;
 use Tucano\SharedKernel\Money\Money;
 
 /**
  * What the outside world sees of an order. It is also the result stored for an
- * idempotency key, so a repeated request gets exactly the same answer.
+ * idempotency key, so a repeated request gets exactly the same answer; the reads
+ * add the history of the order to it (withHistory), the answer to a POST does not.
  */
 final readonly class OrderDetails
 {
@@ -55,6 +58,23 @@ final readonly class OrderDetails
     public static function fromStored(array $fields): self
     {
         return new self($fields);
+    }
+
+    /**
+     * The same view with the story of the order: every status it went through, oldest first,
+     * when it got there, and why, for a cancellation.
+     *
+     * @param list<StatusTransition> $transitions
+     */
+    public function withHistory(array $transitions): self
+    {
+        $utc = new DateTimeZone('UTC');
+
+        return new self([...$this->fields, 'history' => array_map(static fn(StatusTransition $step): array => [
+            'status' => $step->to->value,
+            'at' => $step->at->setTimezone($utc)->format(DATE_RFC3339_EXTENDED),
+            'reason' => $step->reason,
+        ], $transitions)]);
     }
 
     public function orderId(): string

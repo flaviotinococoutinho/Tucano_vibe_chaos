@@ -1,0 +1,28 @@
+.profiles-screen__intro {
+  max-width: 60ch;
+  color: var(--color-text-muted);
+  font-size: 1.0625rem;
+}
+
+.profiles-screen__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: var(--space-4);
+  margin: var(--space-5) 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.profiles-screen__create {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.profiles-screen__create h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+}
+
+.profiles-screen__create .action-form {
+  max-width: 24rem;
+}
