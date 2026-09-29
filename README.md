@@ -37,14 +37,16 @@ Porque cada escolha tem um porquê escrito, com o ganho e o custo, num [ADR](doc
 
 O [guia](docs/guia/README.md) conta a história inteira como um passeio, em capítulos que cabem numa leitura de café.
 
-## A loja
+## As lojas
 
 | | |
 |---|---|
-| ![A home da loja, com o tucano pulando a pedra que falta no rio e o botão Ver o catálogo](docs/assets/telas/loja.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
-| ![Um pedido a caminho: o selo A caminho, a frase Seu pedido saiu para entrega com a Tucano Express, as cinco etapas com três concluídas, e o cartão Ao vivo com o entregador a 2,8 km](docs/assets/telas/pedido.png) | ![A página de rastreio, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) |
-| ![O cartão Ao vivo da página de rastreio: um mapa pequeno com o rastro curvo do entregador e a frase O entregador está a 1,6 km](docs/assets/telas/ao-vivo.png) | Enquanto a encomenda sai com a frota própria, a página de rastreio mostra o entregador chegando: o aparelho dele informa a posição a cada segundo, e o tracking a empurra por WebSocket. Sem o WebSocket, a página avisa e segue se atualizando sozinha. |
-| ![Meus pedidos da Ana: dois pedidos entregues, cada um com número, total, item, data, os cinco pontos do progresso e o selo Entregue](docs/assets/telas/meus-pedidos.png) | ![Quem está comprando: os perfis Ana e Bruno, com Bruno como perfil atual, o botão Comprar como Ana e o formulário de perfil novo](docs/assets/telas/perfis.png) |
+| ![A página da Tucano: o tucano pulando as pedras do rio e as três lojas, Arara Livros em azul, Bem-te-vi Eletrônicos em amarelo e Sabiá Casa e Esporte em ferrugem, cada uma com o botão Entrar na loja](docs/assets/telas/lojas.png) | ![A entrada da Sabiá: o cabeçalho com o monograma S e a faixa cor de ferrugem, a frase da loja, o botão Ver o catálogo e a busca por código de rastreio](docs/assets/telas/loja-sabia.png) |
+| ![Um pedido da Sabiá a caminho: o selo A caminho, a frase Seu pedido saiu para entrega com a Tucano Express, as cinco etapas com três concluídas, e o cartão Ao vivo com o entregador a 3,7 km](docs/assets/telas/pedido.png) | ![Meus pedidos da Carla na Sabiá: um tapete aguardando pagamento, duas garrafas com o pagamento recusado e uma caneca entregue, cada um com o progresso em pontos e o selo do estado](docs/assets/telas/meus-pedidos.png) |
+| ![A página de rastreio na Sabiá, com a transportadora, o destino e a linha do tempo da entrega](docs/assets/telas/rastreio.png) | ![Quem está comprando: os perfis Ana e Bruno, com Bruno como perfil atual, o botão Comprar como Ana e o formulário de perfil novo](docs/assets/telas/perfis.png) |
+| ![O cartão Ao vivo da página de rastreio: um mapa pequeno com o rastro curvo do entregador e a frase O entregador está a 1,6 km](docs/assets/telas/ao-vivo.png) | ![O checkout com quatro erros de validação listados num resumo e mostrados ao lado de cada campo](docs/assets/telas/checkout.png) |
+
+Cada loja é um tenant da plataforma: tem a sua vitrine, a sua paleta e os seus pedidos, e uma loja nunca vê os dados de outra ([ADR 0031](docs/adr/0031-a-store-is-a-tenant.md)). Elas dividem o que é da Tucano, os centros de distribuição, o pagamento e a entrega, e cada uma tem o seu limite de requests no Kong, para uma promoção numa loja não deixar a vizinha lenta ([ADR 0032](docs/adr/0032-the-edge-per-store-limits-and-its-single-point.md)).
 
 A tela do pedido se atualiza sozinha enquanto algo está para acontecer, e junta num histórico só o que o commerce e a logística sabem: pedido feito, pagamento aprovado, etiqueta pronta, coleta, saída para entrega, entrega. Com o cartão de teste recusado, ela termina em "Cancelado", com a etapa "Pagamento recusado" parada em vermelho, e diz por quê. Sem a logística, o pedido abre do mesmo jeito, com o que o commerce sabe e um aviso.
 
