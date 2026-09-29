@@ -9,11 +9,62 @@ plugins:
       echo_downstream: true
 
 services:
+  # The platform screens of the BFF: the stores, the profiles and the lookup of a tracking code.
   - name: bff
     url: http://bff:3000
     routes:
       - name: bff-api
         paths: [/bff]
+        strip_path: true
+
+  # Each store is a service of its own, every one pointing at the same BFF, each with its own
+  # limit of requests (ADR 0031, ADR 0032): a store in a rush spends its own limit and answers 429,
+  # and its neighbors keep theirs. limit_by service counts every request of the store, whoever
+  # sends it. The longer path wins over /bff, and the service path gives back what the route
+  # strips, so the BFF sees the same /v1/stores/<store>/... it would see through /bff.
+  - name: bff-store-arara
+    url: http://bff:3000/v1/stores/arara
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          policy: local
+          limit_by: service
+          error_code: 429
+          error_message: This store is taking more requests than its limit right now. Try again in a moment.
+    routes:
+      - name: bff-store-arara
+        paths: [/bff/v1/stores/arara]
+        strip_path: true
+
+  - name: bff-store-bemtevi
+    url: http://bff:3000/v1/stores/bemtevi
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          policy: local
+          limit_by: service
+          error_code: 429
+          error_message: This store is taking more requests than its limit right now. Try again in a moment.
+    routes:
+      - name: bff-store-bemtevi
+        paths: [/bff/v1/stores/bemtevi]
+        strip_path: true
+
+  - name: bff-store-sabia
+    url: http://bff:3000/v1/stores/sabia
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 20
+          policy: local
+          limit_by: service
+          error_code: 429
+          error_message: This store is taking more requests than its limit right now. Try again in a moment.
+    routes:
+      - name: bff-store-sabia
+        paths: [/bff/v1/stores/sabia]
         strip_path: true
 
   - name: catalog
