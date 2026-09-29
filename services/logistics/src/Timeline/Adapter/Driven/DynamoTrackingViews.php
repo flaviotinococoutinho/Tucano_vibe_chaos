@@ -24,6 +24,8 @@ use Tucano\SharedKernel\Messaging\EventFields;
  * queried. Each step goes in with one UpdateItem: the list grows with
  * list_append, the event id joins the "seen" set, and the condition refuses an
  * event the set already has. The item expires some days after its last step.
+ * It carries the store of the shipment, so a store can tell its pages from the
+ * others'; an item from before the stores has none (ADR 0031).
  *
  * Two clients for two kinds of wait. The projector writes in the background and can
  * afford the SDK's retries; a person waits on the read, which gets one short try and,
@@ -49,6 +51,8 @@ final readonly class DynamoTrackingViews implements ForPublishingTrackingViews, 
     {
         $step = $news->step;
         $set = ['#status = :status', 'updatedAt = :at', 'steps = list_append(if_not_exists(steps, :none), :step)', 'expiresAt = :expires', 'shipmentId = :shipment'];
+        // status and store are reserved words in DynamoDB expressions, hence the placeholders.
+        $names = ['#status' => 'status'];
         $values = [
             ':status' => ['S' => $step->status->value],
             ':at' => ['S' => $step->at->format(DATE_RFC3339_EXTENDED)],
@@ -59,6 +63,12 @@ final readonly class DynamoTrackingViews implements ForPublishingTrackingViews, 
             ':event' => ['S' => $news->eventId],
             ':seen' => ['SS' => [$news->eventId]],
         ];
+        if ($news->store !== null) {
+            // Every event of a shipment names the same store, so setting it again changes nothing.
+            $set[] = '#store = :store';
+            $names['#store'] = 'store';
+            $values[':store'] = ['S' => $news->store];
+        }
         if ($news->carrier !== null) {
             $set[] = 'carrier = :carrier';
             $values[':carrier'] = ['S' => $news->carrier];
@@ -74,7 +84,7 @@ final readonly class DynamoTrackingViews implements ForPublishingTrackingViews, 
                 'Key' => ['trackingCode' => ['S' => $news->trackingCode]],
                 'UpdateExpression' => 'SET ' . implode(', ', $set) . ' ADD seen :seen',
                 'ConditionExpression' => 'attribute_not_exists(seen) OR NOT contains(seen, :event)',
-                'ExpressionAttributeNames' => ['#status' => 'status'],
+                'ExpressionAttributeNames' => $names,
                 'ExpressionAttributeValues' => $values,
             ]);
         } catch (DynamoDbException $error) {
@@ -111,6 +121,7 @@ final readonly class DynamoTrackingViews implements ForPublishingTrackingViews, 
 
         return TrackingView::of(
             $page->text('trackingCode'),
+            $page->optionalText('store'),
             JourneyStatus::from($page->text('status')),
             $page->optionalText('carrier'),
             $destination === null ? null : Place::of($destination->text('municipality'), $destination->text('state')),

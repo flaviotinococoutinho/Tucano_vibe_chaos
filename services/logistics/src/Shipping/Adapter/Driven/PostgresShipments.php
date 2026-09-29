@@ -25,6 +25,7 @@ use Logistics\Shipping\Domain\Shipment\ShipmentReference;
 use Logistics\Shipping\Domain\Shipment\ShipmentSnapshot;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
 use Logistics\Shipping\Domain\Shipment\StatusTransition;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\ShippingLabel;
@@ -55,6 +56,7 @@ final readonly class PostgresShipments implements ForStoringShipments
             'id' => $snapshot->reference->id->toString(),
             'tracking_code' => $snapshot->reference->trackingCode->snowflake->toInt(),
             'order_id' => $snapshot->reference->orderId->toString(),
+            'store' => $snapshot->reference->store === null ? null : (string) $snapshot->reference->store,
             'status' => $snapshot->status->value,
             'carrier_code' => (string) $snapshot->carrier,
             'origin' => (string) $snapshot->origin,
@@ -128,14 +130,10 @@ final readonly class PostgresShipments implements ForStoringShipments
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
             )
-            RETURNING id, tracking_code, order_id
+            RETURNING id, tracking_code, order_id, store
             SQL, [$now->format(DATE_RFC3339_EXTENDED), $quietSince->format(DATE_RFC3339_EXTENDED)]);
 
-        return $row instanceof stdClass ? ShipmentReference::of(
-            ShipmentId::fromString((string) $row->id),
-            TrackingCode::fromSnowflake(Snowflake::fromInt((int) $row->tracking_code)),
-            OrderId::fromString((string) $row->order_id),
-        ) : null;
+        return $row instanceof stdClass ? self::referenceOf($row) : null;
     }
 
     public function save(Shipment $shipment): void
@@ -168,10 +166,10 @@ final readonly class PostgresShipments implements ForStoringShipments
 
     private function snapshotOf(stdClass $row): ShipmentSnapshot
     {
-        $id = ShipmentId::fromString((string) $row->id);
+        $reference = self::referenceOf($row);
 
         return new ShipmentSnapshot(
-            ShipmentReference::of($id, TrackingCode::fromSnowflake(Snowflake::fromInt((int) $row->tracking_code)), OrderId::fromString((string) $row->order_id)),
+            $reference,
             CarrierCode::of((string) $row->carrier_code),
             FulfillmentCenterCode::of((string) $row->origin),
             Recipient::of((string) $row->recipient_name, (string) $row->recipient_email),
@@ -183,7 +181,7 @@ final readonly class PostgresShipments implements ForStoringShipments
                 ->postalCode((string) $row->dest_postal_code)
                 ->coordinates(self::decimal($row->dest_latitude), self::decimal($row->dest_longitude))
                 ->build(),
-            $this->parcelsOf($id),
+            $this->parcelsOf($reference->id),
             ShipmentStatus::from((string) $row->status),
             DeliveryAttempts::restore(
                 (int) $row->delivery_attempts,
@@ -192,6 +190,17 @@ final readonly class PostgresShipments implements ForStoringShipments
             $row->label_object_key === null ? null : ShippingLabel::storedAt((string) $row->label_object_key),
             self::instant((string) $row->created_at),
             (int) $row->version,
+        );
+    }
+
+    /** A row from before the stores has no store. */
+    private static function referenceOf(stdClass $row): ShipmentReference
+    {
+        return ShipmentReference::of(
+            ShipmentId::fromString((string) $row->id),
+            TrackingCode::fromSnowflake(Snowflake::fromInt((int) $row->tracking_code)),
+            OrderId::fromString((string) $row->order_id),
+            $row->store === null ? null : StoreSlug::of((string) $row->store),
         );
     }
 

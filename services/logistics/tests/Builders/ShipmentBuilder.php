@@ -19,6 +19,7 @@ use Logistics\Shipping\Domain\Shipment\Shipment;
 use Logistics\Shipping\Domain\Shipment\ShipmentId;
 use Logistics\Shipping\Domain\Shipment\ShipmentReference;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Logistics\Shipping\Domain\Shipment\TrackingCode;
 use Logistics\Shipping\Domain\Transition\DeliveryFailure;
 use Logistics\Shipping\Domain\Transition\Hub;
@@ -39,7 +40,12 @@ final class ShipmentBuilder
     /** Tracking codes are UNIQUE in the database, so every shipment built gets the next sequence. */
     private static int $sequence = 0;
 
+    /** The store of HOME-MUG-001, the product the chaos probes buy. */
+    public const string STORE = 'sabia';
+
     private OrderId $orderId;
+
+    private ?StoreSlug $store;
 
     private DateTimeImmutable $createdAt;
 
@@ -48,6 +54,7 @@ final class ShipmentBuilder
     private function __construct()
     {
         $this->orderId = OrderId::generate();
+        $this->store = StoreSlug::of(self::STORE);
         $this->createdAt = new DateTimeImmutable('2026-09-27T12:00:00Z');
         $this->parcels = Parcels::of(self::parcel(1100, 240, 170, 40));
     }
@@ -78,6 +85,21 @@ final class ShipmentBuilder
         return $this;
     }
 
+    public function inStore(string $store): self
+    {
+        $this->store = StoreSlug::of($store);
+
+        return $this;
+    }
+
+    /** A shipment created before the stores existed (ADR 0031), or whose store was still unknown. */
+    public function withoutStore(): self
+    {
+        $this->store = null;
+
+        return $this;
+    }
+
     public function createdAt(string $instant): self
     {
         $this->createdAt = new DateTimeImmutable($instant);
@@ -99,6 +121,7 @@ final class ShipmentBuilder
                 ShipmentId::generate(),
                 TrackingCode::fromSnowflake(Snowflake::compose($this->createdAt->getTimestamp() * 1000, new NodeId(1, 12), self::$sequence++ % (Snowflake::MAX_SEQUENCE + 1))),
                 $this->orderId,
+                $this->store,
             ),
             CarrierCode::of('tucano-express'),
             FulfillmentCenterCode::of('GRU1'),

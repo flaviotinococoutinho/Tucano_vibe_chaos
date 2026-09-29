@@ -10,7 +10,10 @@ use Logistics\Timeline\Domain\TrackingPagesUnavailable;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-/** The public page with DynamoDB out of reach: a quick 503 that says when to come back, never a hanging request. */
+/**
+ * The public page with DynamoDB out of reach, platform-wide or through a store: a quick 503
+ * that says when to come back, never a hanging request.
+ */
 final class TrackingOutOfReachTest extends TestCase
 {
     #[Test]
@@ -23,11 +26,13 @@ final class TrackingOutOfReachTest extends TestCase
             }
         });
 
-        $this->getJson('/v1/tracking/TX02Q50MATM5G00')
-            ->assertServiceUnavailable()
-            ->assertHeader('Retry-After', '5')
-            ->assertHeader('Content-Type', 'application/problem+json')
-            ->assertJsonPath('detail', 'The tracking pages are out of reach; try again in 5 s.');
+        foreach (['/v1/tracking/TX02Q50MATM5G00', '/v1/stores/sabia/tracking/TX02Q50MATM5G00'] as $uri) {
+            $this->getJson($uri)
+                ->assertServiceUnavailable()
+                ->assertHeader('Retry-After', '5')
+                ->assertHeader('Content-Type', 'application/problem+json')
+                ->assertJsonPath('detail', 'The tracking pages are out of reach; try again in 5 s.');
+        }
     }
 
     #[Test]

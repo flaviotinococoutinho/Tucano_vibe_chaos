@@ -28,5 +28,18 @@ final class TrackingPageProjectorTest extends TestCase
 
         self::assertSame(['created', 'picked_up'], array_map(static fn($news): string => $news->step->status->value, $pages->taken));
         self::assertSame('tucano-express', $pages->taken[0]->carrier);
+        self::assertSame([ShipmentEvents::STORE, ShipmentEvents::STORE], [$pages->taken[0]->store, $pages->taken[1]->store], 'Every step says the store the page belongs to.');
+    }
+
+    #[Test]
+    public function a_step_from_before_the_stores_reaches_a_page_of_no_store(): void
+    {
+        $pages = new RecordedSteps();
+        $projector = new TrackingPageProjector(new UpdateTrackingPage($pages), new RecordingLogger());
+
+        $projector->handle(ShipmentEvents::message(ShipmentEvents::of('picked_up', store: null)));
+
+        self::assertCount(1, $pages->taken);
+        self::assertNull($pages->taken[0]->store);
     }
 }

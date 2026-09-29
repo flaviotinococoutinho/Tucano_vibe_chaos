@@ -144,7 +144,8 @@ final class ShipmentTransitionsTest extends TestCase
         self::assertInstanceOf($event, $events[0]);
         self::assertSame('tucano.logistics.shipment.' . $then->value, $events[0]->eventType());
         self::assertEquals($at, $events[0]->occurredAt());
-        self::assertSame($details, array_diff_key($events[0]->payload(), array_flip(['shipmentId', 'trackingCode', 'orderId'])));
+        self::assertSame(ShipmentBuilder::STORE, $events[0]->payload()['store'] ?? null, 'Every event of the shipment says its store.');
+        self::assertSame($details, array_diff_key($events[0]->payload(), array_flip(['store', 'shipmentId', 'trackingCode', 'orderId'])));
     }
 
     #[Test]

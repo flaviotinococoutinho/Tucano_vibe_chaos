@@ -54,7 +54,7 @@ final class ZplLabelsTest extends TestCase
     public function what_the_customer_typed_cannot_become_printer_commands(): void
     {
         $shipment = Shipment::create(
-            ShipmentReference::of(ShipmentId::generate(), TrackingCode::fromSnowflake(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 0)), OrderId::generate()),
+            ShipmentReference::of(ShipmentId::generate(), TrackingCode::fromSnowflake(Snowflake::compose(1_790_510_400_000, new NodeId(1, 12), 0)), OrderId::generate(), null),
             CarrierCode::of('tucano-express'),
             FulfillmentCenterCode::of('GRU1'),
             Recipient::of('Ana^XZ~JA_Souza', 'ana@example.com'),

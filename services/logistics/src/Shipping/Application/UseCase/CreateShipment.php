@@ -20,10 +20,12 @@ use Logistics\Shipping\Application\ShipmentSkipped;
 use Logistics\Shipping\Domain\Error\ProductNotSyncedYet;
 use Logistics\Shipping\Domain\Parcel\Parcel;
 use Logistics\Shipping\Domain\Parcel\Parcels;
+use Logistics\Shipping\Domain\Product\CatalogProduct;
 use Logistics\Shipping\Domain\Product\Sku;
 use Logistics\Shipping\Domain\Shipment\Shipment;
 use Logistics\Shipping\Domain\Shipment\ShipmentId;
 use Logistics\Shipping\Domain\Shipment\ShipmentReference;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Tucano\SharedKernel\Documentation\UseCase;
 use Tucano\SharedKernel\Time\Clock;
 
@@ -66,9 +68,10 @@ final readonly class CreateShipment implements ForCreatingShipments
 
     private function ship(PaidOrder $order): CreatedShipment
     {
-        $parcels = $this->parcelsOf($order->lines);
+        $products = $this->products->bySku(...array_map(static fn(OrderLine $line): Sku => $line->sku, $order->lines));
+        $parcels = self::parcelsOf($order->lines, $products);
         $carrier = $this->carriers->choose($order->origin, $order->destination, $parcels);
-        $reference = ShipmentReference::of(ShipmentId::generate(), $this->trackingCodes->next(), $order->orderId);
+        $reference = ShipmentReference::of(ShipmentId::generate(), $this->trackingCodes->next(), $order->orderId, $order->store ?? self::storeOf($products));
 
         $shipment = Shipment::create($reference, $carrier, $order->origin, $order->recipient, $order->destination, $parcels, $this->clock->now());
         $this->shipments->add($shipment);
@@ -81,15 +84,26 @@ final readonly class CreateShipment implements ForCreatingShipments
      * One parcel per order line, measured from the local copy of the catalog.
      *
      * @param list<OrderLine> $lines
+     * @param array<string, CatalogProduct> $products keyed by SKU
      */
-    private function parcelsOf(array $lines): Parcels
+    private static function parcelsOf(array $lines, array $products): Parcels
     {
-        $products = $this->products->bySku(...array_map(static fn(OrderLine $line): Sku => $line->sku, $lines));
-
         return Parcels::of(...array_map(static function (OrderLine $line) use ($products): Parcel {
             $product = $products[(string) $line->sku] ?? throw ProductNotSyncedYet::sku($line->sku);
 
             return $product->packed($line->quantity);
         }, $lines));
+    }
+
+    /**
+     * An order.paid from before the stores does not say its store. All the lines of an order
+     * belong to one store, so the products tell, when every one of them names the same one;
+     * otherwise the shipment has no store, and no store's tracking shows it (ADR 0031).
+     *
+     * @param array<string, CatalogProduct> $products keyed by SKU
+     */
+    private static function storeOf(array $products): ?StoreSlug
+    {
+        return StoreSlug::sharedBy(...array_map(static fn(CatalogProduct $product): ?StoreSlug => $product->store, array_values($products)));
     }
 }

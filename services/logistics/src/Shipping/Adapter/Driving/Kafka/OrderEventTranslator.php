@@ -12,6 +12,7 @@ use Logistics\Shipping\Domain\Product\Sku;
 use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Recipient;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Tucano\SharedKernel\Address\Address;
 use Tucano\SharedKernel\Messaging\CloudEvent;
 use Tucano\SharedKernel\Messaging\EventFields;
@@ -27,14 +28,17 @@ final readonly class OrderEventTranslator
 
     private function __construct() {}
 
+    /** An order.paid from before the stores has no store: its shipment looks for one in the products. */
     public static function paidOrder(CloudEvent $event): PaidOrder
     {
         $data = new EventFields($event->data);
         $customer = $data->object('customer');
+        $store = $data->optionalText('store');
 
         return new PaidOrder(
             $event->id,
             OrderId::fromString($data->text('orderId')),
+            $store === null ? null : StoreSlug::of($store),
             Recipient::of($customer->text('name'), $customer->text('email')),
             Address::fromArray($data->object('shippingAddress')->toArray()),
             FulfillmentCenterCode::of($data->text('fulfillmentCenter')),

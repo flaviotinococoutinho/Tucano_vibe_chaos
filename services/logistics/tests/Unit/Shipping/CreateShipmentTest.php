@@ -21,6 +21,8 @@ use Logistics\Shipping\Domain\Shipment\FulfillmentCenterCode;
 use Logistics\Shipping\Domain\Shipment\OrderId;
 use Logistics\Shipping\Domain\Shipment\Recipient;
 use Logistics\Shipping\Domain\Shipment\ShipmentStatus;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Builders\ShipmentBuilder;
@@ -59,7 +61,12 @@ final class CreateShipmentTest extends TestCase
             new DirectTransactions(),
             new InMemoryInbox(),
             $this->cancelledOrders,
-            new InMemoryCatalog()->add('BOOK-DDD-001', 1100, 240, 170, 40)->add('HOME-MUG-001', 350, 120, 90, 100),
+            new InMemoryCatalog()
+                ->add('HOME-MUG-001', 400, 120, 100, 100, 'sabia')
+                ->add('SPORT-BOTTLE-001', 350, 260, 80, 80, 'sabia')
+                ->add('BOOK-DDD-001', 1100, 240, 170, 40, 'arara')
+                // Its snapshot with the store has not arrived yet.
+                ->add('HOME-COFFEE-001', 2500, 300, 250, 350),
             $this->carrier,
             new SequentialTrackingCodes(),
             $this->shipments,
@@ -71,7 +78,7 @@ final class CreateShipmentTest extends TestCase
     #[Test]
     public function a_paid_order_becomes_a_shipment_with_one_parcel_per_line(): void
     {
-        $created = $this->createShipment->create(self::paidOrder('event-1', ['BOOK-DDD-001' => 2, 'HOME-MUG-001' => 1]));
+        $created = $this->createShipment->create(self::paidOrder('event-1', ['HOME-MUG-001' => 2, 'SPORT-BOTTLE-001' => 1]));
 
         self::assertInstanceOf(CreatedShipment::class, $created);
         self::assertSame('correio-nacional', (string) $created->carrier);
@@ -81,17 +88,56 @@ final class CreateShipmentTest extends TestCase
         self::assertEquals($created->shipment, $snapshot->reference);
         self::assertEquals(new DateTimeImmutable('2026-09-27T12:10:00Z'), $snapshot->createdAt);
         self::assertEquals(
-            Parcels::of(ShipmentBuilder::parcel(2200, 240, 170, 80), ShipmentBuilder::parcel(350, 120, 90, 100)),
+            Parcels::of(ShipmentBuilder::parcel(800, 120, 100, 200), ShipmentBuilder::parcel(350, 260, 80, 80)),
             $snapshot->parcels,
         );
-        self::assertSame([2550], $this->carrier->weighed);
+        self::assertSame([1150], $this->carrier->weighed);
         self::assertSame(['tucano.logistics.shipment.created'], $this->events->types());
+    }
+
+    #[Test]
+    public function the_shipment_belongs_to_the_store_of_the_order_and_says_so(): void
+    {
+        // The copy of the catalog does not know the store of this product yet: the order does.
+        $this->createShipment->create(self::paidOrder('event-1', ['HOME-COFFEE-001' => 1], store: 'sabia'));
+
+        self::assertEquals(StoreSlug::of('sabia'), $this->storeOfTheShipment());
+        self::assertSame('sabia', $this->events->events[0]->payload()['store'] ?? null);
+    }
+
+    #[Test]
+    public function an_order_from_before_the_stores_takes_the_store_its_products_name(): void
+    {
+        $this->createShipment->create(self::paidOrder('event-1', ['HOME-MUG-001' => 1, 'SPORT-BOTTLE-001' => 2], store: null));
+
+        self::assertEquals(StoreSlug::of('sabia'), $this->storeOfTheShipment());
+        self::assertSame('sabia', $this->events->events[0]->payload()['store'] ?? null);
+    }
+
+    /** @return iterable<string, array{array<string, int>}> */
+    public static function productsThatDoNotAgree(): iterable
+    {
+        yield 'a product whose store the copy does not know yet' => [['HOME-MUG-001' => 1, 'HOME-COFFEE-001' => 1]];
+        yield 'no product with a store' => [['HOME-COFFEE-001' => 1]];
+        yield 'products of two stores, sold together before the stores' => [['HOME-MUG-001' => 1, 'BOOK-DDD-001' => 1]];
+    }
+
+    /** @param array<string, int> $lines */
+    #[Test]
+    #[DataProvider('productsThatDoNotAgree')]
+    public function without_a_store_in_the_order_or_one_all_its_products_name_the_shipment_has_none(array $lines): void
+    {
+        $created = $this->createShipment->create(self::paidOrder('event-1', $lines, store: null));
+
+        self::assertInstanceOf(CreatedShipment::class, $created, 'The shipment still goes: only no store shows it.');
+        self::assertNull($this->storeOfTheShipment());
+        self::assertArrayNotHasKey('store', $this->events->events[0]->payload(), 'The contract has no null for the store: the field stays out.');
     }
 
     #[Test]
     public function the_same_event_twice_creates_one_shipment(): void
     {
-        $order = self::paidOrder('event-1', ['BOOK-DDD-001' => 1]);
+        $order = self::paidOrder('event-1', ['HOME-MUG-001' => 1]);
 
         self::assertInstanceOf(CreatedShipment::class, $this->createShipment->create($order));
         self::assertSame(ShipmentSkipped::Repeated, $this->createShipment->create($order));
@@ -103,11 +149,11 @@ final class CreateShipmentTest extends TestCase
     public function a_product_the_catalog_copy_has_not_seen_yet_stops_the_shipment_for_now(): void
     {
         try {
-            $this->createShipment->create(self::paidOrder('event-1', ['BOOK-DDD-001' => 1, 'ELEC-MON-027' => 1]));
+            $this->createShipment->create(self::paidOrder('event-1', ['HOME-MUG-001' => 1, 'SPORT-YOGA-001' => 1]));
             self::fail('The shipment should wait for the catalog copy.');
         } catch (ProductNotSyncedYet $missing) {
             self::assertSame(ErrorCategory::Unavailable, $missing->category());
-            self::assertStringContainsString('ELEC-MON-027', $missing->getMessage());
+            self::assertStringContainsString('SPORT-YOGA-001', $missing->getMessage());
         }
 
         self::assertSame(0, $this->shipments->count());
@@ -121,7 +167,7 @@ final class CreateShipmentTest extends TestCase
         $this->carrier->refuseWith(NoCarrierChosen::because(NoCarrierFits::for(new Consignment('SP', 'SP', 2_000_000))));
 
         try {
-            $this->createShipment->create(self::paidOrder('event-1', ['BOOK-DDD-001' => 1]));
+            $this->createShipment->create(self::paidOrder('event-1', ['HOME-MUG-001' => 1]));
             self::fail('No carrier should have taken the parcels.');
         } catch (NoCarrierChosen) {
             self::assertSame(0, $this->shipments->count());
@@ -134,7 +180,7 @@ final class CreateShipmentTest extends TestCase
     {
         $this->cancelledOrders->add(OrderId::fromString(self::ORDER), new DateTimeImmutable('2026-09-27T12:05:00Z'));
 
-        $skipped = $this->createShipment->create(self::paidOrder('event-1', ['BOOK-DDD-001' => 1]));
+        $skipped = $this->createShipment->create(self::paidOrder('event-1', ['HOME-MUG-001' => 1]));
 
         self::assertSame(ShipmentSkipped::OrderCancelled, $skipped);
         self::assertSame(0, $this->shipments->count());
@@ -142,8 +188,19 @@ final class CreateShipmentTest extends TestCase
         self::assertSame([], $this->events->events);
     }
 
-    /** @param array<string, int> $lines SKU => quantity */
-    private static function paidOrder(string $eventId, array $lines): PaidOrder
+    private function storeOfTheShipment(): ?StoreSlug
+    {
+        $shipment = $this->shipments->forOrder(OrderId::fromString(self::ORDER));
+        self::assertNotNull($shipment);
+
+        return $shipment->toSnapshot()->reference->store;
+    }
+
+    /**
+     * @param array<string, int> $lines SKU => quantity
+     * @param ?string $store null for an order.paid from before the stores
+     */
+    private static function paidOrder(string $eventId, array $lines, ?string $store = 'sabia'): PaidOrder
     {
         $orderLines = [];
         foreach ($lines as $sku => $quantity) {
@@ -153,6 +210,7 @@ final class CreateShipmentTest extends TestCase
         return new PaidOrder(
             $eventId,
             OrderId::fromString(self::ORDER),
+            $store === null ? null : StoreSlug::of($store),
             Recipient::of('Ana Souza', 'ana@example.com'),
             ShipmentBuilder::destination(),
             FulfillmentCenterCode::of('GRU1'),

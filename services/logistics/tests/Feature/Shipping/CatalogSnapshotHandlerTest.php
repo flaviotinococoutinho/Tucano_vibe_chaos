@@ -6,6 +6,7 @@ namespace Tests\Feature\Shipping;
 
 use Logistics\Shipping\Adapter\Driving\Kafka\CatalogSnapshotHandler;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\NullLogger;
@@ -38,6 +39,16 @@ final class CatalogSnapshotHandlerTest extends TestCase
             $snapshot->productId, (string) $snapshot->sku, $snapshot->name, $snapshot->weight->grams(), $snapshot->version,
         ]);
         self::assertEquals(Dimensions::ofMillimetres(240, 170, 40), $snapshot->dimensions);
+        self::assertEquals(StoreSlug::of(CatalogEvents::STORE), $snapshot->store);
+    }
+
+    #[Test]
+    public function a_snapshot_from_before_the_stores_says_no_store(): void
+    {
+        $this->handler->handle(CatalogEvents::message(CatalogEvents::snapshotBeforeTheStores()));
+
+        self::assertCount(1, $this->catalog->snapshots);
+        self::assertNull($this->catalog->snapshots[0]->store);
     }
 
     #[Test]
@@ -85,5 +96,7 @@ final class CatalogSnapshotHandlerTest extends TestCase
         yield 'a product id that is not a UUID' => [CatalogEvents::snapshot(['productId' => 'book-ddd'])];
         yield 'a version as text' => [CatalogEvents::snapshot(['version' => '3'])];
         yield 'a sku outside the format' => [CatalogEvents::snapshot(['sku' => 'BOOK_DDD_001'])];
+        yield 'a store by its name instead of its slug' => [CatalogEvents::snapshot(['store' => 'Arara Livros'])];
+        yield 'a store that is not text' => [CatalogEvents::snapshot(['store' => ['slug' => 'arara']])];
     }
 }

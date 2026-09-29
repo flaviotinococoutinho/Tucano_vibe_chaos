@@ -48,6 +48,7 @@ final class MongoTimelinesTest extends TestCase
         self::assertInstanceOf(BSONDocument::class, $timeline);
         self::assertSame(['in_transit', 'tucano-express', ShipmentEvents::TRACKING_CODE, 2], [$timeline['status'], $timeline['carrier'], $timeline['trackingCode'], (int) (string) $timeline['version']]);
         self::assertSame(['created', 'in_transit'], array_map(static fn($event): string => (string) $event['status'], iterator_to_array($timeline['events'], false)));
+        self::assertSame(ShipmentEvents::STORE, $timeline['store']);
     }
 
     #[Test]
@@ -60,8 +61,18 @@ final class MongoTimelinesTest extends TestCase
         self::assertSame('unknown', $timeline['carrier']);
     }
 
-    private static function news(string $eventId, TimelineStep $step, ?string $carrier = null): TimelineNews
+    #[Test]
+    public function a_timeline_from_before_the_stores_has_no_store_and_still_satisfies_the_collection(): void
     {
-        return TimelineNews::of(ShipmentEvents::SHIPMENT, ShipmentEvents::ORDER, ShipmentEvents::TRACKING_CODE, $eventId, $step, $carrier, $carrier === null ? null : Place::of('Betim', 'MG'));
+        self::assertTrue($this->timelines->append(self::news('evt_1', TimelineStep::of(JourneyStatus::Created, new DateTimeImmutable('2026-09-27T12:00:00Z')), 'tucano-express', store: null)));
+
+        $timeline = $this->database->selectCollection('shipment_timelines')->findOne();
+        self::assertInstanceOf(BSONDocument::class, $timeline);
+        self::assertFalse(isset($timeline['store']));
+    }
+
+    private static function news(string $eventId, TimelineStep $step, ?string $carrier = null, ?string $store = ShipmentEvents::STORE): TimelineNews
+    {
+        return TimelineNews::of(ShipmentEvents::SHIPMENT, ShipmentEvents::ORDER, ShipmentEvents::TRACKING_CODE, $store, $eventId, $step, $carrier, $carrier === null ? null : Place::of('Betim', 'MG'));
     }
 }

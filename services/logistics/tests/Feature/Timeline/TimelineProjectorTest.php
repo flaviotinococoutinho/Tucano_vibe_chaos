@@ -51,6 +51,16 @@ final class TimelineProjectorTest extends TestCase
         self::assertSame('Hub Contagem (MG)', $taken[1]->step->hub);
         self::assertSame([1, 'recipient_absent'], [$taken[3]->step->attempt, $taken[3]->step->reason]);
         self::assertNull($taken[4]->carrier, 'Only shipment.created carries the carrier.');
+        self::assertSame(array_fill(0, 5, ShipmentEvents::STORE), array_map(static fn($news): ?string => $news->store, $taken), 'Every event carries the store.');
+    }
+
+    #[Test]
+    public function an_event_from_before_the_stores_is_a_step_of_no_store(): void
+    {
+        $this->projector->handle(ShipmentEvents::message(ShipmentEvents::of('created', ShipmentEvents::created(), store: null)));
+
+        self::assertCount(1, $this->timelines->taken);
+        self::assertNull($this->timelines->taken[0]->store);
     }
 
     #[Test]
@@ -85,9 +95,11 @@ final class TimelineProjectorTest extends TestCase
     public function the_fixtures_speak_the_published_language_of_logistics(): void
     {
         foreach (['created' => ShipmentEvents::created(), 'picked_up' => [], 'delivery_failed' => ['attempt' => 1, 'reason' => 'recipient_absent']] as $step => $details) {
-            $event = json_decode(ShipmentEvents::of($step, $details), flags: JSON_THROW_ON_ERROR);
-            self::assertInstanceOf(stdClass::class, $event);
-            self::assertMatchesContract('logistics.shipment.' . $step . '.schema.json', $event->data);
+            foreach ([ShipmentEvents::STORE, null] as $store) {
+                $event = json_decode(ShipmentEvents::of($step, $details, store: $store), flags: JSON_THROW_ON_ERROR);
+                self::assertInstanceOf(stdClass::class, $event);
+                self::assertMatchesContract('logistics.shipment.' . $step . '.schema.json', $event->data);
+            }
         }
         self::assertSame(ProjectionOutcome::Applied, ProjectionOutcome::from('applied'));
     }

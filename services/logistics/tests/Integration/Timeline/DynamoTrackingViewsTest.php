@@ -53,6 +53,7 @@ final class DynamoTrackingViewsTest extends TestCase
         self::assertNotNull($page);
         self::assertSame([
             'trackingCode' => $this->trackingCode,
+            'store' => 'sabia',
             'status' => 'delivery_failed',
             'carrier' => 'tucano-express',
             'destination' => ['municipality' => 'Betim', 'state' => 'MG'],
@@ -66,6 +67,17 @@ final class DynamoTrackingViewsTest extends TestCase
     }
 
     #[Test]
+    public function a_page_from_before_the_stores_belongs_to_none(): void
+    {
+        $pages = $this->app->make(DynamoTrackingViews::class);
+
+        $pages->append($this->news('evt_1', TimelineStep::of(JourneyStatus::PickedUp, new DateTimeImmutable('2026-09-27T13:00:00Z')), store: null));
+
+        self::assertNull($pages->find($this->trackingCode)?->store);
+        self::assertNotNull($pages->find($this->trackingCode));
+    }
+
+    #[Test]
     public function the_public_endpoint_answers_the_page_or_a_problem(): void
     {
         $this->app->make(DynamoTrackingViews::class)->append($this->news('evt_1', TimelineStep::of(JourneyStatus::PickedUp, new DateTimeImmutable('2026-09-27T13:00:00Z'))));
@@ -73,15 +85,31 @@ final class DynamoTrackingViewsTest extends TestCase
         $this->getJson('/v1/tracking/' . strtolower($this->trackingCode))
             ->assertOk()
             ->assertJsonPath('status', 'picked_up')
+            ->assertJsonPath('store', 'sabia')
             ->assertJsonPath('carrier', null);
         $this->getJson('/v1/tracking/TX0000000000000')
             ->assertNotFound()
             ->assertHeader('Content-Type', 'application/problem+json');
     }
 
-    private function news(string $eventId, TimelineStep $step, ?string $carrier = null): TimelineNews
+    #[Test]
+    public function a_store_reads_its_pages_and_no_other(): void
     {
-        return TimelineNews::of(ShipmentEvents::SHIPMENT, ShipmentEvents::ORDER, $this->trackingCode, $eventId, $step, $carrier, $carrier === null ? null : Place::of('Betim', 'MG'));
+        $this->app->make(DynamoTrackingViews::class)->append($this->news('evt_1', TimelineStep::of(JourneyStatus::PickedUp, new DateTimeImmutable('2026-09-27T13:00:00Z'))));
+
+        $this->getJson('/v1/stores/sabia/tracking/' . $this->trackingCode)
+            ->assertOk()
+            ->assertJsonPath('trackingCode', $this->trackingCode)
+            ->assertJsonPath('store', 'sabia');
+        $this->getJson('/v1/stores/arara/tracking/' . $this->trackingCode)
+            ->assertNotFound()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('detail', sprintf('No shipment is tracked as %s, or its news has not reached the tracking page yet.', $this->trackingCode));
+    }
+
+    private function news(string $eventId, TimelineStep $step, ?string $carrier = null, ?string $store = 'sabia'): TimelineNews
+    {
+        return TimelineNews::of(ShipmentEvents::SHIPMENT, ShipmentEvents::ORDER, $this->trackingCode, $store, $eventId, $step, $carrier, $carrier === null ? null : Place::of('Betim', 'MG'));
     }
 
     private static function client(string $endpoint): DynamoDbClient

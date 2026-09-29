@@ -4,11 +4,13 @@ Serviço de remessas da Tucano, em Laravel 13 sobre PHP 8.4 (FPM). Aqui fica o n
 
 A estrutura é a mesma do [commerce](../commerce/README.md), de propósito: dois núcleos, um jeito só de organizar. Hoje a remessa nasce do `order.paid`, pode ser cancelada pelo `order.cancelled` e ganha a etiqueta pela fila SQS; a coleta e a entrega entram nas próximas fatias.
 
+A entrega é da plataforma, e a remessa é da loja do pedido ([ADR 0031](../../docs/adr/0031-a-store-is-a-tenant.md)): os centros de distribuição, as transportadoras e a frota servem todas as lojas, e cada remessa, cada evento dela e cada página de rastreio dizem de qual loja são.
+
 ## Como está organizado
 
 | Pasta | O que tem |
 |---|---|
-| `src/Shipping` | a remessa e a máquina de estados inteira, a cópia local do catálogo (peso e dimensões) e o consumidor dos eventos de pedido |
+| `src/Shipping` | a remessa e a máquina de estados inteira, a cópia local do catálogo (loja, peso e dimensões) e o consumidor dos eventos de pedido |
 | `src/CarrierSelection` | a corrente de regras que escolhe a transportadora |
 | `src/Timeline` | o lado de leitura das remessas: a linha do tempo no MongoDB e a página pública de rastreio no DynamoDB, alimentadas pelos eventos ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
 | `src/Shared` | os ports que todos os pacotes usam: transação, inbox, outbox e o relay |
@@ -66,7 +68,7 @@ O worker `logistics:order-intake` lê `commerce.orders.v2` no consumer group `lo
 
 | Evento | O que acontece |
 |---|---|
-| `order.paid` | cria a remessa ([UC-SHP-01](../../docs/use-cases/UC-SHP-01-create-shipment.md)): um volume por item do pedido (peso unitário vezes a quantidade, e as unidades empilhadas na altura), transportadora pela corrente, código de rastreio, remessa em `created` e `ShipmentCreated` na outbox |
+| `order.paid` | cria a remessa ([UC-SHP-01](../../docs/use-cases/UC-SHP-01-create-shipment.md)) na loja do pedido: um volume por item do pedido (peso unitário vezes a quantidade, e as unidades empilhadas na altura), transportadora pela corrente, código de rastreio, remessa em `created` e `ShipmentCreated` na outbox |
 | `order.cancelled` de pedido pago | cancela a remessa que ainda está no CD ([UC-SHP-09](../../docs/use-cases/UC-SHP-09-cancel-shipment.md)) e grava `ShipmentCancelled` na outbox; sem remessa ainda, registra o pedido em `cancelled_orders`, e um `order.paid` que chegue depois (replay da DLQ) não despacha |
 | `order.cancelled` de pedido não pago | ignorado sem tocar no banco: pedido que não foi pago nunca teve remessa |
 | os outros | ignorados |
@@ -84,6 +86,21 @@ Quando algo dá errado, a categoria do erro de domínio decide o destino da mens
 | outra falha inesperada | retry com backoff; se persistir, DLQ |
 
 O correlation id do pedido segue para o log e para o evento publicado, e o `causationid` do evento novo é o id do evento de pedido que o causou.
+
+## A loja de cada remessa
+
+A logística só conhece o slug da loja (`StoreSlug`, como `sabia`); o cadastro das lojas é do catálogo. A remessa guarda a loja em `shipments.store` e a recebe uma vez, ao nascer:
+
+| O que chega | Loja da remessa |
+|---|---|
+| `order.paid` com `store` | a do pedido |
+| `order.paid` de antes das lojas, e todos os produtos com a mesma loja na cópia do catálogo | a dos produtos, porque todas as linhas de um pedido são de uma loja só |
+| `order.paid` de antes das lojas, com um produto ainda sem loja na cópia ou produtos de lojas diferentes | nenhuma |
+
+- Sem loja, a remessa segue a jornada inteira do mesmo jeito, e o rastreio dela aparece na consulta da plataforma e em loja nenhuma. Preferi nenhuma loja à loja errada: uma remessa atribuída à loja errada mostraria o rastreio para quem não devia ver.
+- A loja de uma remessa não muda depois. As remessas de antes das lojas ficaram com `store` nulo, e nenhuma loja as mostra.
+- A loja entra no `ShipmentReference`, que todo evento da remessa leva, então todo evento de `logistics.shipments.v2` diz a loja em `store`. Uma remessa sem loja deixa o campo de fora, porque o contrato não aceita nulo.
+- A cópia do catálogo aprende a loja de cada produto pelo `catalog.product.snapshot`. A loja de um produto não muda, então um snapshot sem loja não apaga a que a cópia conhece, e um snapshot da mesma versão que só traz a loja entra: é o catálogo republicando os produtos depois que as lojas chegaram ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)).
 
 ## A escolha da transportadora
 
@@ -114,7 +131,8 @@ O código é um Snowflake do `SnowflakeGenerator`, guardado em `BIGINT` e mostra
 | `GET /health/live` | `/api/logistics/health/live` | o processo está de pé |
 | `GET /health/ready` | `/api/logistics/health/ready` | PostgreSQL e Redis respondem, com a latência de cada um |
 | `POST /v1/webhooks/carriers` | `/api/logistics/v1/webhooks/carriers` | os eventos assinados das transportadoras ([UC-SHP-04 a 08](../../docs/use-cases/README.md)) |
-| `GET /v1/tracking/{código}` | `/api/logistics/v1/tracking/{código}` | a página pública de rastreio, lida por chave no DynamoDB ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
+| `GET /v1/tracking/{código}` | `/api/logistics/v1/tracking/{código}` | a página pública de rastreio de qualquer loja, lida por chave no DynamoDB, com a loja dela em `store` ([UC-SHP-10](../../docs/use-cases/UC-SHP-10-track-by-code.md)) |
+| `GET /v1/stores/{loja}/tracking/{código}` | `/api/logistics/v1/stores/{loja}/tracking/{código}` | a mesma página, só quando ela é daquela loja; de outra loja, é o mesmo `404` de um código desconhecido |
 
 Erros saem como `application/problem+json` (RFC 9457), no mesmo formato do commerce.
 
@@ -125,7 +143,7 @@ Os workers usam a mesma imagem da API, cada um com um comando de longa duração
 | Serviço no compose | Comando | O que faz |
 |---|---|---|
 | `logistics-outbox-relay` | `php artisan logistics:relay-outbox` | publica a outbox em `logistics.shipments.v2` com `FOR UPDATE SKIP LOCKED`; a flag `chaos.logistics.outbox-relay-paused` pausa a publicação sem derrubar o processo |
-| `logistics-catalog-sync` | `php artisan logistics:sync-catalog` | mantém peso e dimensões em `product_snapshots` a partir de `catalog.products.v1` ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)); snapshot ilegível vai para `dlq.logistics.catalog-sync` |
+| `logistics-catalog-sync` | `php artisan logistics:sync-catalog` | mantém a loja, o peso e as dimensões em `product_snapshots` a partir de `catalog.products.v1` ([UC-SHP-11](../../docs/use-cases/UC-SHP-11-sync-catalog.md)); snapshot ilegível vai para `dlq.logistics.catalog-sync` |
 | `logistics-order-intake` | `php artisan logistics:order-intake` | cria e cancela remessas a partir de `commerce.orders.v2`; roda com `SNOWFLAKE_WORKER_ID=12` |
 | `logistics-label-requests` | `php artisan logistics:request-labels` | ponte entre o log e a fila: cada `ShipmentCreated` de `logistics.shipments.v2` vira um job na fila `label-jobs` (SQS); com o SQS fora, a partição espera |
 | `logistics-label-worker` | `php artisan queue:work sqs --queue=label-jobs` | gera a etiqueta em ZPL, grava no S3 e move a remessa para `ready_for_pickup` ([UC-SHP-03](../../docs/use-cases/UC-SHP-03-generate-label.md)); três tentativas, e depois `failed_jobs` |
@@ -184,14 +202,15 @@ Com a etiqueta pronta, o `logistics-pickup-bookings` agenda a coleta na CarrierF
 O rastreio pelo código é o lado de leitura do CQRS: o pacote `Timeline` não lê o PostgreSQL da logística, só os eventos que ela publica. O projetor grava cada passo em dois read models, cada um do jeito que vai ser lido: a linha do tempo inteira da remessa no MongoDB, para quem opera, e a página pública no DynamoDB, uma chave por código de rastreio.
 
 ```bash
-curl -s localhost:8000/api/logistics/v1/tracking/TX02PX83Y5M5G00
+curl -s localhost:8000/api/logistics/v1/stores/sabia/tracking/TX02PX83Y5M5G00
 ```
 
-Uma remessa de parceira, do CD de Contagem para o Rio, com uma visita que falhou:
+Uma remessa da Sabiá, de parceira, do CD de Contagem para o Rio, com uma visita que falhou:
 
 ```json
 {
   "trackingCode": "TX02PX83Y5M5G00",
+  "store": "sabia",
   "status": "delivered",
   "carrier": "correio-nacional",
   "destination": {"municipality": "Rio de Janeiro", "state": "RJ"},
@@ -210,6 +229,9 @@ Uma remessa de parceira, do CD de Contagem para o Rio, com uma visita que falhou
 ```
 
 - A página fica atrás da remessa pelo tempo da projeção (leitura BASE, [ADR 0012](../../docs/adr/0012-acid-writes-base-reads.md)). Um código que ainda não chegou responde `404`.
+- Cada loja só lê as próprias páginas. O item do DynamoDB guarda a loja, e a rota da loja confere depois da leitura pela chave: a página de outra loja, ou de uma remessa de antes das lojas, recebe o mesmo `404`, com o mesmo corpo, de um código que ninguém conhece. A resposta não conta que o código existe em outra loja.
+- A rota sem loja (`/v1/tracking/{código}`) responde a página de qualquer loja, com `store` nulo para uma remessa de antes das lojas. É por ela que a plataforma descobre de qual loja é um código digitado na tela inicial.
+- Com o DynamoDB fora de alcance, as duas rotas dão uma tentativa curta e respondem `503` com `Retry-After`.
 - Nada de dado pessoal: o destino vai até o município, e o comprovante da entrega continua só no banco da logística.
 - Não há transação entre MongoDB e DynamoDB. Cada um recusa um evento que já tem, então o evento reentregue depois de uma falha no meio completa o read model que ficou para trás.
 
@@ -228,7 +250,7 @@ Uma remessa de parceira, do CD de Contagem para o Rio, com uma visita que falhou
 | `tucano.logistics.shipment.returning` | [`logistics.shipment.returning.schema.json`](../../contracts/events/logistics.shipment.returning.schema.json) |
 | `tucano.logistics.shipment.returned` | [`logistics.shipment.returned.schema.json`](../../contracts/events/logistics.shipment.returned.schema.json) |
 
-O `ShipmentCreated` leva o destino até o município, com as divisões de estado e município e o CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato.
+O `ShipmentCreated` leva o destino até o município, com as divisões de estado e município e o CEP. O tópico guarda os eventos por uma semana e nenhum consumidor precisa do logradouro, do número nem do nome de quem recebe, então esses dados ficam no banco da logística. Todo evento da máquina de estados tem contrato, e todo evento leva a loja da remessa em `store`; o de uma remessa sem loja deixa o campo de fora.
 
 ## Rodando
 

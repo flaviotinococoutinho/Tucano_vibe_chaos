@@ -11,6 +11,7 @@ use Logistics\Shipping\Application\Port\Driving\ForSyncingCatalog;
 use Logistics\Shipping\Domain\Parcel\Dimensions;
 use Logistics\Shipping\Domain\Parcel\Weight;
 use Logistics\Shipping\Domain\Product\Sku;
+use Logistics\Shipping\Domain\Shipment\StoreSlug;
 use Psr\Log\LoggerInterface;
 use Tucano\Messaging\Kafka\IncomingEvent;
 use Tucano\Messaging\Kafka\MessageHandler;
@@ -23,7 +24,8 @@ use Tucano\SharedKernel\Messaging\EventFields;
 /**
  * Reads catalog.products.v1. The topic is compacted and carries the full state
  * of every product, so a new consumer group rebuilds the whole copy from offset
- * zero, and this handler only needs the weight and the size (tolerant reader).
+ * zero, and this handler only needs the store, the weight and the size (tolerant
+ * reader). A snapshot from before the stores has no store.
  */
 final readonly class CatalogSnapshotHandler implements MessageHandler
 {
@@ -62,10 +64,12 @@ final readonly class CatalogSnapshotHandler implements MessageHandler
         try {
             $data = new EventFields($event->data);
             $dimensions = $data->object('dimensions');
+            $store = $data->optionalText('store');
 
             return new CatalogSnapshot(
                 $data->uuid('productId'),
                 Sku::of($data->text('sku')),
+                $store === null ? null : StoreSlug::of($store),
                 $data->text('name'),
                 Weight::ofGrams($data->integer('weightGrams')),
                 Dimensions::ofMillimetres($dimensions->integer('lengthMm'), $dimensions->integer('widthMm'), $dimensions->integer('heightMm')),
