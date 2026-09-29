@@ -1,0 +1,65 @@
+name: stability
+
+# The whole stack on a clean Ubuntu runner, and then every chaos experiment against it: the proof
+# that a release keeps its steady states on a machine nobody prepared. It runs on every pull
+# request to main, which is where releases go, once a week to catch drift, and by hand.
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  experiments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+      # The images and the volumes need more room than a fresh runner has free.
+      - name: Make room on the disk of the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+      - name: Install Ansible
+        run: pipx install --force --include-deps ansible
+      - name: Prepare the machine and bring the stack up
+        working-directory: infra/ansible
+        run: ansible-playbook playbooks/setup.yml
+      # One after the other, against the same stack: each experiment gives the steady state back
+      # before the next one starts. A deviated one does not stop the rest, so one run shows them all.
+      - name: Every chaos experiment keeps its steady state
+        run: |
+          failed=""
+          for file in chaos/experiments/*.json; do
+            name=$(basename "$file" .json)
+            echo "::group::$name"
+            if ! make experiment e="$name"; then
+              failed="$failed $name"
+            fi
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::These experiments deviated or failed:$failed"
+            exit 1
+          fi
+      - name: The journals and logs of the experiments
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chaos-results
+          path: chaos/results/
+          if-no-files-found: ignore
+      - name: Containers
+        if: always()
+        run: docker compose ps -a
+      - name: Logs of what did not hold
+        if: failure()
+        run: docker compose logs --tail 80

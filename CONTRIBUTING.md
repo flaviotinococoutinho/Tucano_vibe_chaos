@@ -91,6 +91,8 @@ git commit -am "chore(release): 0.2.0"
 gh pr create --base main --title "chore(release): 0.2.0"
 ```
 
+O PR de release roda, além do CI de sempre, o workflow `stability`: a stack sobe num runner limpo e todos os experimentos de caos precisam manter o estado estável ([ADR 0029](docs/adr/0029-no-release-without-the-experiments.md)). Uns 25 minutos a mais, e a `main` só recebe o que aguentou as falhas numa máquina que ninguém preparou.
+
 Depois do merge na `main`, a tag sai direto da `origin/main`, sem trocar de branch:
 
 ```bash
