@@ -5,6 +5,7 @@ import type {
   Order,
   OrderStatus,
   OrderTransition,
+  ShipmentStatus,
   Tracking,
 } from '../upstream/index.ts';
 
@@ -135,12 +136,17 @@ const WHY: Readonly<Record<string, string>> = {
   customer_request: 'Cancelado a seu pedido.',
 };
 
-/** What the shipment tells better, with hubs and visits: once its steps are in, the order's own leave. */
-const TOLD_BY_THE_SHIPMENT: ReadonlySet<OrderStatus> = new Set([
-  'shipped',
-  'delivered',
-  'returned',
-]);
+/**
+ * The moves of the order the parcel tells better, with hubs and visits, and the step of the
+ * parcel that tells each one. The order's own move leaves only once that step is in: the
+ * tracking page is a copy that can lag the order (ADR 0012), and a delivered order must never
+ * read as still on its way.
+ */
+const TOLD_BY_THE_SHIPMENT: Readonly<Partial<Record<OrderStatus, ShipmentStatus>>> = {
+  shipped: 'picked_up',
+  delivered: 'delivered',
+  returned: 'returned',
+};
 
 /**
  * The story of the order, oldest first: its own moves, merged with the steps of the parcel
@@ -156,8 +162,11 @@ export function historyOf(
     ? transitions
     : [{ status: 'pending_payment' as const, at: order.placedAt, reason: null }, ...transitions];
   const shipment = delivery.news === 'known' ? delivery.tracking.steps : [];
-  const kept =
-    shipment.length === 0 ? own : own.filter(({ status }) => !TOLD_BY_THE_SHIPMENT.has(status));
+  const told = new Set(shipment.map(({ status }) => status));
+  const kept = own.filter(({ status }) => {
+    const tellingStep = TOLD_BY_THE_SHIPMENT[status];
+    return tellingStep === undefined || !told.has(tellingStep);
+  });
   const steps = [
     ...kept.map((transition) => ({ at: transition.at, step: orderStep(transition) })),
     ...shipment.map((step) => ({ at: step.at, step: shipmentStep(step, rel.history) })),

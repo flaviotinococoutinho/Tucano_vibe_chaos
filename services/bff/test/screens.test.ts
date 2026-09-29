@@ -220,6 +220,30 @@ describe('the history of an order', () => {
     assert.deepStrictEqual(instants, [...instants].sort());
   });
 
+  it('keeps the moves of the order that a lagging tracking page has not told yet', () => {
+    // Commerce already knows the order was delivered; the copy of the tracking page is still
+    // at the hub. The order's own delivery stays, and the pickup the parcel told replaces the
+    // order's shipped.
+    const screen = orderScreen(
+      { order: deliveredOrder, history: histories.delivered, delivery: known(parcelInTransit) },
+      WAITING,
+    );
+
+    assert.deepStrictEqual(
+      historyOf(screen).map((step) => step?.status),
+      [
+        'pending_payment',
+        'paid',
+        'created',
+        'ready_for_pickup',
+        'picked_up',
+        'in_transit',
+        'delivered',
+      ],
+    );
+    assert.equal(historyOf(screen).at(-1)?.label, 'Pedido entregue');
+  });
+
   it('keeps the moves of the order when the parcel has no news to add', () => {
     const screen = orderScreen(
       { order: deliveredOrder, history: histories.delivered, delivery: { news: 'unavailable' } },
