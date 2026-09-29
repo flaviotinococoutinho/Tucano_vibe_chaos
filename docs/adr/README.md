@@ -32,6 +32,7 @@ Toda decisão que alguém vai questionar daqui a seis meses vira um ADR curto, n
 | [0026](0026-a-database-outage-is-unavailability.md) | Tratar banco fora do ar como indisponibilidade, não como erro interno | aceito |
 | [0027](0027-one-consumer-group-per-read-model.md) | Um grupo de consumo por read model | aceito |
 | [0028](0028-live-delivery-by-tracking-code.md) | Entrega ao vivo pelo código de rastreio | aceito |
+| [0029](0029-no-release-without-the-experiments.md) | Nenhuma release sem os experimentos num runner limpo | aceito |
 
 ## Modelo
 

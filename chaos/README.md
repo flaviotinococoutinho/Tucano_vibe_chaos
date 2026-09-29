@@ -56,7 +56,7 @@ Um experimento é um JSON em `experiments/`, no formato do Chaos Toolkit:
 - `rollbacks`: o caminho de volta de cada falha do método, na ordem inversa.
 - Os endereços vêm do ambiente (`TOXIPROXY_URL`, `PARTNERS_SIM_URL` e `TUCANO_STORE`), com os padrões da rede do compose, então o mesmo experimento roda de dentro de um container ou do Mac.
 
-Antes de abrir o PR, `make experiment e=<nome>` contra a stack, e o CI confere que todo experimento é válido para o Chaos Toolkit.
+Antes de abrir o PR, `make experiment e=<nome>` contra a stack, e o CI confere que todo experimento é válido para o Chaos Toolkit. Um experimento novo entra sozinho no portão da `main`: o workflow `stability` sobe a stack num runner limpo e roda todos os experimentos da pasta em cada PR para a `main` e toda segunda-feira, e um desvio reprova a release ([ADR 0029](../docs/adr/0029-no-release-without-the-experiments.md)).
 
 ## O que eles não provam
 
