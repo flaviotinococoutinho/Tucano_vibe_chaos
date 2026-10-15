@@ -70,7 +70,7 @@ O workflow `pr-policy` valida origem e destino:
 
 ### Aprovação
 
-O GitHub não permite aprovar o próprio PR. Enquanto eu for o único autor, o portão de qualidade é o CI obrigatório mais o checklist de definition of done do template. Quando entrar mais alguém, as rulesets passam a exigir uma aprovação e a revisão do `CODEOWNERS`.
+O GitHub não permite aprovar o próprio PR. Enquanto eu for o único autor, a verificação de qualidade combina o CI obrigatório com o checklist de definition of done do template. Quando entrar mais alguém, as rulesets passam a exigir uma aprovação e a revisão do `CODEOWNERS`.
 
 ## Versionamento e cadência
 

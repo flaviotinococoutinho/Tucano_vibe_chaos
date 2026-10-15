@@ -4,7 +4,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 
 ## 0. O guia
 
-- [Guia do chaos playground](guia/README.md): a porta de entrada amigável, em nove capítulos curtos, do jeito de pensar por trás do projeto ao roteiro de uma entrevista. Comece por aqui; o resto desta página é a referência.
+- [Guia do chaos playground](guia/README.md): nove capítulos sobre as decisões, as ferramentas e os experimentos, com um roteiro para apresentar o projeto. Comece pelo guia e use as seções abaixo como referência.
 
 ## 1. Engenharia
 
@@ -22,7 +22,7 @@ Mapa da documentação do projeto. A ordem abaixo também serve de **trilha de e
 - [Máquinas de estados](architecture/state-machines.md): pedido, pagamento e remessa.
 - [Topologia local](architecture/deployment.md): redes, proxies de caos, listeners do Kafka e memória.
 - [Feature flags](architecture/feature-flags.md): flags privadas por ambiente com OpenFeature e flagd.
-- [Modos de falha e seus efeitos](architecture/failure-modes.md): cada falha que interessa, o que o cliente sente, como o sistema reage, a prova de cada reação e o que ainda não tem prova.
+- [Modos de falha e seus efeitos](architecture/failure-modes.md): cada falha que interessa, o que o cliente sente, como o sistema reage, as verificações de cada reação e as lacunas conhecidas.
 
 ## 3. Operação
 

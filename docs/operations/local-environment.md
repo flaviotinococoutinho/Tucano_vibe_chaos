@@ -10,7 +10,7 @@ Tudo roda em Docker Compose, num arquivo só (`compose.yaml`). Uso Colima no Mac
 
 ## Numa máquina nova
 
-O `make setup` prepara tudo com Ansible: confere disco e memória, instala o Colima, o Docker CLI, o Compose e o jq (ou o Docker Engine, no Linux), liga a VM, escreve o `.env` e roda o `make up` até tudo ficar saudável. Rodar de novo não muda nada numa máquina pronta. Os detalhes, e como mudar o tamanho da VM ou as flags, estão no [README do Ansible](../../infra/ansible/README.md).
+O `make setup` prepara tudo com Ansible: confere disco e memória, instala o Colima, o Docker CLI, o Compose e o jq (ou o Docker Engine, no Linux), liga a VM, escreve o `.env` e roda o `make up` até tudo ficar saudável. As tarefas verificam o estado existente antes de aplicar mudanças; o playbook pode reconstruir a stack e executar os checks novamente. Os detalhes, e como mudar o tamanho da VM ou as flags, estão no [README do Ansible](../../infra/ansible/README.md).
 
 ```bash
 brew install ansible     # uma vez; no Linux, pipx install --include-deps ansible
@@ -34,7 +34,7 @@ make setup-check         # a qualquer momento: confere a máquina e a saúde da 
 | `make kong-reload` | aplica o `infra/kong/kong.yml` no Kong em execução, sem downtime |
 | `make trim` | devolve ao Mac o espaço liberado dentro da VM do Colima (depois de um `docker image prune`) |
 
-Um boot a frio, com volumes vazios, leva uns 20 segundos até tudo ficar saudável.
+O tempo de inicialização depende do cache das imagens, do disco e dos recursos disponíveis. O `make up` aguarda os health checks dos serviços.
 
 ## Configuração
 

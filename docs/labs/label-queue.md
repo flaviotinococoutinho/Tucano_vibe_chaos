@@ -10,7 +10,7 @@ A etiqueta é o primeiro trabalho da logística que passa por uma fila de trabal
 |---|---|---|
 | job do Laravel | espera 5 s depois da primeira falha e 20 s depois da segunda | na terceira falha: o job vai para `failed_jobs` |
 | fila SQS | a mensagem de um worker que morreu volta a ficar visível depois de 60 s | na terceira entrega sem resposta: vai para `label-jobs-dlq` |
-| ponte no Kafka | com o SQS fora, a partição espera | nunca: o `ShipmentCreated` continua no tópico e pode ser relido |
+| ponte no Kafka | com o SQS fora, a partição espera | não confirma o offset durante a falha; o evento pode ser relido enquanto estiver retido no tópico |
 
 ## Como provocar
 
@@ -65,4 +65,4 @@ Por que o pedido de etiqueta parte do evento, e não de um dispatch depois do co
 - Job idempotente é o que torna seguro tentar de novo de qualquer lugar: retry do Laravel, redrive do SQS ou replay do Kafka. Aqui a chave do objeto é o código de rastreio, e a remessa avança uma vez só.
 - O timeout do job precisa ficar abaixo da visibilidade da fila; senão, dois workers fazem o mesmo trabalho ao mesmo tempo.
 - Todo caminho de desistência precisa deixar rastro. Um job que falha e não é gravado é pior que um job que trava, porque ninguém fica sabendo.
-- O evento no log é a última rede de segurança: quando a fila e o `failed_jobs` perderam o trabalho, o replay do Kafka recuperou.
+- O replay depende de o evento ainda estar retido no log: quando a fila e o `failed_jobs` perderam o trabalho, o replay do Kafka recuperou.

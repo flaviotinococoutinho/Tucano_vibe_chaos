@@ -5,13 +5,13 @@ Peças para os read models no MongoDB (o lado de leitura do CQRS) de commerce e 
 | Peça | O que faz |
 |---|---|
 | `Migration` e `MongoMigrator` | migrations de schema do MongoDB: coleções com validador `$jsonSchema` e índices, aplicadas em ordem e registradas em `_migrations`, como o Laravel faz no SQL |
-| `VersionedDocuments` | last-writer-wins por versão: aplica uma mudança só se ela for mais nova que o documento, então evento repetido ou atrasado não estraga a projeção |
+| `VersionedDocuments` | last-writer-wins por versão: aplica uma mudança só se ela for mais nova que o documento, e ignora uma versão igual ou anterior à já gravada |
 
 Cada serviço guarda as suas migrations em `database/mongo` e roda `php artisan mongo:migrate` no mesmo job que aplica o SQL.
 
 ## Por que versionar a projeção
 
-Os eventos de um pedido chegam por dois tópicos (`commerce.orders.v2` e `logistics.shipments.v2`) e podem ser reentregues. Não existe ordem garantida entre tópicos. Guardando a versão no documento e filtrando por `version < nova`, a projeção converge para o estado certo, seja qual for a ordem de chegada. Isso é consistência eventual com convergência, e não "qualquer coisa eventualmente".
+Os eventos de um pedido chegam por dois tópicos (`commerce.orders.v2` e `logistics.shipments.v2`) e podem ser reentregues. Não existe ordem garantida entre tópicos. Guardando a versão no documento e filtrando por `version < nova`, a projeção converge para o estado certo, seja qual for a ordem de chegada. O filtro de versão impede que uma atualização anterior substitua uma versão mais nova já aplicada.
 
 ## Testes
 

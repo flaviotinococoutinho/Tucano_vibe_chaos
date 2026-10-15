@@ -132,4 +132,4 @@ docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-se
 | `push-notifications` | SQS | assinante do SNS com filtro (só marcos da entrega); o BFF transforma em aviso na tela |
 | `label-jobs` | SQS (+ DLQ) | fila de jobs do Laravel que gera as etiquetas e as guarda no S3 |
 
-Kafka e SQS resolvem problemas diferentes. O Kafka é um **log**: várias leituras independentes do mesmo evento, reprocessamento e ordem por chave. O SQS é uma **fila de trabalho**: cada mensagem é processada uma vez por um consumidor e sai da fila.
+Kafka e SQS resolvem problemas diferentes. O Kafka é um **log**: várias leituras independentes do mesmo evento, reprocessamento e ordem por chave. O SQS é uma **fila de trabalho**: o worker recebe a mensagem e a remove após o processamento. Uma mensagem pode ser reentregue, como no caso em que o worker para antes de confirmar o trabalho.

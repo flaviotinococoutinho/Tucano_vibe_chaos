@@ -11,7 +11,7 @@ Seguir um padrão é emprestar anos de discussão de gente que já errou antes. 
 | [RFC 7240](https://www.rfc-editor.org/rfc/rfc7240), `Prefer` | a estratégia de reserva do laboratório de overselling, confirmada com `Preference-Applied` | uma preferência é uma dica que o servidor pode ignorar, que é exatamente o que o laboratório faz em produção |
 | [RFC 6648](https://www.rfc-editor.org/rfc/rfc6648), o fim do prefixo `X-` | header novo não leva `X-`; o `X-Correlation-Id` ficou de propósito, por ser o nome que gateways e APMs já conhecem | o sucessor padrão é o `traceparent` do W3C Trace Context, que entra com o OpenTelemetry |
 | [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288), web linking | as relações dos links das telas: `self`, `up`, `collection`, `item`, `next` e `prev` registradas, e as do domínio como URI | relação de extensão precisa ser URI, e cada URI aqui cai na definição dela no contrato |
-| [RFC 6265](https://www.rfc-editor.org/rfc/rfc6265), cookies | o `tucano_session` com os perfis de cliente, assinado com HMAC, com `HttpOnly`, `SameSite=Lax`, `Path=/bff` e `Secure` em produção | ninguém vira outro cliente editando o cookie, e nenhum script encosta nele ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)) |
+| [RFC 6265](https://www.rfc-editor.org/rfc/rfc6265), cookies | o `tucano_session` com os perfis de cliente, assinado com HMAC, com `HttpOnly`, `SameSite=Lax`, `Path=/bff` e `Secure` em produção | a assinatura permite detectar alterações no cookie, e `HttpOnly` impede sua leitura pelo JavaScript do navegador ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)) |
 | [Idempotency-Key](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/), draft da IETF | todo `POST` que cria alguma coisa; a mesma chave com outro corpo é `422` | retry seguro de ponta a ponta, do clique duplo ao timeout |
 | [Siren](https://github.com/kevinswiber/siren), hipermídia | todas as telas do BFF, com `application/vnd.siren+json` | o servidor manda o próximo passo, e a web só segue ([ADR 0023](../adr/0023-server-driven-ui-with-siren.md)) |
 | [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) | as APIs dos parceiros, em `contracts/http` | o contrato do PSP e das transportadoras é conferido por lint no CI |
@@ -34,7 +34,7 @@ Seguir um padrão é emprestar anos de discussão de gente que já errou antes. 
 |---|---|---|
 | [WCAG 2.2](https://www.w3.org/TR/WCAG22/) | contraste de cada par de cores dos tokens, anel de foco visível, foco no título depois de navegar, formulário com erro ao lado do campo e resumo com links | a loja precisa funcionar com teclado e leitor de tela |
 | WAI-ARIA | região `aria-live` que anuncia a mudança de status de uma tela viva, `aria-invalid` e `aria-describedby` nos campos | o que muda na tela também chega a quem não vê a tela |
-| Content Security Policy | o nginx da web só deixa carregar script, estilo, imagem e fonte da própria origem | um script injetado não roda |
+| Content Security Policy | o nginx da web só deixa carregar script, estilo, imagem e fonte da própria origem | restringe as origens permitidas para carregar esses recursos |
 
 ## Operação e processo
 
@@ -55,6 +55,6 @@ Seguir um padrão é emprestar anos de discussão de gente que já errou antes. 
 | Regra | Onde aparece | Por que |
 |---|---|---|
 | LGPD (Lei 13.709/2018) | nome, e-mail e documento vivem num `Sensitive` e só saem por `reveal()`; a leitura pública do pedido mostra o cliente mascarado; quem recebeu a encomenda nunca vai para um tópico | usar só o dado necessário, e não vazar por acidente ([ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md)) |
-| PCI DSS | o cartão chega como token do PSP; nenhum serviço vê o número; uma mensagem de erro nunca repete o que recebeu | fica fora do escopo de dados de cartão, e um número mandado por engano não volta nem vai para o log |
+| PCI DSS | o cartão chega como token do PSP; nenhum serviço vê o número; uma mensagem de erro nunca repete o que recebeu | o fluxo usa tokens de teste em vez do número do cartão, e os erros não repetem os valores recebidos |
 
 Próximo capítulo: [como apresentar o projeto](08-como-apresentar.md).

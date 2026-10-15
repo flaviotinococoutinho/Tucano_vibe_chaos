@@ -1,6 +1,6 @@
 # partners-sim
 
-Simulador do mundo de fora da Tucano, em Node 24 com Fastify 5 e TypeScript executado direto pelo Node. Ele faz o papel do PayFake (o PSP), das transportadoras (o CarrierFake) e do app dos entregadores, para os serviços terem com quem conversar e para eu poder estragar essa conversa de propósito. Por enquanto o PayFake e o CarrierFake existem. Os entregadores vêm depois.
+Simulador do mundo de fora da Tucano, em Node 24 com Fastify 5 e TypeScript executado direto pelo Node. Ele simula o PayFake, as transportadoras do CarrierFake e o aparelho dos entregadores da frota própria. Os controles de caos permitem atrasar chamadas, recusar operações e descartar webhooks para observar a resposta dos serviços.
 
 ## PayFake
 
@@ -50,7 +50,7 @@ Todas as transições ficam numa função só, `transition()` em `src/payfake/ch
 
 ### Idempotência
 
-Todo `POST` exige `Idempotency-Key`. Sem ela, a resposta é `400`. O commerce manda o id do pagamento como chave, então um pagamento vira no máximo uma cobrança.
+Todo `POST` exige `Idempotency-Key`. Sem ela, a resposta é `400`. O commerce manda o id do pagamento como chave, então as tentativas com a mesma chave recuperam a cobrança original durante a janela de retenção.
 
 - Mesma chave e mesmo corpo: volta a primeira resposta, igual, com o header `Idempotent-Replayed: true`. Vale mesmo depois de a cobrança mudar de estado, porque o que volta é o que foi respondido na época.
 - Mesma chave e outro corpo: `422`. A ordem dos campos não conta, porque comparo o SHA-256 do JSON com as chaves ordenadas.
@@ -79,7 +79,7 @@ Quando uma cobrança ou um estorno termina, o PayFake manda um `POST` para `PAYF
 
 Os tipos são `charge.succeeded`, `charge.failed` (com `failureCode` em `data`) e `refund.succeeded`. O webhook leva o `X-Correlation-Id` do request que criou a cobrança, então dá para seguir um pagamento do checkout até o webhook nos logs.
 
-A entrega é at-least-once. Resposta fora de 2xx (redirect também), erro de rede ou 5 segundos sem resposta contam como falha, e o PayFake tenta de novo depois de 1, 2, 4, 8 e 16 segundos: seis tentativas em 31 segundos. Depois disso ele desiste, loga um `error` e o caso sobra para a conciliação. Retry e duplicata levam o mesmo evento, com o mesmo `id`, e é por esse id que o commerce deduplica na inbox.
+O envio admite repetição, mas tem um limite de tentativas. Resposta fora de 2xx (redirect também), erro de rede ou 5 segundos sem resposta contam como falha. O PayFake tenta de novo depois de 1, 2, 4, 8 e 16 segundos: seis tentativas, com 31 segundos de espera acumulada entre elas. Depois disso ele desiste, loga um `error` e o caso sobra para a conciliação. Retry e duplicata levam o mesmo evento, com o mesmo `id`, e é por esse id que o commerce deduplica na inbox.
 
 ### Assinatura
 
@@ -138,7 +138,7 @@ Esses controles são do PayFake e não passam pelo flagd: são o mundo de fora s
 
 ### Por que o estado fica na memória
 
-Da rede `edge` o simulador não enxerga banco nenhum, e isso é de propósito: ele faz o papel de uma empresa de fora. Um processo Node de longa duração guarda cobranças, chaves e controles em `Map` sem esforço, e os timers do event loop cuidam da liquidação e dos retries dos webhooks.
+Da rede `edge` o simulador não enxerga banco nenhum, e isso é de propósito: ele faz o papel de uma empresa de fora. Um processo Node de longa duração guarda cobranças, chaves e controles em `Map`, e os timers do event loop cuidam da liquidação e dos retries dos webhooks.
 
 O preço está aceito: um restart apaga tudo, inclusive os webhooks que ainda iam ser tentados. Para o laboratório isso é mais um cenário, o PSP que perdeu o estado, e é o tipo de problema que a conciliação do commerce existe para resolver.
 
@@ -203,7 +203,7 @@ Segue a mesma regra do PayFake, com o código compartilhado entre os dois (`src/
 
 ### Webhooks
 
-Cada evento da jornada de uma encomenda sai sozinho: o próximo espera o anterior ser entregue ou desistido, e um webhook descartado pelo caos conta como desistido. Isso resolve um evento que chega cedo demais sem esforço: o logistics responde `409` porque ainda não viu o passo anterior, e o CarrierFake tenta de novo depois, quando esse passo (se só estiver atrasado, e não perdido) já tiver chegado.
+Cada evento da jornada de uma encomenda sai sozinho: o próximo espera o anterior ser entregue ou desistido, e um webhook descartado pelo caos conta como desistido. Quando um evento chega antes de o passo anterior ser aplicado, o logistics responde `409` porque ainda não viu o passo anterior, e o CarrierFake tenta de novo depois, quando esse passo (se só estiver atrasado, e não perdido) já tiver chegado.
 
 ```json
 {
@@ -222,9 +222,9 @@ Cada evento da jornada de uma encomenda sai sozinho: o próximo espera o anterio
 }
 ```
 
-O `receiverName` e o `receiverDocument` (um CPF mascarado) só vêm em `parcel.delivered`; `hub` só em `parcel.hub_scanned`; `attempt` em `parcel.out_for_delivery`, `parcel.delivered` e `parcel.delivery_failed`; `reason` (`recipient_absent`, `address_not_found` ou `recipient_refused`) só em `parcel.delivery_failed`.
+O `receiverName` e o `receiverDocument` (no formato de CPF) só vêm em `parcel.delivered`; `hub` só em `parcel.hub_scanned`; `attempt` em `parcel.out_for_delivery`, `parcel.delivered` e `parcel.delivery_failed`; `reason` (`recipient_absent`, `address_not_found` ou `recipient_refused`) só em `parcel.delivery_failed`.
 
-Entrega, retentativa e assinatura seguem o mesmo desenho do PayFake, porque o remetente (`src/webhooks/sender.ts`) e a assinatura (`src/webhooks/signature.ts`) são código compartilhado entre os dois: at-least-once, retentativa depois de 1, 2, 4, 8 e 16 segundos, e o cabeçalho muda de nome para cada parceiro simulado.
+Entrega, retentativa e assinatura seguem o mesmo desenho do PayFake, porque o remetente (`src/webhooks/sender.ts`) e a assinatura (`src/webhooks/signature.ts`) são código compartilhado entre os dois. Há retentativas depois de 1, 2, 4, 8 e 16 segundos, e o cabeçalho muda de nome para cada parceiro simulado.
 
 ```text
 Carrier-Signature: t=1790510400,v1=0605457e458dd9fea675921d4df5754d4330d115baa8c60beb64f86dc29f4061

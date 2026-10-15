@@ -1,8 +1,8 @@
 # Guia do chaos playground
 
-Este guia é um passeio. O resto de `docs/` é a referência, com ADRs, casos de uso, laboratórios e modelo de dados; aqui eu conto a história na ordem em que ela faz sentido, com o porquê antes do como, e aponto para a referência quando você quiser o detalhe. Pense num laboratório aberto para visita: dá para olhar cada bancada, perguntar por que ela está montada daquele jeito, e mexer em quase tudo.
+Este guia explica o domínio, as escolhas de arquitetura e os resultados dos experimentos. A referência em `docs/` reúne ADRs, casos de uso, laboratórios e modelo de dados. Cada capítulo aponta para esses documentos quando o assunto exige mais detalhe.
 
-Cada capítulo cabe numa leitura de café. Dá para ler de cima para baixo ou pular direto para o que interessa.
+Leia os capítulos em sequência ou escolha um tema na tabela.
 
 | Capítulo | Para quando você quer saber |
 |---|---|
@@ -28,6 +28,6 @@ A Tucano é um e-commerce fictício com entrega própria, e o chaos playground �
 
 ## Três ideias que atravessam tudo
 
-- **Nada de bala de prata.** Toda escolha aqui tem um ganho e um custo escritos. Quando uma decisão parece de graça, eu ainda não entendi o que ela cobra.
+- Cada decisão registra seu benefício e seu custo.
 - **Integridade conceitual.** O mesmo problema tem a mesma solução em todo lugar: um jeito de configurar, um jeito de errar (RFC 9457), um jeito de publicar evento (outbox), um jeito de chamar outro contexto (port e adapter). Fred Brooks dizia que essa é a consideração mais importante no desenho de um sistema, e eu concordo.
-- **O que importa, um computador confere.** Configuração, casos de uso, contratos, fronteiras entre módulos e até as hipóteses de resiliência têm teste ou experimento. Quando o código e o papel se desencontram, o build quebra; quando o sistema e a hipótese se desencontram, o experimento acusa.
+- **Verificações automatizadas.** Configuração, casos de uso, contratos, fronteiras entre módulos e até as hipóteses de resiliência têm teste ou experimento. Quando o código e o papel se desencontram, o build quebra; quando o sistema e a hipótese se desencontram, o experimento acusa.

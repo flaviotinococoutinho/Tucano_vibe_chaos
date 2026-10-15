@@ -15,13 +15,13 @@ Antes de escolher banco, fila ou cache, eu pergunto de que tipo é a informaçã
 | pagamento | `commerce` (PostgreSQL), com o PSP como fonte da palavra final | nenhuma | o resultado chega por webhook, e a conciliação vai buscar o que não chegou |
 | remessa e jornada | `logistics` (PostgreSQL), com a transportadora como fonte do que aconteceu na rua | a linha do tempo no MongoDB e a página pública no DynamoDB | as cópias sim, alguns segundos |
 
-A regra é simples: **a cópia pode atrasar, mas nunca decide.** Quem decide lê o dono. A página de rastreio lê a cópia no DynamoDB, por chave, porque ali alguns segundos de atraso não fazem mal e a leitura precisa aguentar muita gente. Já a reserva de estoque só existe no PostgreSQL, dentro de uma transação, porque ali um segundo de atraso vende a mesma unidade duas vezes.
+A lista de pedidos e o rastreio usam projeções que podem atrasar. O preço do pedido usa o snapshot do catálogo, como a tabela acima registra. A página de rastreio consulta o DynamoDB por chave. Já a reserva consulta o estoque no PostgreSQL e o altera na mesma transação do pedido.
 
 ## ACID onde decide, BASE onde mostra
 
 Escrita que decide alguma coisa vai para um banco com transação de verdade: PostgreSQL no commerce e na logistics, MySQL no catálogo. Leitura que só mostra vai para onde ela é barata e escala: MongoDB para listas e linhas do tempo, DynamoDB para a página pública ([ADR 0012](../adr/0012-acid-writes-base-reads.md)).
 
-O custo é ter duas representações do mesmo fato e um caminho entre elas. Esse caminho é um evento, e ele pode falhar, repetir ou chegar fora de ordem. Então cada projeção deduplica pelo id do evento e sabe se reconstruir do zero.
+O custo é ter duas representações do mesmo fato e um caminho entre elas. Esse caminho é um evento, e ele pode falhar, repetir ou chegar fora de ordem. As projeções tratam repetições e podem ser reconstruídas enquanto os eventos necessários estiverem disponíveis. Os tópicos de pedidos e remessas têm retenção de sete dias, conforme a [referência de eventos](../architecture/events.md#tópicos).
 
 ## Eventos são fatos, no passado
 
@@ -31,9 +31,9 @@ Quando um contrato precisa quebrar, ele não quebra no lugar: nasce um tópico n
 
 ## Quando a rede se parte
 
-Eric Brewer apresentou em 2000 a conjectura que virou o teorema CAP: quando a rede se parte, um sistema distribuído precisa escolher entre responder com o que tem (disponibilidade) e recusar para não errar (consistência). Doze anos depois, ele mesmo lembrou que essa escolha não é uma só para o sistema inteiro: ela se faz operação por operação. Na Tucano, a mesma queda de banco leva a escolhas diferentes, e cada uma tem um experimento que prova:
+Eric Brewer apresentou em 2000 a conjectura que virou o teorema CAP: quando a rede se parte, um sistema distribuído precisa escolher entre responder com o que tem (disponibilidade) e recusar para não errar (consistência). Doze anos depois, ele mesmo lembrou que essa escolha não é uma só para o sistema inteiro: ela se faz operação por operação. Na Tucano, a mesma queda de banco leva a escolhas diferentes, e os experimentos registram estes comportamentos locais:
 
-| Operação | O que ela escolhe | O que acontece sem o banco dela | Experimento |
+| Operação | O que ela escolhe | Resultado observado sem o banco | Experimento |
 |---|---|---|---|
 | fechar um pedido | consistência: sem o PostgreSQL, não há como prometer estoque | o commerce recusa na hora, com `503` e `Retry-After`, em 0,13 s | [`commerce-database-out`](../../chaos/experiments/commerce-database-out.json) |
 | rastrear uma entrega | disponibilidade: a cópia no DynamoDB pode estar alguns segundos atrás | o rastreio continua respondendo, em 0,03 s | [`tracking-without-its-database`](../../chaos/experiments/tracking-without-its-database.json) |
@@ -45,7 +45,7 @@ Dá para ver essa conta na tela. Ligue a flag `chaos.commerce.order-projector-pa
 
 ## Identidade
 
-- **UUIDv7** para identidade interna: gerado pelo domínio, sem ir ao banco, e ordenado no tempo, o que mantém o índice feliz. Fica em `uuid` no PostgreSQL e em `BINARY(16)` no MySQL, nunca em `CHAR(36)`.
+- **UUIDv7** para identidade interna: gerado pelo domínio, sem ir ao banco, e ordenado no tempo, o que favorece a localidade das inserções no índice. Fica em `uuid` no PostgreSQL e em `BINARY(16)` no MySQL, nunca em `CHAR(36)`.
 - **Snowflake** para o que uma pessoa lê ou fala ao telefone: o número do pedido em decimal (`97856663872212992`) e o código de rastreio em Base32 de Crockford (`TX02PX83TXC5G00`), que evita letras que se confundem. O próprio código diz quando e em que processo nasceu ([ADR 0007](../adr/0007-uuidv7-and-snowflake.md), [identificadores](../architecture/identifiers.md)).
 
 ## Tempo, dinheiro e tipos
@@ -57,7 +57,7 @@ Dá para ver essa conta na tela. Ligue a flag `chaos.commerce.order-projector-pa
 
 ## Tudo pode chegar duas vezes
 
-Numa rede, "entregue exatamente uma vez" não existe; existe "entregue pelo menos uma vez" e um receptor que aguenta repetição. Por isso:
+Neste projeto, a entrega de eventos é at-least-once. O receptor precisa tratar repetições para não repetir o efeito. Por isso:
 
 - Todo consumidor de evento marca o id na inbox, na mesma transação do efeito.
 - Todo `POST` que cria alguma coisa exige `Idempotency-Key`: a mesma chave com o mesmo corpo devolve o mesmo resultado, e com outro corpo é recusada.

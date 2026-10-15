@@ -2,9 +2,9 @@
 
 ![Uma casinha de passarinho em forma de hexágono, com o tucano dentro; de uma abertura sai um cabo com plugue, e na outra se apoia uma escada](../assets/guia/abstracoes.png)
 
-Código cresce para o emaranhado sozinho, sem ninguém querer. Cada atalho parece barato no dia e cobra juros depois. As abstrações deste projeto existem para uma coisa só: fazer uma mudança continuar local conforme o sistema cresce. Quando uma abstração não ajuda nisso, ela não entra.
+Dependências entre partes do código aumentam o custo de mudança quando não têm limites explícitos. As abstrações deste projeto existem para uma coisa só: fazer uma mudança continuar local conforme o sistema cresce. Quando uma abstração não ajuda nisso, ela não entra.
 
-A pergunta que eu faço antes de criar uma é a de David Parnas, de 1972: que decisão aqui tem mais chance de mudar? Essa decisão ganha uma parede em volta, e o resto do código passa a depender da parede, não da decisão.
+A pergunta que eu faço antes de criar uma é a de David Parnas, de 1972: que decisão aqui tem mais chance de mudar? Eu isolo essa decisão num módulo com uma interface. O restante do código depende da interface.
 
 ## O hexágono, pacote por pacote
 
@@ -16,11 +16,11 @@ Cada serviço PHP é dividido por assunto (`Ordering`, `Inventory`, `Payments` n
 | `Application` | os casos de uso e os ports: `Driving` (o que o mundo pede, como `ForPlacingOrders`) e `Driven` (o que o caso de uso precisa, como `ForStoringOrders`) | do domínio e do shared kernel |
 | `Adapter` | HTTP, Kafka, PostgreSQL, S3, PSP, flags: tudo que fala com o mundo | de tudo, inclusive dos fornecedores |
 
-O domínio não sabe que existe Laravel, Kafka ou AWS. Um caso de uso pergunta a um port, e um adapter responde. Trocar o PostgreSQL de um repositório, ou o flagd por outra fonte de flags, muda um adapter e mais nada. O Deptrac cobra essas direções no CI, e desde o [ADR 0022](../adr/0022-vendors-live-in-adapters.md) cobra também que SDK de fornecedor (AWS, Guzzle, MongoDB, Ramsey, RdKafka, OpenFeature) só apareça nos adapters.
+O domínio não sabe que existe Laravel, Kafka ou AWS. Um caso de uso pergunta a um port, e um adapter responde. Os ports separam o domínio de PostgreSQL e flagd. Trocar essas dependências ainda exige conferir os adapters, a configuração e os testes de integração. O Deptrac cobra essas direções no CI, e desde o [ADR 0022](../adr/0022-vendors-live-in-adapters.md) cobra também que SDK de fornecedor (AWS, Guzzle, MongoDB, Ramsey, RdKafka, OpenFeature) só apareça nos adapters.
 
 ## Fachadas entre pacotes
 
-Dois pacotes do mesmo serviço também só se encontram pela porta da frente. Quando o Payments precisa cancelar um pedido recusado, um adapter do lado do Payments chama um port de entrada do Ordering; ele nunca abre o repositório do outro nem importa um adapter alheio. O teste `PackagesMeetThroughTheirFacadesTest` falha se alguém atravessar a parede. No TypeScript a mesma regra aparece como barrel: cada módulo tem um `index.ts` que diz o que ele exporta, e um teste falha se outro módulo importar um arquivo de dentro dele.
+Dois pacotes do mesmo serviço também só se encontram pela porta da frente. Quando o Payments precisa cancelar um pedido recusado, um adapter do lado do Payments chama um port de entrada do Ordering; ele nunca abre o repositório do outro nem importa um adapter alheio. O teste `PackagesMeetThroughTheirFacadesTest` falha se um pacote acessar as classes internas de outro. No TypeScript a mesma regra aparece como barrel: cada módulo tem um `index.ts` que diz o que ele exporta, e um teste falha se outro módulo importar um arquivo de dentro dele.
 
 ## Tipos que carregam regra
 
@@ -32,7 +32,7 @@ O melhor efeito dos tipos aparece quando o sistema muda. Um status novo no pedid
 
 ## Copiar às vezes é melhor que compartilhar
 
-A plataforma Node (erros, logs, correlation id, health) é uma cópia idêntica no bff e no partners-sim, e não uma biblioteca compartilhada ([ADR 0016](../adr/0016-copied-node-platform.md)). O mesmo vale para o `ProblemDetails` do commerce e da logistics. Uma biblioteca compartilhada acopla o ritmo de versão dos dois lados; uma cópia com um `diff` no CI dá a mesma garantia de igualdade sem a cerimônia. O shared kernel do PHP, ao contrário, é compartilhado de propósito, e fica pequeno de propósito: dinheiro, endereço, identidade, tempo, privacidade.
+A plataforma Node (erros, logs, correlation id, health) é uma cópia idêntica no bff e no partners-sim, e não uma biblioteca compartilhada ([ADR 0016](../adr/0016-copied-node-platform.md)). O mesmo vale para o `ProblemDetails` do commerce e da logistics. Uma biblioteca compartilhada acopla o ritmo de versão dos dois lados; uma cópia com um `diff` no CI dá a mesma garantia de igualdade sem um pacote compartilhado para versionar. O shared kernel do PHP, ao contrário, é compartilhado de propósito, e fica pequeno de propósito: dinheiro, endereço, identidade, tempo, privacidade.
 
 ## Quem cobra
 

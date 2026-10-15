@@ -35,4 +35,4 @@ docker run --rm --network chaos-playground_backend -v "$PWD":/app -w /app/packag
   chaos-playground/php-base:8.4 vendor/bin/phpunit --group integration
 ```
 
-O teste de round trip no Kafka precisa de um broker que crie tópicos sozinho (`MESSAGING_KAFKA_BROKERS`), como o do CI. O broker da stack não cria tópicos por acidente, de propósito.
+O teste de round trip no Kafka precisa de um broker que crie tópicos sozinho (`MESSAGING_KAFKA_BROKERS`), como o do CI. A criação automática de tópicos fica desabilitada no broker da stack.

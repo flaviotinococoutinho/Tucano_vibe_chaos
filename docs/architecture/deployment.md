@@ -73,7 +73,7 @@ Compilar essas extensões leva uns 5 minutos por versão. Com a base separada, i
 
 Na frente dos apps FPM fica um nginx só, com uma porta por app (`8081` catalog, `8082` commerce, `8083` logistics), e mais uma para a borda do commerce, a `8182`, que o Kong usa: ela só serve as rotas públicas do commerce, e as rotas de cada cliente ficam só na `8082`, que o BFF usa pela rede ([ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md)). Ele não tem o código: todo request vai para o `public/index.php` do app via FastCGI. O `fastcgi_pass` usa variável e o resolver do Docker (`127.0.0.11`), porque com o nome fixo o nginx nem sobe quando um app está fora e ainda guarda o IP antigo depois de um restart. Com a variável, ele responde 502 enquanto o app está fora e volta sozinho quando o container sobe de novo.
 
-O Kong tem o mesmo problema com outra cara. Ele guarda o IP de cada serviço pelo TTL da resposta DNS, e o DNS do Docker responde com 600 s. Um serviço recriado pelo compose ganha um IP novo, e o Kong continua mandando para o antigo por até dez minutos: 502 em toda chamada. Achei isso quando o setup com Ansible rodou duas vezes seguidas no CI e o tracking, recriado na segunda, sumiu atrás do gateway. O `KONG_DNS_VALID_TTL` em 5 s faz o Kong perguntar de novo a cada 5 s. O custo é uma consulta DNS a mais por serviço nesse intervalo, e dentro da rede do Docker isso é nada.
+O Kong tem o mesmo problema com outra cara. Ele guarda o IP de cada serviço pelo TTL da resposta DNS, e o DNS do Docker responde com 600 s. Um serviço recriado pelo compose ganha um IP novo, e o Kong continua mandando para o antigo por até dez minutos: 502 em toda chamada. Achei isso quando o setup com Ansible rodou duas vezes seguidas no CI e o tracking, recriado na segunda, sumiu atrás do gateway. O `KONG_DNS_VALID_TTL` em 5 s faz o Kong perguntar de novo a cada 5 s. O custo é uma consulta DNS a mais por serviço nesse intervalo.
 
 O FPM roda com `pm.max_children = 6`: cada processo filho atende um request por vez (shared-nothing), então isso é o teto de concorrência e também de memória por container.
 
@@ -144,7 +144,7 @@ O cliente Kafka conecta no bootstrap, recebe nos metadados o endereço **anuncia
 | `PROXIED` | `0.0.0.0:19093` | `toxiproxy:19092` | aplicações, sempre passando pelo Toxiproxy |
 | `EXTERNAL` | `0.0.0.0:29092` | `localhost:29092` | ferramentas rodando no host |
 
-Se o `PROXIED` anunciasse `kafka:19093`, o cliente faria o bootstrap pelo proxy e depois iria direto ao broker, e os experimentos de caos no Kafka simplesmente não teriam efeito.
+Se o `PROXIED` anunciasse `kafka:19093`, o cliente faria o bootstrap pelo proxy e depois iria direto ao broker, e os experimentos de caos no Kafka não afetariam essas conexões diretas.
 
 ## Memória
 

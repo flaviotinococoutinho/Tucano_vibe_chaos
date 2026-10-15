@@ -2,7 +2,7 @@
 
 O PayFake fica lento. O que acontece com o checkout?
 
-Sem proteção, cada pagamento espera o timeout inteiro, e cada espera prende um filho do PHP-FPM. Com seis filhos por container, seis clientes pagando ao mesmo tempo derrubam o commerce inteiro, inclusive quem só queria ver um pedido. O circuit breaker corta essa cadeia: depois de algumas falhas seguidas, o commerce para de chamar o PSP por um tempo e responde na hora.
+Sem proteção, cada pagamento espera o timeout inteiro, e cada espera prende um filho do PHP-FPM. Com seis filhos por container, seis pagamentos simultâneos podem ocupar todos os filhos e atrasar outras chamadas, inclusive a consulta de um pedido. O circuit breaker corta essa cadeia: depois de algumas falhas seguidas, o commerce para de chamar o PSP por um tempo e responde na hora.
 
 ## Como o breaker funciona
 
@@ -12,7 +12,7 @@ Sem proteção, cada pagamento espera o timeout inteiro, e cada espera prende um
 | aberto | nenhuma chamada sai; o pagamento responde `503` com `Retry-After` | depois de 20 s, fica meio aberto |
 | meio aberto | uma chamada de teste passa, as outras esperam | sucesso fecha; falha abre de novo |
 
-Só conta como falha o que diz algo sobre a saúde do PSP: timeout, erro de rede e resposta 5xx. Uma recusa (4xx) prova que o PSP está de pé.
+Só conta como falha o que diz algo sobre a saúde do PSP: timeout, erro de rede e resposta 5xx. Neste adapter, uma recusa (4xx) não conta como falha de disponibilidade do PSP.
 
 O estado mora no Redis, nas chaves `circuit:payfake:*`. No Java (Resilience4j, por exemplo) o estado fica na memória do processo, porque o processo vive. No PHP-FPM cada request começa do zero, então a contagem de falhas precisa morar fora dele; no Redis, todo filho de toda instância enxerga o mesmo circuito. Se o próprio Redis cair, o breaker deixa as chamadas passarem: um breaker quebrado não pode derrubar o serviço.
 

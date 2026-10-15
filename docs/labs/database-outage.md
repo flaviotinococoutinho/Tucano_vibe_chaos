@@ -68,7 +68,7 @@ O outro lado da mesma queda também virou experimento. Com o banco da logística
 
 ## O que eu levo para a entrevista
 
-- Conexão de longa duração é estado. Um worker precisa saber refazê-la; a API do PHP-FPM ganha isso de graça, por ser shared-nothing.
+- Conexão de longa duração é estado. Um worker precisa saber refazê-la. Na API do PHP-FPM, cada request inicia o estado da aplicação e abre a conexão de novo.
 - Retry com limite não é resposta para tudo. Se a causa é a dependência, e não a mensagem, desistir só move o problema para a DLQ e quebra a ordem das mensagens.
 - Parar a partição tem custo: as outras mensagens dela esperam. Por isso a espera sem limite vale só para falhas que param todas as mensagens igual, e o log registra cada tentativa.
 - Parada graciosa também vale no meio de um retry: o que não terminou não é confirmado.

@@ -111,7 +111,7 @@ C4Container
 | `mysql` | MySQL 8.4 | escrita ACID do catálogo (InnoDB, `REPEATABLE READ`) | rodando |
 | `mongo` | MongoDB 8 | read models com consistência eventual (CQRS) | rodando |
 | `redis` | Redis 8 | cache, GEO da frota, locks, rate limit e estado de circuit breaker | rodando |
-| `kafka` + `zookeeper` | Apache Kafka 3.9.2 | backbone de eventos entre contextos | rodando |
+| `kafka` + `zookeeper` | Apache Kafka 3.9.2 | transporte de eventos entre contextos | rodando |
 | `floci` | Floci 2.1 | S3, SQS, SNS, DynamoDB e SES locais | rodando |
 | `toxiproxy` | Toxiproxy 2.12 | injeção de latência, cortes e timeouts entre serviços e dependências | rodando |
 | `mailpit` | Mailpit | caixa de entrada dos e-mails: os do SES local e os alertas da logística, pelo Toxiproxy | rodando |
