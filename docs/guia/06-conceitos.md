@@ -1,6 +1,6 @@
 # 6. Conceitos, ganhos e custos
 
-Nenhum conceito aqui é bala de prata. Cada um resolve um problema específico e cobra alguma coisa por isso, e a graça de um laboratório é poder sentir as duas coisas. Muitos são antigos, de décadas antes de Kafka ou Kubernetes, e continuam certos porque tratam de gente e de mudança, que não saíram de moda.
+Cada conceito abaixo trata de um problema específico e tem um custo. O laboratório permite observar os dois. As referências explicam as ideias, e cada entrada mostra como eu as apliquei neste projeto.
 
 Cada entrada tem o mesmo formato: o que é, o **ganho**, o **custo**, uma **possibilidade** de evolução e **onde** ele aparece no projeto.
 
@@ -29,7 +29,7 @@ Andrew Hunt e David Thomas, *O Programador Pragmático* (1999, com a edição de
 - **Ganho**: a janela quebrada é consertada no dia, porque a regra que ela quebra é um teste; ninguém precisa decidir se vale a pena.
 - **Custo**: cada regra conferida é código a manter, e uma regra que ninguém entende vira burocracia.
 - **Possibilidade**: medir o que apodrece devagar, como o tempo de build e o tamanho do bundle, com o mesmo rigor das fronteiras.
-- **Onde**: as fitness functions, e a reversibilidade dos adapters: trocar o Floci pela AWS muda um adapter e mais nada.
+- **Onde**: as fitness functions, e a reversibilidade dos adapters: os ports separam o domínio do fornecedor, e os adapters concentram a integração.
 
 ## Refatoração e Yagni
 
@@ -46,7 +46,7 @@ David Parnas, *On the Criteria to Be Used in Decomposing Systems into Modules* (
 
 - **Ganho**: a mudança fica local. Trocar como o estoque é reservado mexe num adapter; o caso de uso nem percebe.
 - **Custo**: mais arquivos e mais indireção; ler o caminho inteiro de um request pede saltar de interface em interface.
-- **Possibilidade**: medir o acoplamento real (quais arquivos mudam juntos no histórico do Git) para descobrir paredes no lugar errado.
+- **Possibilidade**: medir o acoplamento real (quais arquivos mudam juntos no histórico do Git) para descobrir módulos que mudam juntos apesar de interfaces separadas.
 - **Onde**: ports, fachadas entre pacotes, barrels do TypeScript, o `Sensitive`.
 
 ## Separação de interesses
@@ -109,7 +109,7 @@ Yaron Minsky (2011) resumiu como "tornar estados ilegais irrepresentáveis": o t
 
 - **Ganho**: um pedido nunca é pago e cancelado ao mesmo tempo, porque o status é um enum com transições, não um conjunto de booleanos.
 - **Custo**: cada transição nova precisa ser pensada e escrita; não dá para "só ligar uma flag".
-- **Possibilidade**: gerar o diagrama das máquinas de estados a partir do enum, para a documentação nunca desatualizar.
+- **Possibilidade**: gerar o diagrama das máquinas de estados a partir do enum, para conferir a documentação contra as transições do enum.
 - **Onde**: [máquinas de estados](../architecture/state-machines.md) e o [ADR 0011](../adr/0011-state-machines-without-flags.md).
 
 ## Parse, don't validate
@@ -118,14 +118,14 @@ Alexis King (2019): em vez de conferir um valor e seguir carregando o tipo cru, 
 
 - **Ganho**: a desconfiança fica num lugar só. Um `TrackingCode` que existe é um código válido, e nenhuma função precisa conferir de novo.
 - **Custo**: um tipo para cada conceito, e a tradução nas bordas, da string para o tipo e de volta.
-- **Possibilidade**: gerar os tipos da borda a partir dos JSON Schemas dos contratos, para o parser e o contrato nunca discordarem.
+- **Possibilidade**: gerar os tipos da borda a partir dos JSON Schemas dos contratos, para reduzir divergências entre o parser e o contrato.
 - **Onde**: os construtores nomeados dos value objects (`Money::of`, `TrackingCode::of`, `PersonName::of`) e o `Sensitive`.
 
 ## Outbox e inbox
 
 O padrão da outbox transacional, que Chris Richardson popularizou entre os padrões de microsserviços, e o consumidor idempotente do outro lado.
 
-- **Ganho**: o fato e o aviso do fato nunca se separam. Se o Kafka cair, o evento espera na tabela; se chegar duas vezes, a inbox descarta.
+- **Ganho**: o estado e o registro do evento são gravados na mesma transação. Se o Kafka cair, o evento espera na outbox; se chegar duas vezes, a inbox evita repetir o efeito transacional.
 - **Custo**: latência de um relay, uma tabela a mais em cada banco, e a disciplina de nunca publicar direto.
 - **Possibilidade**: trocar o relay por captura de mudanças (CDC) lendo o log do PostgreSQL, sem mudar os produtores.
 - **Onde**: `packages/php/messaging` e o [ADR 0008](../adr/0008-transactional-outbox.md).
@@ -134,7 +134,7 @@ O padrão da outbox transacional, que Chris Richardson popularizou entre os padr
 
 Pat Helland, *Life beyond Distributed Transactions* (2007) e *Idempotence Is Not a Medical Condition* (2012): num sistema distribuído a mensagem chega de novo, e o receptor precisa aguentar.
 
-- **Ganho**: retry vira seguro. O clique duplo, o timeout do cliente e a reentrega do Kafka não criam um segundo pedido nem cobram duas vezes.
+- **Ganho**: a mesma chave identifica novas tentativas da operação. No HTTP, a chave e o corpo permitem reconhecer um pedido repetido; no consumo de eventos, a inbox registra o que já foi processado.
 - **Custo**: uma chave para guardar, uma janela de validade, e o cuidado de a chave casar sempre com o mesmo corpo.
 - **Possibilidade**: expor o `Idempotent-Replayed` na web para mostrar à pessoa que a segunda tentativa não duplicou nada.
 - **Onde**: `Idempotency-Key` nos `POST`, a inbox dos consumidores, e o perfil ativo da sessão no BFF, que mantém o mesmo cliente, e o mesmo corpo, em cada nova tentativa de um pedido.
@@ -143,7 +143,7 @@ Pat Helland, *Life beyond Distributed Transactions* (2007) e *Idempotence Is Not
 
 Michael Nygard, *Release It!* (2007): timeout, circuit breaker, falhar rápido, e a certeza de que toda integração vai falhar um dia.
 
-- **Ganho**: uma dependência lenta não derruba quem depende dela. O checkout responde 503 em milissegundos enquanto o PSP se recupera.
+- **Ganho**: o circuito aberto deixa de ocupar os workers com novas chamadas ao PSP. O checkout responde 503 em milissegundos enquanto o PSP se recupera.
 - **Custo**: mais estados para entender (circuito aberto, meio aberto) e o risco de recusar trabalho que teria dado certo.
 - **Possibilidade**: bulkheads por dependência no BFF, para um serviço lento não ocupar a vez dos outros.
 - **Onde**: o [laboratório do circuit breaker](../labs/circuit-breaker.md) e os timeouts do BFF.
@@ -154,14 +154,14 @@ Martin Kleppmann, *Designing Data-Intensive Applications* (2017), e a ideia de B
 
 - **Ganho**: cada leitura usa o banco que faz aquilo bem, e escala sem pesar na escrita.
 - **Custo**: a visão atrasa, e uma tela que mostra a visão logo depois da escrita pode mostrar o passado.
-- **Possibilidade**: reconstruir qualquer projeção do zero a partir do Kafka, como teste de que ela é mesmo derivada.
+- **Possibilidade**: testar a reconstrução de cada projeção com os eventos disponíveis, respeitando a retenção do Kafka.
 - **Onde**: [ADR 0012](../adr/0012-acid-writes-base-reads.md) e o capítulo [a natureza da informação](03-informacao.md).
 
 ## Fatos e CQRS
 
 Greg Young, que deu nome ao CQRS por volta de 2010: a informação de um negócio é uma sequência de fatos no passado, o estado atual é uma conta sobre eles, e decidir e ler podem usar modelos diferentes.
 
-- **Ganho**: cada leitura tem a forma da tela que a usa, e nenhum fato se perde para dar lugar a outro; um erro se corrige com um fato novo, como um estorno.
+- **Ganho**: cada leitura pode ter a forma da tela que a usa. Os eventos e o histórico de status registram as mudanças, e um estorno registra um novo fato.
 - **Custo**: dois modelos, o caminho entre eles, e o atraso da leitura. Fowler avisa que o padrão serve a partes específicas de um sistema, não ao sistema inteiro.
 - **Possibilidade**: event sourcing no pagamento, onde a história inteira (cobrança, webhook, conciliação, estorno) já é o que importa.
 - **Onde**: os eventos no passado, o histórico de status que só ganha linha nova, e as projeções da lista de pedidos, da linha do tempo e do rastreio.
@@ -233,7 +233,7 @@ Os *Principles of Chaos Engineering*, que o time da Netflix publicou em 2015: hi
 
 A LGPD (Lei 13.709/2018) pede, entre os princípios, que se use só o dado necessário; o *Privacy by Design* de Ann Cavoukian pede que a proteção seja o padrão, não um opcional.
 
-- **Ganho**: log, erro e dump não vazam nome, e-mail ou token por acidente, e o caminho do valor real fica visível no código.
+- **Ganho**: `Sensitive` fornece uma representação mascarada para logs, erros e dumps. O uso de `reveal()` deixa explícitos os pontos de acesso ao valor original.
 - **Custo**: um `reveal()` a mais em cada ponto de saída, e a disciplina de não burlar.
 - **Possibilidade**: criptografia no armazenamento e *crypto-shredding* para atender um pedido de exclusão sem reescrever eventos.
 - **Onde**: o [ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md).

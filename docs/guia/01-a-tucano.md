@@ -2,7 +2,7 @@
 
 ![O tucano levando uma encomenda pendurada no bico por uma trilha pontilhada, da loja de toldo listrado até uma casa de porta teal](../assets/guia/jornada.png)
 
-A Tucano é uma plataforma que hospeda lojas: a Arara Livros, a Bem-te-vi Eletrônicos e a Sabiá Casa e Esporte, cada uma com a sua marca e a sua vitrine. As lojas dividem o que é da plataforma, os centros de distribuição, o pagamento e a entrega, feita com a frota própria, a Tucano Express, ou com três transportadoras parceiras. O negócio é inventado; o problema, não. Um pedido atravessa estoque, pagamento, etiqueta, coleta, hubs e porta de casa, e em cada passagem de mão alguma coisa pode dar errado. Por isso escolhi esse domínio: ele é pequeno o bastante para caber na minha máquina e grande o bastante para ter todas as falhas que interessam.
+A Tucano é uma plataforma que hospeda lojas: a Arara Livros, a Bem-te-vi Eletrônicos e a Sabiá Casa e Esporte, cada uma com a sua marca e a sua vitrine. As lojas dividem o que é da plataforma, os centros de distribuição, o pagamento e a entrega, feita com a frota própria, a Tucano Express, ou com três transportadoras parceiras. O negócio é inventado; o problema, não. Um pedido atravessa estoque, pagamento, etiqueta, coleta, hubs e porta de casa, e em cada passagem de mão alguma coisa pode dar errado. Por isso escolhi esse domínio: ele é pequeno o bastante para caber na minha máquina e grande o bastante para explorar as falhas descritas nos laboratórios.
 
 ## Quem participa
 
@@ -45,15 +45,15 @@ Quando alguma peça falha no meio, os casos de uso "do relógio" põem ordem: a 
 
 ## Os casos de uso
 
-Escrevi cada caso de uso no formato de Alistair Cockburn: ator, objetivo, garantias mínimas e de sucesso, cenário principal e extensões. A [lista ator-objetivo](../use-cases/README.md) tem todos. O que mais me importa neles são as **garantias mínimas**: o que o sistema promete mesmo quando tudo dá errado. "Um pedido devolvido nunca fica com o pagamento" é uma frase de negócio, e ela está num caso de uso, num teste e numa transação.
+Escrevi cada caso de uso no formato de Alistair Cockburn: ator, objetivo, garantias mínimas e de sucesso, cenário principal e extensões. A [lista ator-objetivo](../use-cases/README.md) tem todos. O que mais me importa neles são as **garantias mínimas**: o que o sistema preserva nas falhas previstas em cada cenário. "Um pedido devolvido nunca fica com o pagamento" é uma frase de negócio, e ela está num caso de uso, num teste e numa transação.
 
 Do documento ao código o caminho é curto e verificado. Cada caso de uso vira um port de entrada com nome no estilo de Cockburn (`ForPlacingOrders`) e uma classe marcada com `#[UseCase('UC-ORD-01')]`, e um teste de arquitetura falha se uma classe marcada não tem ficha.
 
 ## Uma loja nunca vê a outra
 
-As lojas dividem os serviços, os bancos e os tópicos, e cada uma é uma coluna, `store`, em todo dado que é dela: produtos, pedidos, remessas, páginas de rastreio ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)). É o modelo de pool, o mais barato de operar e o que mais exige cuidado, porque um filtro esquecido vaza dados de uma loja para outra. Por isso cada serviço cobra o isolamento no próprio dado, e não confia em quem chama: um pedido de outra loja responde o mesmo 404 de um pedido que não existe.
+As lojas dividem os serviços, os bancos e os tópicos, e cada uma é uma coluna, `store`, em todo dado que é dela: produtos, pedidos, remessas, páginas de rastreio ([ADR 0031](../adr/0031-a-store-is-a-tenant.md)). É o modelo de pool: compartilhar recursos reduz o custo de infraestrutura, mas exige filtrar os dados por loja. Um filtro esquecido pode expor dados de outra loja. Por isso cada serviço cobra o isolamento no próprio dado, e não confia em quem chama: um pedido de outra loja responde o mesmo 404 de um pedido que não existe.
 
-A loja está no endereço, `/stores/sabia/...`, e o Kong dá a cada loja o seu serviço e o seu limite de requests. Uma loja em promoção gasta o limite dela, e a vizinha nem sente ([ADR 0032](../adr/0032-the-edge-per-store-limits-and-its-single-point.md)). O experimento `a-store-in-a-rush` mede isso: sem o limite, a Sabiá ficou várias vezes mais lenta enquanto a Arara lotava.
+A loja está no endereço, `/stores/sabia/...`, e o Kong dá a cada loja o seu serviço e o seu limite de requests. Uma loja em promoção gasta o próprio limite, o que reduz o impacto sobre as outras ([ADR 0032](../adr/0032-the-edge-per-store-limits-and-its-single-point.md)). O experimento `a-store-in-a-rush` mede isso: sem o limite, a Sabiá ficou várias vezes mais lenta enquanto a Arara lotava.
 
 ## O que ficou de fora, de propósito
 

@@ -15,9 +15,9 @@ Cada laboratório segue o mesmo roteiro, emprestado dos princípios de engenhari
 
 A diferença para a engenharia do caos de produção é o tamanho do estrago possível: aqui ele cabe na minha máquina, então eu posso ser mais agressivo e repetir quantas vezes quiser.
 
-## As três alavancas
+## Formas de injetar falhas
 
-| Alavanca | O que quebra | Como |
+| Mecanismo | O que quebra | Como |
 |---|---|---|
 | Toxiproxy | a rede entre um serviço e qualquer dependência dele: banco, Redis, Kafka, flagd, PSP, transportadora, e agora o BFF com cada serviço | `make proxies` lista; um `curl` na API dele põe latência, corta ou limita banda |
 | Flags `chaos.*` | comportamento dentro do serviço: atrasar o gateway de pagamento, pausar o relay da outbox ou o projetor dos pedidos, falhar parte das etiquetas | `make flag key=... variant=...`, pelo flagd, sem reiniciar nada; o `ProductionGuard` as desliga em produção |
@@ -55,7 +55,7 @@ A medição ensinou mais uma coisa. Na primeira versão, os compradores repetiam
 make experiment e=a-store-in-a-rush   # a Sabiá em 0,08 s enquanto a Arara lota
 ```
 
-E o experimento me mostrou um furo no próprio portão. Numa rodada, a Sabiá já começou lenta, a hipótese falhou antes mesmo da falha, e o Chaos Toolkit terminou dizendo `completed`, com código de saída 0. Com os rollbacks sempre ligados, é isso que a versão 1.21.1 faz, e o portão de estabilidade confiava no código de saída. Agora o veredito vem do diário: a execução tem que chegar ao fim, com a hipótese valendo antes e depois da falha.
+O experimento também revelou uma falha na verificação de estabilidade. Numa rodada, a Sabiá já começou lenta, a hipótese falhou antes mesmo da falha, e o Chaos Toolkit terminou dizendo `completed`, com código de saída 0. Com os rollbacks sempre ligados, é isso que a versão 1.21.1 faz, e a verificação de estabilidade confiava no código de saída. Agora o veredito vem do diário: a execução tem que chegar ao fim, com a hipótese valendo antes e depois da falha.
 
 ## A porta da web
 
@@ -83,7 +83,7 @@ O [mapa de modos de falha](../architecture/failure-modes.md) junta laboratórios
 
 - **Timeout em toda chamada.** A falha mais cara não é a que responde erro: é a que não responde.
 - **Desfecho desconhecido é o estado normal da rede.** Toda operação que cruza um fio pode ter dado certo sem eu saber. Idempotência de um lado e conciliação do outro transformam "não sei" em "já sei".
-- **Retry não é estratégia, é tática.** Tentar de novo resolve o que é passageiro; o que é permanente precisa de uma pessoa, e o sistema precisa avisar essa pessoa uma vez só.
-- **Conexão de longa duração é estado.** O PHP-FPM ganha resiliência de graça por começar do zero a cada request; um worker precisa merecer a dele.
+- **Retry não é estratégia, é tática.** Tentar de novo resolve o que é passageiro; o que é permanente precisa de uma pessoa, e o sistema precisa avisar essa pessoa sem repetir o alerta a cada rodada.
+- **Conexão de longa duração é estado.** O request do PHP-FPM recria o estado da aplicação; um worker precisa detectar a conexão perdida e refazê-la.
 
 Próximo capítulo: [abstrações que seguram a entropia](05-abstracoes.md).

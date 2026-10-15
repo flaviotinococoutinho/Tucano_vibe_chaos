@@ -1,8 +1,8 @@
 # Experimentos de caos
 
-Os [laboratórios](../docs/labs) contam o que eu quebrei e o que aprendi. Esta pasta transforma os mais importantes em **experimentos que rodam sozinhos**: cada um diz, antes de quebrar qualquer coisa, qual estado estável o sistema precisa manter, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final. Quem roda não precisa lembrar de nenhum `curl`, e o resultado não depende de alguém ter olhado para o lugar certo na hora certa.
+Os [laboratórios](../docs/labs) contam o que eu quebrei e o que aprendi. Esta pasta transforma os mais importantes em **experimentos que rodam sozinhos**: cada um diz, antes de quebrar qualquer coisa, qual estado estável o sistema precisa manter, provoca a falha, confere de novo com a falha ainda ativa e desfaz tudo no final. As ações e as sondas ficam registradas no experimento, e a execução grava o resultado.
 
-Eles seguem o formato do [Chaos Toolkit](https://chaostoolkit.org), a ferramenta aberta que virou referência para experimento de caos como código ([ADR 0025](../docs/adr/0025-chaos-experiments-as-code.md)).
+Eles seguem o formato do [Chaos Toolkit](https://chaostoolkit.org), uma ferramenta para executar experimentos de caos como código ([ADR 0025](../docs/adr/0025-chaos-experiments-as-code.md)).
 
 ## Rodando
 
@@ -13,11 +13,11 @@ make experiments                          # lista cada experimento e o estado es
 make experiment e=commerce-cut-from-the-web
 ```
 
-O `make experiment` roda o Chaos Toolkit num container com a versão fixa, na rede do compose, e guarda o diário da execução (`<nome>.json`) e o log (`<nome>.log`) em `chaos/results/`, fora do Git. Os rollbacks rodam sempre, até quando a hipótese falha: um experimento nunca deixa a stack quebrada para o próximo.
+O `make experiment` roda o Chaos Toolkit num container com a versão fixa, na rede do compose, e guarda o diário da execução (`<nome>.json`) e o log (`<nome>.log`) em `chaos/results/`, fora do Git. O comando configura os rollbacks para rodar também quando a hipótese falha. Eles removem as falhas injetadas e executam as etapas de recuperação descritas no experimento.
 
 O veredito vem do diário, não do código de saída do Chaos Toolkit. O `chaos run` sai com erro quando a hipótese desvia com a falha ativa, mas, com os rollbacks sempre ligados, ele sai com 0 e escreve `completed` quando a hipótese nem vale antes da falha, o caso de uma stack que já começa doente. Descobri isso medindo um experimento novo, que falhou na primeira conferência e passou verde. Agora o `make experiment` lê o diário e só aceita uma execução completa, com a hipótese valendo antes e depois da falha.
 
-## Como um experimento pensa
+## Etapas de um experimento
 
 ```mermaid
 flowchart LR
@@ -27,11 +27,11 @@ flowchart LR
 ```
 
 1. **O estado estável** é a hipótese, em sondas que respondem sim ou não. Ela é conferida antes da falha: se o sistema já está doente, não há o que concluir.
-2. **O método** provoca uma falha do mundo real, pela mesma alavanca que um laboratório usaria: um toxic no Toxiproxy, um corte de rede, um controle de caos do partners-sim.
+2. **O método** provoca uma falha do mundo real, com o mesmo mecanismo usado no laboratório: um toxic no Toxiproxy, um corte de rede, um controle de caos do partners-sim.
 3. **O estado estável de novo**, com a falha ainda ativa. É aqui que o experimento dá o veredito: a hipótese se manteve ou o sistema se desviou.
 4. **Os rollbacks** tiram a falha e devolvem o estado estável, não só a configuração de antes. O `psp-slow` espera 25 s depois de tirar a latência: o circuito que ele abriu fica aberto 20 s depois que o PSP volta, e o experimento seguinte encontraria o sistema ainda se recuperando. Foi o `lost-psp-webhooks` que acusou isso, recusando começar com o pagamento ainda em `503`.
 
-As sondas compram na Sabiá, a loja que vende a caneca, do jeito que a web compra: abrem as telas do BFF e seguem os links e as ações que vêm nelas, sem montar nenhum endereço além da entrada da loja e do checkout. Cada sonda guarda, com o pedido que acompanha, a sessão que o comprou, porque só ela o abre ([ADR 0030](../docs/adr/0030-each-customer-sees-only-its-orders.md)). Elas pagam com o cartão de teste recusado, então cada pedido cancela e devolve o estoque, e dá para rodar os experimentos o dia inteiro sem esvaziar prateleira nenhuma. As exceções são os dois experimentos do rastreio, que precisam de uma encomenda coletada: cada execução compra e entrega uma caneca, de um estoque de 200.
+As sondas compram na Sabiá, a loja que vende a caneca, do jeito que a web compra: abrem as telas do BFF e seguem os links e as ações que vêm nelas, sem montar nenhum endereço além da entrada da loja e do checkout. Cada sonda guarda, com o pedido que acompanha, a sessão que o comprou, porque só ela o abre ([ADR 0030](../docs/adr/0030-each-customer-sees-only-its-orders.md)). Elas pagam com o cartão de teste recusado, então cada pedido cancela e devolve o estoque, e dá para rodar os experimentos o dia inteiro sem esvaziar prateleira nenhuma. Os experimentos de rastreio são exceções, pois precisam de uma encomenda coletada: cada execução compra e entrega uma caneca, de um estoque de 200.
 
 ## Os experimentos
 
@@ -59,7 +59,7 @@ Um experimento é um JSON em `experiments/`, no formato do Chaos Toolkit:
 - `rollbacks`: o caminho de volta de cada falha do método, na ordem inversa.
 - Os endereços vêm do ambiente (`TOXIPROXY_URL`, `PARTNERS_SIM_URL` e `TUCANO_STORE`), com os padrões da rede do compose, então o mesmo experimento roda de dentro de um container ou do Mac.
 
-Antes de abrir o PR, `make experiment e=<nome>` contra a stack, e o CI confere que todo experimento é válido para o Chaos Toolkit. Um experimento novo entra sozinho no portão da `main`: o workflow `stability` sobe a stack num runner limpo e roda todos os experimentos da pasta em cada PR para a `main` e toda segunda-feira, e um desvio reprova a release ([ADR 0029](../docs/adr/0029-no-release-without-the-experiments.md)).
+Antes de abrir o PR, execute `make experiment e=<nome>` contra a stack. O CI confere o formato de cada experimento. A validação de estabilidade da `main` inclui os experimentos novos: o workflow `stability` sobe a stack num runner limpo e roda todos os experimentos da pasta em cada PR para a `main` e toda segunda-feira, e um desvio reprova a release ([ADR 0029](../docs/adr/0029-no-release-without-the-experiments.md)).
 
 ## O que eles não provam
 

@@ -62,8 +62,8 @@ Decidi que uma cobrança sumida tem prazo. Ela ganha uma janela para aparecer, p
 
 ## O que eu levo para a entrevista
 
-- Timeout não é falha, é desfecho desconhecido: o pagamento fica pendente, e alguém precisa perguntar depois.
-- Webhook é at-least-once e pode nunca chegar. A conciliação é o lado pull, e os dois caminhos convergem no mesmo caso de uso idempotente.
+- Um timeout não informa se a cobrança foi concluída: o pagamento fica pendente, e alguém precisa perguntar depois.
+- O parceiro pode reenviar um webhook, mas as tentativas podem se esgotar sem entrega. A conciliação é o lado pull, e os dois caminhos convergem no mesmo caso de uso idempotente.
 - A consulta usa a referência do lojista, não o id do PSP, porque o id viaja na resposta que pode ter se perdido.
 - Desistir de um pagamento não impede a cobrança tardia: o sistema precisa aceitar a palavra tardia do PSP e devolver o dinheiro.
 - Em produção eu somaria a conciliação diária pelo relatório de liquidação do PSP, que pega até o que a consulta não enxerga.

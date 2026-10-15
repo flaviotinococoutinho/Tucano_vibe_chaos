@@ -35,7 +35,7 @@ Toda chamada leva um fallback. Se o flagd cair ou a flag não existir, o serviç
 
 | Runtime | Cache | Por quê |
 |---|---|---|
-| PHP-FPM | `ApcuFlagCache` | a memória do processo morre a cada request; o APCu é compartilhado pelos filhos do pool |
+| PHP-FPM | `ApcuFlagCache` | o estado da requisição não persiste entre requests; o APCu é compartilhado pelos filhos do pool |
 | CLI (consumers, relay) e Swoole | `InMemoryFlagCache` | o processo vive muito, então a memória dele já basta |
 
 ## Testes

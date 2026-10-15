@@ -11,7 +11,7 @@
 
 - **Cliente que não pagou**: nada a perder; o pedido some da lista de pendências.
 - **Outros clientes**: o estoque preso por quem desistiu volta para venda.
-- **Tucano**: não segurar estoque de graça e não cancelar pedido que acabou de ser pago.
+- **Tucano**: liberar as reservas vencidas e preservar os pedidos já pagos.
 
 ## Pré-condições
 

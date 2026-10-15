@@ -4,7 +4,7 @@ Um projeto de estudo só vale numa conversa se couber no tempo da conversa. Este
 
 ## Em um minuto
 
-> Passei um tempo usando mais Java, Kotlin e os frameworks em volta deles, e montei a Tucano, um e-commerce com entrega própria, para reencontrar o PHP e o Node que eu conhecia de perto e ver o quanto eles evoluíram junto com as ferramentas que atravessam qualquer linguagem. São seis serviços num Docker Compose, conversando por Kafka com outbox e inbox, com PostgreSQL para escrever e MongoDB e DynamoDB para ler. A web é um intérprete de telas: o BFF manda cada tela em hipermídia, e o fluxo inteiro mora no servidor. E eu quebro tudo de propósito: o Toxiproxy fica entre cada serviço e cada dependência, os parceiros são simulados e aceitam comandos de caos, e cada laboratório conta o que mudou no código depois que a realidade discordou de mim. Seis experimentos de caos rodam com um comando, e um deles pegou um bug enquanto eu escrevia a documentação.
+> Passei um tempo usando mais Java, Kotlin e os frameworks em volta deles, e montei a Tucano, um e-commerce com entrega própria, para reencontrar o PHP e o Node que eu conhecia de perto e ver o quanto eles evoluíram junto com as ferramentas que atravessam qualquer linguagem. São seis serviços num Docker Compose, conversando por Kafka com outbox e inbox, com PostgreSQL para escrever e MongoDB e DynamoDB para ler. A web é um intérprete de telas: o BFF manda cada tela em hipermídia, e o fluxo inteiro mora no servidor. E eu quebro tudo de propósito: o Toxiproxy fica entre cada serviço e cada dependência, os parceiros são simulados e aceitam comandos de caos, e cada laboratório conta o que mudou no código depois que a realidade discordou de mim. Os experimentos de caos rodam com um comando, e um deles pegou um bug enquanto eu escrevia a documentação.
 
 ## Uma demo de três minutos
 
@@ -18,12 +18,12 @@ open http://localhost:8000                # a loja
 3. Troco de perfil no topo e crio o Bruno. "Meus pedidos" dele está vazio, e a URL de um pedido da Ana responde "Não encontrado". Volto para a Ana, e os pedidos dela estão lá. Depois abro o mesmo pedido pelo caminho da Sabiá: "Não encontrado" de novo, porque ele é da Arara.
 4. Rodo `make experiment e=a-store-in-a-rush`: quarenta compradores lotam a Arara, e a Sabiá segue abrindo em menos de 0,1 s, porque cada loja gasta o próprio limite no Kong.
 5. Rodo `make experiment e=commerce-cut-from-the-web`. O experimento diz a hipótese antes de quebrar qualquer coisa, corta o commerce da web, confere a tela do pedido (503 dizendo quando tentar de novo) e o catálogo (continua abrindo), e desfaz tudo no final.
-6. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 mudo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
+6. Conto a história do `commerce-database-out`: eu ia escrever que a loja recusa com honestidade quando o banco cai, medi antes, e ela respondia um 500 sem orientação para tentar de novo. O experimento pegou, a correção virou o [ADR 0026](../adr/0026-a-database-outage-is-unavailability.md).
 7. Mostro os logs: o `correlation_id` que o Kong carimbou no request aparece no BFF, no commerce e, pelo evento, no consumidor da logistics.
 
 ## Numa conversa técnica longa
 
-Eu escolho o fio pela pessoa do outro lado:
+Eu escolho o assunto conforme a conversa:
 
 | Se a conversa é sobre | Eu começo por | E aprofundo em |
 |---|---|---|
@@ -51,7 +51,7 @@ Eu escolho o fio pela pessoa do outro lado:
 | Como você faz multi-tenancy? | modelo de pool: serviços, bancos e tópicos compartilhados, com a loja em todo dado que é dela; cada serviço cobra o isolamento no próprio dado, e o Kong dá a cada loja o seu limite | [ADR 0031](../adr/0031-a-store-is-a-tenant.md) e [ADR 0032](../adr/0032-the-edge-per-store-limits-and-its-single-point.md) |
 | Como um cliente não vê o pedido do outro? | a sessão é assinada pelo BFF, o commerce filtra cada leitura pelo cliente e responde o mesmo 404 para um pedido alheio, e a borda só alcança as rotas públicas do commerce, por uma porta do nginx que não serve as do cliente | [ADR 0030](../adr/0030-each-customer-sees-only-its-orders.md) |
 | Como você muda um contrato de evento sem quebrar ninguém? | mudança compatível no mesmo tópico, incompatível num tópico novo (`v2`) | [ADR 0010](../adr/0010-cloudevents-contracts.md) |
-| Como você impede a arquitetura de apodrecer? | cada regra importante é um teste que quebra o build | [abstrações](05-abstracoes.md) |
+| Como você verifica as regras de arquitetura? | as fitness functions verificam dependências, contratos e convenções no build | [abstrações](05-abstracoes.md) |
 | Por que hipermídia e não GraphQL? | o fluxo fica no servidor e a web não precisa saber a ordem das telas | [ADR 0023](../adr/0023-server-driven-ui-with-siren.md) |
 | Como você lida com a LGPD? | dado pessoal num proxy que se imprime mascarado, e minimização no que circula | [ADR 0024](../adr/0024-sensitive-data-behind-a-proxy.md) |
 | O que você faria diferente num sistema de verdade? | um provedor de identidade no lugar dos perfis sem senha, OpenTelemetry no lugar do correlation id caseiro, CDC no lugar do relay, criptografia no armazenamento de dado pessoal, bulkheads no BFF | as possibilidades do capítulo [conceitos](06-conceitos.md) |

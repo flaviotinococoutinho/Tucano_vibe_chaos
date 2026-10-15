@@ -1,6 +1,6 @@
 # Setup com Ansible
 
-Um playbook que prepara a máquina para o laboratório e sobe a stack: confere o disco e a memória, instala o que falta, liga a VM do Docker, escreve o `.env` e roda o `make up` até tudo ficar saudável. Ele é idempotente: numa máquina pronta, não muda nada, e posso rodar de novo sem medo.
+Um playbook que prepara a máquina para o laboratório e sobe a stack: confere o disco e a memória, instala o que falta, liga a VM do Docker, escreve o `.env` e roda o `make up` até tudo ficar saudável. As tarefas verificam o estado existente antes de aplicar mudanças. Uma nova execução ainda pode construir imagens, subir serviços e repetir os checks.
 
 ```bash
 brew install ansible          # no Mac; no Linux, pipx install --include-deps ansible
@@ -61,5 +61,5 @@ As variáveis de cada serviço estão na [referência de configuração](../../d
 ## Como é testado
 
 - No CI, o `ansible-lint` roda no perfil `production`, e a parte da máquina do setup (`preflight`, `toolchain`, `runtime` e `project`) roda de verdade num Ubuntu limpo.
-- O workflow `setup` (manual, em Actions) roda o playbook inteiro num runner limpo: instala, sobe as dezenas de containers e confere a saúde de cada serviço. É a prova de que alguém com uma máquina nova chega à stack no ar com um comando.
+- O workflow `setup` (manual, em Actions) roda o playbook inteiro num runner limpo: instala, sobe as dezenas de containers e confere a saúde de cada serviço. Esse workflow verifica o procedimento completo no ambiente do runner.
 - No meu Mac, rodo o `--check --diff` antes de mexer no playbook.

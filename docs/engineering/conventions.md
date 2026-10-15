@@ -1,6 +1,6 @@
 # Convenções de engenharia
 
-Escrevi estas convenções para manter a **integridade conceitual** do projeto (Fred Brooks): são cinco runtimes, mas um só jeito de organizar, nomear e integrar. Quando uma convenção atrapalha, a mudança é feita aqui, com um ADR, e não como exceção silenciosa no código.
+Escrevi estas convenções para manter a **integridade conceitual** do projeto (Fred Brooks): o projeto usa vários runtimes com convenções comuns para organizar, nomear e integrar. Quando uma convenção atrapalha, a mudança é feita aqui, com um ADR, e não como exceção silenciosa no código.
 
 ## Idioma
 
@@ -46,7 +46,7 @@ src/Shipping/
 - Casos de uso têm nome de ação (`PlaceOrder`, `ConfirmDelivery`); eventos ficam no passado (`OrderPlaced`, `ShipmentDelivered`).
 - Todo caso de uso carrega `#[UseCase('UC-XXX-00')]` e tem ficha em `docs/use-cases/`. Um teste de arquitetura garante isso.
 - O domínio e a aplicação não conhecem framework, banco, HTTP, feature flag nem SDK de fornecedor (AWS, MongoDB, Guzzle, Ramsey). Tudo isso mora nos adapters, e o Deptrac quebra o build se alguém tentar (camada `Vendor`, ADR 0022). Até o id dos eventos vem do shared kernel (`EventId`), e não da biblioteca que o gera.
-- Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O teste `PackagesMeetThroughTheirFacadesTest` cobra isso: o núcleo de um pacote não conhece outro pacote, e nenhum pacote toca os adapters de outro. Quando um pacote oferece algo às rotas de outro, ele publica um nome de capacidade (o middleware `reserves-stock` do Inventory), e não a classe. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Assim, se o outro pacote virar um serviço, só o adapter muda.
+- Um pacote chama outro pelo port de entrada dele, sempre por um adapter do lado de quem chama. O teste `PackagesMeetThroughTheirFacadesTest` cobra isso: o núcleo de um pacote não conhece outro pacote, e nenhum pacote toca os adapters de outro. Quando um pacote oferece algo às rotas de outro, ele publica um nome de capacidade (o middleware `reserves-stock` do Inventory), e não a classe. O adapter traduz nos dois sentidos: manda valores simples e devolve as recusas do outro lado como erro do próprio pacote, com a mesma mensagem e a mesma categoria (`StockNotReserved` no Ordering, `NoCarrierChosen` no Shipping). Essa separação evita que o núcleo dependa das classes internas do outro pacote. Uma futura separação em serviços ainda exige tratar contratos, rede e transações.
 - Nada de `Manager`, `Helper`, `Util` ou abreviações.
 
 ### Criar objetos: construtores nomeados, builders e domínio rico
@@ -56,7 +56,7 @@ src/Shipping/
   - `from...(...)` converte de outra representação: `fromString`, `fromArray`, `fromJson`, `fromSnapshot`. Os enums já trazem `from` e `tryFrom`.
   - Um verbo do negócio quando criar é um fato do domínio: `Order::place(...)`, `Shipment::create(...)`, `Division::state(BrazilianState::MG)`, `ShippingLabel::storedAt(...)`.
 - **`to...()` na saída**, simétrico ao `from...`: `toArray()`, `toJson()`, `toSnapshot()`, `toInt()`, `toBase32()`. O `jsonSerialize()` só repassa o `toArray()`.
-- **Builder quando o objeto tem muitas partes ou partes opcionais.** O builder é mutável e fluente, recebe as partes na ordem em que as pessoas falam e valida o todo no `build()`, que devolve o objeto imutável (o Builder de Joshua Bloch). A mutabilidade fica no andaime, nunca no objeto pronto:
+- **Builder quando o objeto tem muitas partes ou partes opcionais.** O builder é mutável e fluente, recebe as partes e valida o conjunto no `build()`. O método devolve o objeto imutável, como no Builder de Joshua Bloch:
 
   ```php
   $address = Address::builder()

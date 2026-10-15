@@ -61,6 +61,6 @@ O alerta não se repete a cada rodada: as mesmas cinco só voltam depois de 4 h,
 ## O que levo disso
 
 - Entrega em ordem e perda de mensagem, juntas, param o fluxo inteiro, e não só o evento perdido. Quem exige ordem precisa de um jeito de buscar o que falta.
-- O empurrão (webhook) é rápido e o puxão (histórico) é certo. Com a inbox, os dois podem chegar ao mesmo passo sem aplicar nada duas vezes.
+- O webhook informa a mudança e a consulta ao histórico recupera eventos que não chegaram. Com a inbox, os dois caminhos reconhecem um passo já aplicado.
 - Um passo opcional muda a leitura de "fora de ordem": o que veio depois dele pode já ter passado, e aí o certo é ignorar, não recusar.
-- Retry, inbox e conciliação curam quase tudo, mas não curam o que sumiu do outro lado. O que sobra vira uma leitura analítica com alerta, e o alerta só é útil se não repetir a mesma notícia a cada rodada.
+- Retry, inbox e conciliação não recuperam um evento que o parceiro já removeu do histórico. O que sobra vira uma leitura analítica com alerta, e o alerta só é útil se não repetir a mesma notícia a cada rodada.

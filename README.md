@@ -2,23 +2,23 @@
   <img src="docs/assets/banner.png" alt="O tucano da Tucano pulando o vão de uma pedra que falta num rio, com uma encomenda pendurada no bico" width="100%">
 </p>
 
-# chaos_playground
+# Tucano: laboratório de sistemas distribuídos
 
-[![ci](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/flaviotinococoutinho/chaos_playground/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/flaviotinococoutinho/chaos_playground?color=F28C28)](https://github.com/flaviotinococoutinho/chaos_playground/releases)
+[![ci](https://github.com/flaviotinococoutinho/Tucano_vibe_chaos/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/flaviotinococoutinho/Tucano_vibe_chaos/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/flaviotinococoutinho/Tucano_vibe_chaos?color=F28C28)](https://github.com/flaviotinococoutinho/Tucano_vibe_chaos/releases)
 [![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-138A8A)](LICENSE)
 
-Uma loja de verdade, feita para ser quebrada de propósito. A **Tucano** é um e-commerce fictício com entrega própria, a Tucano Express, e este repositório é o laboratório onde eu construo esse sistema do jeito que construiria no trabalho, para depois derrubar um banco, deixar o PSP lento ou sumir com um webhook, e medir o que a pessoa do outro lado sente.
+A Tucano é um e-commerce fictício com entrega própria, a Tucano Express. Este laboratório reúne PHP, Node.js e sistemas de mensageria para estudar falhas de banco, latência do provedor de pagamento e perda de webhooks. Os experimentos medem os efeitos dessas falhas no pedido e na experiência do comprador.
 
 Passei um tempo usando mais stacks como Java, Kotlin e os frameworks derivados deles. Este projeto é o meu reencontro com uma tecnologia com que eu tinha muita familiaridade, o PHP, e com o Node: sentir de novo o tato delas e ver o quanto evoluíram, principalmente quando se juntam às soluções transversais que hoje atravessam qualquer linguagem, como Kafka, Kong, Toxiproxy, OpenFeature e CloudEvents.
 
-## Em três perguntas
+## Fluxo disponível
 
-### O que isso faz?
+O comprador escolhe uma loja, paga com um cartão de teste e acompanha a entrega na página do pedido. A frota própria também publica a posição do entregador em tempo real. Os perfis de cliente consultam "Meus pedidos" no contexto da loja selecionada.
 
-Você abre a Tucano, escolhe uma das três lojas que ela hospeda (a Arara Livros, a Bem-te-vi Eletrônicos e a Sabiá Casa e Esporte, cada uma com a sua marca), paga com um cartão de teste e acompanha a entrega até a porta de casa, em menos de um minuto, sem recarregar a página. A tela do pedido conta a história dele, do pagamento à porta, e quando a encomenda sai com a frota própria, dá para ver o entregador chegando, ao vivo. Cada perfil de cliente acha os próprios pedidos em "Meus pedidos" de cada loja, e nada atravessa a fronteira: nem um perfil vê os pedidos de outro, nem uma loja os de outra. Por trás disso, seis serviços em PHP e Node conversam por Kafka, um PSP e três transportadoras simulados respondem por webhook, e o Toxiproxy fica no meio de cada fio, pronto para cortar qualquer um deles. E os experimentos de caos rodam com um comando e dizem, com números, se o sistema aguentou.
+Os serviços PHP e Node.js trocam eventos pelo Kafka. O provedor de pagamento e as transportadoras são simulados e respondem por webhook. O Toxiproxy permite injetar falhas nas conexões com as dependências. Os experimentos de caos verificam hipóteses antes e durante a falha.
 
-### Por onde eu começo?
+## Escolher um caminho de leitura
 
 | Se você quer | Comece por |
 |---|---|
@@ -27,15 +27,15 @@ Você abre a Tucano, escolhe uma das três lojas que ela hospeda (a Arara Livros
 | ver o caos | `make experiment e=commerce-database-out`, o experimento que pegou um bug enquanto eu escrevia a documentação |
 | conversar sobre o projeto | o [roteiro de apresentação](docs/guia/08-como-apresentar.md), do pitch de um minuto à conversa técnica longa |
 
-### Por que foi feito assim?
+## Decisões e verificações
 
-Porque cada escolha tem um porquê escrito, com o ganho e o custo, num [ADR](docs/adr/README.md). Três ideias atravessam tudo:
+Os [ADRs](docs/adr/README.md) registram motivos, alternativas e custos das decisões. O projeto aplica estes critérios:
 
-- **Nada de bala de prata.** Quando uma decisão parece de graça, eu ainda não entendi o que ela cobra.
+- Registre o benefício e o custo de cada decisão.
 - **Integridade conceitual.** O mesmo problema tem a mesma solução em todo lugar: um jeito de errar (RFC 9457), um jeito de publicar evento (outbox), um jeito de chamar outro contexto (port e adapter).
-- **O que importa, um computador confere.** Direção das dependências, fronteiras entre pacotes, contratos, configuração, onde um dado pessoal pode aparecer e até as hipóteses de resiliência: cada regra é um teste ou um experimento que quebra quando alguém a quebra.
+- Verifique as regras automatizáveis com testes e experimentos. Os checks cobrem dependências, fronteiras entre pacotes, contratos, configuração, exposição de dados pessoais e hipóteses de resiliência.
 
-O [guia](docs/guia/README.md) conta a história inteira como um passeio, em capítulos que cabem numa leitura de café.
+O [guia](docs/guia/README.md) explica o domínio, as decisões e os resultados dos experimentos.
 
 ## As lojas
 
@@ -86,22 +86,23 @@ Em volta deles: Kong na frente de tudo; Kafka com ZooKeeper entre os contextos; 
 
 ## Subindo
 
-Numa máquina nova, o Ansible faz tudo: confere o disco e a memória, instala o Colima, o Docker e o que mais faltar, liga a VM e sobe a stack até os health checks passarem.
+Em macOS, Debian ou Ubuntu compatíveis com os papéis do playbook, o Ansible prepara o ambiente. O playbook confere disco e memória, instala as ferramentas ausentes, inicia o runtime de containers e sobe a stack até os health checks passarem.
 
 ```bash
 brew install ansible     # no Linux: pipx install --include-deps ansible
 make setup
 ```
 
-Com o Docker já pronto (uma VM de 4 CPUs e 4 GB basta), são dois comandos:
+Com Docker e Compose v2 disponíveis, execute os comandos abaixo. A configuração do laboratório usa uma VM de 4 CPUs e 4 GB; confira os recursos com `make doctor`.
 
 ```bash
 make doctor              # confere o disco do Mac, a memória e as CPUs da VM
 make up                  # constrói o que falta, sobe e espera tudo ficar saudável
-open http://localhost:8000
 ```
 
-A primeira vez demora, porque as imagens do PHP compilam extensões. Depois, a stack sobe do zero em uns 20 segundos. Deixe pelo menos 10 GB livres no disco: no Mac, o disco da VM cresce dentro dele, e aprendi do jeito difícil o que acontece quando ele enche (o [setup com Ansible](infra/ansible/README.md) conta a história).
+Quando os health checks passarem, abra `http://localhost:8000` no navegador.
+
+A primeira vez demora, porque as imagens do PHP compilam extensões. O tempo das execuções seguintes depende do cache, do disco e dos recursos disponíveis. Deixe pelo menos 10 GB livres no disco: no Mac, o disco da VM cresce dentro dele, e aprendi do jeito difícil o que acontece quando ele enche (o [setup com Ansible](infra/ansible/README.md) conta a história).
 
 ## Um pedido do começo ao fim
 
@@ -170,7 +171,7 @@ Cada um provoca uma falha de propósito, mede o que acontece e conta o que mudou
 | [Circuit breaker](docs/labs/circuit-breaker.md) | o PSP fica lento, e o checkout precisa continuar respondendo |
 | [Conciliação de pagamentos](docs/labs/payment-reconciliation.md) | webhooks descartados e cobranças que somem no PSP |
 | [Banco fora do ar](docs/labs/database-outage.md) | o PostgreSQL cai com consumers e o relay da outbox no meio do trabalho |
-| [Fila de etiquetas](docs/labs/label-queue.md) | o bucket falha, e o job tenta de novo até desistir com dignidade |
+| [Fila de etiquetas](docs/labs/label-queue.md) | o bucket falha, e o job repete as tentativas e encaminha a falha após atingir o limite |
 | [Webhooks perdidos](docs/labs/lost-carrier-events.md) | a transportadora derruba avisos, e as remessas travam no meio da jornada |
 
 As ferramentas do caos são o Toxiproxy (`make proxies`) para latência e cortes de rede, as flags `chaos.*` (`make flag key=... variant=...`) para falhas dentro dos serviços, e a API `/_chaos` do partners-sim para o PSP e as transportadoras.
